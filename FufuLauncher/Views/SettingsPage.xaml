@@ -271,13 +271,13 @@
                 
                 <TextBlock Text="关于" Style="{ThemeResource SubtitleTextBlockStyle}" />
                 <StackPanel Margin="0,12,0,0">
-                    <HyperlinkButton Margin="-12,4,0,0">
+                    <HyperlinkButton Margin="-12,4,0,0" NavigateUri="https://github.com/CodeCubist/FufuLauncher">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock VerticalAlignment="Center" FontFamily="ms-appx:///Assets/Fonts/icomoon.ttf#icomoon" FontSize="18" Text="&#xe900;" />
                             <TextBlock Margin="5,0,0,0" VerticalAlignment="Center" Text="芙芙启动器 1.0.2" />
                         </StackPanel>
                     </HyperlinkButton>
-                    <HyperlinkButton Margin="-12,4,0,0">
+                    <HyperlinkButton Margin="-12,4,0,0" NavigateUri="https://github.com/CodeCubist">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock VerticalAlignment="Center" FontFamily="ms-appx:///Assets/Fonts/icomoon.ttf#icomoon" FontSize="18" Text="&#xe901;" />
                             <TextBlock Margin="5,0,0,0" VerticalAlignment="Center" Text="CodeCubist" />
