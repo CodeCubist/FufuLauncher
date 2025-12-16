@@ -351,7 +351,7 @@ namespace FufuLauncher.ViewModels
             }
         }
 
-        public bool IsInjectionToggleEnabled => IsAdministrator;
+        public bool IsInjectionToggleEnabled => true;
 
         public void Cleanup()
         {

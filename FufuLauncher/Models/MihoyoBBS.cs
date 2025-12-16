@@ -149,10 +149,10 @@ namespace MihoyoBBS
         {
             get;
             set;
-        }
+        } = "";
 
         [JsonPropertyName("data")]
-        public T Data
+        public T? Data
         {
             get;
             set;
@@ -166,7 +166,7 @@ namespace MihoyoBBS
         {
             get;
             set;
-        }
+        } = new List<RewardItem>();
     }
 
     public class IsSignData
@@ -183,7 +183,7 @@ namespace MihoyoBBS
         {
             get;
             set;
-        }
+        } = "";
 
         [JsonPropertyName("is_sign")]
         public bool IsSign
@@ -207,7 +207,7 @@ namespace MihoyoBBS
         {
             get;
             set;
-        }
+        } = new List<AccountItem>();
     }
 
     public class RewardItem
@@ -217,7 +217,7 @@ namespace MihoyoBBS
         {
             get;
             set;
-        }
+        } = "";
 
         [JsonPropertyName("cnt")]
         public int Count
@@ -234,21 +234,21 @@ namespace MihoyoBBS
         {
             get;
             set;
-        }
+        } = "";
 
         [JsonPropertyName("game_uid")]
         public string GameUid
         {
             get;
             set;
-        }
+        } = "";
 
         [JsonPropertyName("region")]
         public string Region
         {
             get;
             set;
-        }
+        } = "";
     }
 
     public class SignResponseData
@@ -265,14 +265,14 @@ namespace MihoyoBBS
         {
             get;
             set;
-        }
+        } = "";
 
         [JsonPropertyName("challenge")]
         public string Challenge
         {
             get;
             set;
-        }
+        } = "";
     }
 
     public static class Tools
@@ -518,7 +518,7 @@ namespace MihoyoBBS
             return new List<RewardItem>();
         }
 
-        public async Task<IsSignData> IsSignAsync(string region, string uid, bool update = false)
+        public async Task<IsSignData?> IsSignAsync(string region, string uid, bool update = false)
         {
             try
             {
@@ -557,11 +557,11 @@ namespace MihoyoBBS
             }
         }
 
-        protected async Task<HttpResponseMessage> CheckIn(AccountItem account)
+        protected async Task<HttpResponseMessage?> CheckIn(AccountItem account)
         {
             var header = new Dictionary<string, string>(Headers);
             var retries = 3;
-            HttpResponseMessage result = null;
+            HttpResponseMessage? result = null;
 
             for (int i = 1; i <= retries + 1; i++)
             {
@@ -880,7 +880,7 @@ namespace MihoyoBBS
                 Console.ReadKey();
             }
 
-            static Config LoadConfig()
+            static Config? LoadConfig()
             {
                 try
                 {

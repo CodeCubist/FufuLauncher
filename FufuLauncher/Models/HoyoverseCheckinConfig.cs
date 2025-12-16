@@ -84,7 +84,7 @@ public class ApiResponse<T>
     public string Message { get; set; } = "";
 
     [JsonPropertyName("data")]
-    public T Data { get; set; }
+    public T? Data { get; set; }
 }
 
 public class CheckinRewardsData

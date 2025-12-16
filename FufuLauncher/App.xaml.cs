@@ -111,6 +111,10 @@ public partial class App : Application
                 services.AddSingleton<INotificationService, NotificationService>();
                 services.AddTransient<CalculatorViewModel>();
                 services.AddTransient<CalculatorPage>();
+                
+                services.AddSingleton<ControlPanelModel>();
+                services.AddTransient<PanelPage>();
+
                 services.Configure<LocalSettingsOptions>(context.Configuration.GetSection(nameof(LocalSettingsOptions)));
             })
             .Build();

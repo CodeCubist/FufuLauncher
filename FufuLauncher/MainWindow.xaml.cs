@@ -29,7 +29,14 @@ public sealed partial class MainWindow : WindowEx
     {
         InitializeComponent();
 
-        AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets/WindowIcon.ico"));
+        try
+        {
+            AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets/WindowIcon.ico"));
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Failed to set window icon: {ex.Message}");
+        }
     
         var localizedTitle = "AppDisplayName".GetLocalized();
         Title = string.IsNullOrWhiteSpace(localizedTitle) ? "芙芙启动器" : localizedTitle;
@@ -78,7 +85,7 @@ public sealed partial class MainWindow : WindowEx
             this.SetTitleBar(AppTitleBar);
         
             TitleBarIcon.Source = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage(
-                new Uri("ms-appx:///Assets/WindowIcon.ico"));
+                new Uri("ms-appx:///Assets/Square44x44Logo.targetsize-24.png"));
 
             UpdateTitleBarWithAdminStatus();
         }
@@ -234,6 +241,7 @@ public sealed partial class MainWindow : WindowEx
         {
             "FufuLauncher.ViewModels.MainViewModel" => typeof(Views.MainPage),
             "FufuLauncher.ViewModels.BlankViewModel" => typeof(Views.BlankPage),
+            "FufuLauncher.ViewModels.ControlPanelModel" => typeof(Views.PanelPage),
             "FufuLauncher.ViewModels.SettingsViewModel" => typeof(Views.SettingsPage),
             "FufuLauncher.ViewModels.AccountViewModel" => typeof(Views.AccountPage),
             "FufuLauncher.ViewModels.OtherViewModel" => typeof(Views.OtherPage),

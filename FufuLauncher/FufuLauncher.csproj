@@ -63,6 +63,11 @@
         <ProjectReference Include="..\FufuLauncher.Core\FufuLauncher.Core.csproj" />
     </ItemGroup>
     <ItemGroup>
+        <Content Include="Assets\**">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+    </ItemGroup>
+    <ItemGroup>
         <None Update="appsettings.json">
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </None>

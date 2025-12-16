@@ -57,10 +57,10 @@ namespace FufuLauncher.ViewModels
         [ObservableProperty] private string _launchArgsWidth = "1920";
         [ObservableProperty] private string _launchArgsHeight = "1080";
         [ObservableProperty] private string _launchArgsPreview = "";
-        [ObservableProperty] private string _customBackgroundPath;
+        [ObservableProperty] private string? _customBackgroundPath;
         [ObservableProperty] private bool _hasCustomBackground;
         [ObservableProperty] 
-        private string _backgroundCacheFolderPath;
+        private string? _backgroundCacheFolderPath;
         [ObservableProperty] 
         private bool _isShortTermSupportEnabled;
 
@@ -75,7 +75,7 @@ namespace FufuLauncher.ViewModels
         private bool _isInitializing = false;
 
         [ObservableProperty] private bool _isStartupSoundEnabled;
-        [ObservableProperty] private string _startupSoundPath;
+        [ObservableProperty] private string? _startupSoundPath;
         [ObservableProperty] private bool _hasCustomStartupSound;
 
         public IAsyncRelayCommand SelectStartupSoundCommand { get; }
@@ -168,12 +168,15 @@ namespace FufuLauncher.ViewModels
 
                 await backgroundCacheFolder.GetFilesAsync();
 
-                Process.Start(new ProcessStartInfo
+                if (backgroundCacheFolder.Path != null)
                 {
-                    FileName = backgroundCacheFolder.Path,
-                    UseShellExecute = true,
-                    Verb = "open"
-                });
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = backgroundCacheFolder.Path,
+                        UseShellExecute = true,
+                        Verb = "open"
+                    });
+                }
             }
             catch (Exception ex)
             {

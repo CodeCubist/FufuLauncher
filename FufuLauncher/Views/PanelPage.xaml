@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="FufuLauncher.Views.PanelPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:viewmodels="using:FufuLauncher.ViewModels"
+    d:DataContext="{d:DesignInstance Type=viewmodels:ControlPanelModel}"
+    mc:Ignorable="d"
+    Background="Transparent">
+
+    <ScrollViewer x:Name="RootScrollViewer" Tapped="RootScrollViewer_Tapped">
+        <StackPanel Spacing="20" Padding="20">
+            <TextBlock Text="&#x6E38;&#x620F;&#x63A7;&#x5236;&#x9762;&#x677F;" Style="{StaticResource PageTitleStyle}" />
+
+            <TextBlock Text="{Binding ConnectionStatus}" FontSize="14" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+
+            <StackPanel Spacing="10">
+                <TextBlock Text="FPS &#x8BBE;&#x7F6E;" FontWeight="Bold" FontSize="16" />
+                <ToggleSwitch Header="&#x542F;&#x7528; FPS &#x8986;&#x76D6;" IsOn="{Binding EnableFpsOverride, Mode=TwoWay}" />
+                <StackPanel Orientation="Horizontal" Spacing="10">
+                    <Slider Header="&#x76EE;&#x6807; FPS" Value="{Binding TargetFps, Mode=TwoWay}" Minimum="30" Maximum="1000" StepFrequency="10" Width="300" />
+                    <NumberBox x:Name="FpsNumberBox" Value="{Binding TargetFps, Mode=TwoWay}" Minimum="30" Maximum="1000" SpinButtonPlacementMode="Hidden" Width="100" VerticalAlignment="Bottom" Margin="0,0,0,4" GotFocus="NumberBox_GotFocus" LostFocus="NumberBox_LostFocus" />
+                </StackPanel>
+            </StackPanel>
+
+            <StackPanel Spacing="10">
+                <TextBlock Text="FOV &#x8BBE;&#x7F6E;" FontWeight="Bold" FontSize="16" />
+                <ToggleSwitch Header="&#x542F;&#x7528; FOV &#x8986;&#x76D6;" IsOn="{Binding EnableFovOverride, Mode=TwoWay}" />
+                <StackPanel Orientation="Horizontal" Spacing="10">
+                    <Slider Header="&#x76EE;&#x6807; FOV" Value="{Binding TargetFov, Mode=TwoWay}" Minimum="30" Maximum="120" StepFrequency="1" Width="300" />
+                    <NumberBox x:Name="FovNumberBox" Value="{Binding TargetFov, Mode=TwoWay}" Minimum="30" Maximum="120" SpinButtonPlacementMode="Hidden" Width="100" VerticalAlignment="Bottom" Margin="0,0,0,4" GotFocus="NumberBox_GotFocus" LostFocus="NumberBox_LostFocus" />
+                </StackPanel>
+            </StackPanel>
+
+            <StackPanel Spacing="10">
+                <TextBlock Text="&#x5176;&#x4ED6;&#x8BBE;&#x7F6E;" FontWeight="Bold" FontSize="16" />
+                <ToggleSwitch Header="&#x542F;&#x7528;&#x96FE;&#x6548;&#x8986;&#x76D6;" IsOn="{Binding EnableFogOverride, Mode=TwoWay}" />
+                <ToggleSwitch Header="&#x542F;&#x7528;&#x89C6;&#x89D2;&#x8986;&#x76D6;" IsOn="{Binding EnablePerspectiveOverride, Mode=TwoWay}" />
+            </StackPanel>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

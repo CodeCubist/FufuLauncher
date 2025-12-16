@@ -1,10 +1,13 @@
-﻿{
-    "profiles": {
-      "FufuLauncher (Package)": {
-        "commandName": "MsixPackage"
-      },
-      "FufuLauncher (Unpackaged)": {
-        "commandName": "Project"
-      }
+{
+  "profiles": {
+    "FufuLauncher (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "FufuLauncher (Unpackaged)": {
+      "commandName": "Project",
+      "jsWebView2Debugging": true,
+      "sqlDebugging": false,
+      "nativeDebugging": false
     }
+  }
 }

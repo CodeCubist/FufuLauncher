@@ -32,12 +32,16 @@
             
             <NavigationView.MenuItems>
                 <NavigationViewItem Content="主页" Tag="FufuLauncher.ViewModels.MainViewModel" Icon="Home" />
+                <NavigationViewItem Content="面板" Tag="FufuLauncher.ViewModels.ControlPanelModel">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE770;" FontFamily="Segoe MDL2 Assets"/>
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
                 <NavigationViewItem Content="文件" Tag="FufuLauncher.ViewModels.BlankViewModel">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE7FC;" FontFamily="Segoe MDL2 Assets"/>
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
-                <NavigationViewItem Content="设置" Tag="FufuLauncher.ViewModels.SettingsViewModel" Icon="Setting" />
                 <NavigationViewItem Content="账户" Tag="FufuLauncher.ViewModels.AccountViewModel" Icon="Contact" />
                 <NavigationViewItem Content="其他" Tag="FufuLauncher.ViewModels.OtherViewModel">
                     <NavigationViewItem.Icon>
@@ -49,6 +53,7 @@
                         <FontIcon Glyph="&#xE835;" FontFamily="Segoe MDL2 Assets"/>
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
+                <NavigationViewItem Content="设置" Tag="FufuLauncher.ViewModels.SettingsViewModel" Icon="Setting" />
             </NavigationView.MenuItems>
 
             <Frame x:Name="ContentFrame" />
