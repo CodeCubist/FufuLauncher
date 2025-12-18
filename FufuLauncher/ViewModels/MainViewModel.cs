@@ -81,6 +81,14 @@ namespace FufuLauncher.ViewModels
         [ObservableProperty] private bool _preferVideoBackground = true;
         public string BackgroundTypeToggleText => "切换背景";
 
+        [ObservableProperty] private bool _isGameRunning;
+        [ObservableProperty] private string _launchButtonIcon = "\uE768";
+
+        private const string TargetProcessName = "yuanshen";
+        private const string TargetProcessNameAlt = "GenshinImpact";
+        private CancellationTokenSource _gameMonitoringCts;
+        private Task _monitoringTask;
+
         public IAsyncRelayCommand LoadBackgroundCommand { get; }
         public IRelayCommand TogglePanelCommand { get; }
         public IRelayCommand ToggleActivityCommand { get; }
@@ -124,6 +132,9 @@ namespace FufuLauncher.ViewModels
             {
                 _dispatcherQueue?.TryEnqueue(() => UpdateLaunchButtonState());
             });
+
+            _gameMonitoringCts = new CancellationTokenSource();
+            _monitoringTask = StartGameMonitoringLoopAsync(_gameMonitoringCts.Token);
         }
 
         public async Task InitializeAsync()
@@ -135,6 +146,11 @@ namespace FufuLauncher.ViewModels
             await LoadCheckinStatusAsync();
             UseInjection = await _gameLauncherService.GetUseInjectionAsync();
             UpdateLaunchButtonState();
+        }
+        
+        public async Task OnPageReturnedAsync()
+        {
+            await ForceRefreshGameStateAsync();
         }
 
         private async Task LoadUserPreferencesAsync()
@@ -356,6 +372,7 @@ namespace FufuLauncher.ViewModels
         public void Cleanup()
         {
             _bannerTimer?.Stop();
+            _gameMonitoringCts?.Cancel();
             
             if (BackgroundVideoPlayer != null)
             {
@@ -372,16 +389,16 @@ namespace FufuLauncher.ViewModels
         {
             try
             {
-                Debug.WriteLine($"[UI] 主界面开始加载签到状态");
+                Debug.WriteLine($"主界面开始加载签到状态");
                 var (status, summary) = await _checkinService.GetCheckinStatusAsync();
         
-                Debug.WriteLine($"[UI] 状态更新: {status}, {summary}");
+                Debug.WriteLine($"状态更新: {status}, {summary}");
                 CheckinStatusText = status;
                 CheckinSummary = summary;
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[UI] 加载失败: {ex.Message}");
+                Debug.WriteLine($"加载失败: {ex.Message}");
                 CheckinStatusText = "加载失败";
                 CheckinSummary = ex.Message;
             }
@@ -389,7 +406,7 @@ namespace FufuLauncher.ViewModels
 
         private async Task ExecuteCheckinAsync()
         {
-            Debug.WriteLine($"[UI] 用户点击签到按钮");
+            Debug.WriteLine($"用户点击签到按钮");
             IsCheckinButtonEnabled = false;
             CheckinButtonText = "签到中...";
 
@@ -397,13 +414,13 @@ namespace FufuLauncher.ViewModels
             {
                 var (success, message) = await _checkinService.ExecuteCheckinAsync();
         
-                Debug.WriteLine($"[UI] 签到结果: success={success}, message={message}");
+                Debug.WriteLine($"签到结果: success={success}, message={message}");
                 CheckinStatusText = success ? "签到成功" : "签到失败";
                 CheckinSummary = message;
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[UI] 执行失败: {ex.Message}");
+                Debug.WriteLine($"执行失败: {ex.Message}");
                 CheckinStatusText = "执行失败";
                 CheckinSummary = ex.Message;
             }
@@ -420,18 +437,39 @@ namespace FufuLauncher.ViewModels
         {
             var pathTask = _localSettingsService.ReadSettingAsync("GameInstallationPath");
             var savedPath = pathTask.Result as string;
-    
+
             var hasPath = !string.IsNullOrEmpty(savedPath) && 
                           System.IO.Directory.Exists(savedPath.Trim('"').Trim());
-    
-            Debug.WriteLine($"[主界面] 检查路径状态: {hasPath}, 路径: {savedPath}");
-    
-            LaunchButtonText = hasPath ? "点击启动游戏" : "请选择游戏路径";
+
+            if (IsGameRunning)
+            {
+                LaunchButtonText = "点击终止游戏";
+                LaunchButtonIcon = "\uE711";
+            }
+            else
+            {
+                LaunchButtonText = hasPath ? "点击启动游戏" : "请选择游戏路径";
+                LaunchButtonIcon = "\uE768";
+            }
+            
+            OnPropertyChanged(nameof(LaunchButtonText));
+            OnPropertyChanged(nameof(LaunchButtonIcon));
+            
             IsLaunchButtonEnabled = true;
         }
 
         private async Task LaunchGameAsync()
         {
+            await ForceRefreshGameStateAsync();
+
+            if (IsGameRunning)
+            {
+                await TerminateGameAsync();
+                await Task.Delay(1200);
+                await ForceRefreshGameStateAsync();
+                return;
+            }
+
             if (!_gameLauncherService.IsGamePathSelected())
             {
                 _notificationService.Show("未设置游戏路径", "请先前往设置页面选择游戏安装路径", NotificationType.Error, 0);
@@ -440,7 +478,6 @@ namespace FufuLauncher.ViewModels
 
             IsGameLaunching = true;
             IsLaunchButtonEnabled = false;
-            LaunchButtonText = UseInjection ? "正在注入并启动..." : "正在启动...";
 
             try
             {
@@ -448,27 +485,27 @@ namespace FufuLauncher.ViewModels
 
                 if (result.Success)
                 {
-                    LaunchButtonText = "游戏已启动";
+                    for (int i = 0; i < 3; i++)
+                    {
+                        await Task.Delay(1000);
+                        await ForceRefreshGameStateAsync();
+                        if (IsGameRunning) break;
+                    }
                 }
                 else
                 {
                     _notificationService.Show("启动失败", result.ErrorMessage, NotificationType.Error, 0);
-                    Debug.WriteLine($"[启动失败详细日志]:\n{result.DetailLog}");
                 }
-
-                await Task.Delay(2000);
             }
             catch (Exception ex)
             {
-                LaunchButtonText = "启动错误";
                 _notificationService.Show("启动错误", $"发生异常: {ex.Message}", NotificationType.Error, 0);
-                Debug.WriteLine($"[启动异常]: {ex}\n{ex.StackTrace}");
             }
             finally
             {
                 IsGameLaunching = false;
                 IsLaunchButtonEnabled = true;
-                UpdateLaunchButtonState();
+                await ForceRefreshGameStateAsync();
             }
         }
 
@@ -497,7 +534,6 @@ namespace FufuLauncher.ViewModels
             catch (Exception ex)
             {
                 _notificationService.Show("打开失败", $"无法打开截图文件夹: {ex.Message}", NotificationType.Error, 0);
-                Debug.WriteLine($"[打开截图文件夹失败]: {ex}");
             }
         }
 
@@ -507,7 +543,6 @@ namespace FufuLauncher.ViewModels
             {
                 if (value && !IsAdministrator)
                 {
-                    Debug.WriteLine("[注入] 无管理员权限，拒绝开启注入");
                     await UpdateUI(() => 
                     {
                         UseInjection = false;
@@ -520,7 +555,6 @@ namespace FufuLauncher.ViewModels
                 var actual = await _gameLauncherService.GetUseInjectionAsync();
                 if (actual != value)
                 {
-                    Debug.WriteLine($"[回正] UI状态错误: {(value?"开":"关")}→{(actual?"开":"关")}");
                     await UpdateUI(() => UseInjection = actual);
                 }
             });
@@ -533,7 +567,7 @@ namespace FufuLauncher.ViewModels
                 var dialog = new ContentDialog
                 {
                     Title = "需要管理员权限",
-                    Content = "注入功能需要以管理员身份运行此程序。\n\n请右键点击启动器，选择\"以管理员身份运行\"。",
+                    Content = "注入功能需要以管理员身份运行此程序。请右键点击启动器，选择\"以管理员身份运行\"。",
                     CloseButtonText = "确定",
                     XamlRoot = App.MainWindow.Content.XamlRoot
                 };
@@ -550,6 +584,124 @@ namespace FufuLauncher.ViewModels
             }
 
             return _dispatcherQueue.EnqueueAsync(() => uiAction());
+        }
+
+        private async Task ForceRefreshGameStateAsync()
+        {
+            bool actualState = CheckGameProcessRunning();
+            if (actualState != IsGameRunning)
+            {
+                await SetGameRunningStateAsync(actualState);
+            }
+        }
+
+        private async Task SetGameRunningStateAsync(bool isRunning, string temporaryText = null)
+        {
+            await UpdateUI(() =>
+            {
+                IsGameRunning = isRunning;
+                LaunchButtonIcon = isRunning ? "\uE711" : "\uE768";
+                
+                if (temporaryText != null)
+                {
+                    LaunchButtonText = temporaryText;
+                }
+                else
+                {
+                    UpdateLaunchButtonState();
+                }
+                
+                OnPropertyChanged(nameof(LaunchButtonText));
+                OnPropertyChanged(nameof(LaunchButtonIcon));
+                OnPropertyChanged(nameof(IsGameRunning));
+            });
+        }
+
+        private bool CheckGameProcessRunning()
+        {
+            try
+            {
+                return Process.GetProcessesByName(TargetProcessName).Length > 0 || 
+                       Process.GetProcessesByName(TargetProcessNameAlt).Length > 0;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private async Task TerminateGameAsync()
+        {
+            IsLaunchButtonEnabled = false;
+            await SetGameRunningStateAsync(true, "正在终止游戏...");
+
+            try
+            {
+                var processes = Process.GetProcessesByName(TargetProcessName)
+                    .Concat(Process.GetProcessesByName(TargetProcessNameAlt))
+                    .ToList();
+
+                if (processes.Count == 0)
+                {
+                    await SetGameRunningStateAsync(false);
+                    UpdateLaunchButtonState();
+                    return;
+                }
+
+                foreach (var process in processes)
+                {
+                    try
+                    {
+                        process.Kill();
+                        await process.WaitForExitAsync();
+                    }
+                    catch { }
+                }
+
+                await Task.Delay(1000);
+                await SetGameRunningStateAsync(false);
+                UpdateLaunchButtonState();
+            }
+            catch (Exception ex)
+            {
+                _notificationService.Show("终止失败", ex.Message, NotificationType.Error, 0);
+                await SetGameRunningStateAsync(false);
+                UpdateLaunchButtonState();
+            }
+            finally
+            {
+                IsLaunchButtonEnabled = true;
+            }
+        }
+
+        private async Task StartGameMonitoringLoopAsync(CancellationToken token)
+        {
+            bool lastState = false;
+            
+            while (!token.IsCancellationRequested)
+            {
+                try
+                {
+                    bool currentState = CheckGameProcessRunning();
+                    
+                    if (currentState != lastState || currentState != IsGameRunning)
+                    {
+                        await UpdateUI(() =>
+                        {
+                            IsGameRunning = currentState;
+                            UpdateLaunchButtonState();
+                        });
+                    }
+                    
+                    lastState = currentState;
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"进程监控错误: {ex.Message}");
+                }
+                
+                await Task.Delay(3000, token);
+            }
         }
     }
 }

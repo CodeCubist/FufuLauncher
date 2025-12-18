@@ -5,6 +5,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Windows.Media.Playback;
 using FufuLauncher.ViewModels;
+using Microsoft.UI.Xaml.Navigation;
 
 namespace FufuLauncher.Views;
 
@@ -12,6 +13,8 @@ public sealed partial class MainPage : Page
 {
     public MainViewModel ViewModel { get; }
     public XamlUICommand OpenLinkCommand { get; }
+    
+    private bool _isInitialized = false;
 
     public MainPage()
     {
@@ -38,13 +41,22 @@ public sealed partial class MainPage : Page
                 OpenLink(url);
             }
         };
+        
+    }
 
-        Unloaded += (s, e) => ViewModel.Cleanup();
+    protected override void OnNavigatedTo(NavigationEventArgs e)
+    {
+        base.OnNavigatedTo(e);
+        _ = ViewModel.OnPageReturnedAsync();
     }
 
     private async void Page_Loaded(object sender, RoutedEventArgs e)
     {
-        await ViewModel.InitializeAsync();
+        if (!_isInitialized)
+        {
+            await ViewModel.InitializeAsync();
+            _isInitialized = true;
+        }
     }
 
     private void BannerImage_Loaded(object sender, RoutedEventArgs e)
@@ -55,6 +67,10 @@ public sealed partial class MainPage : Page
     private void BannerImage_ImageFailed(object sender, ExceptionRoutedEventArgs e)
     {
         Debug.WriteLine($"轮播图加载失败: {e.ErrorMessage}");
+        if (sender is Image image && image.Parent is Border border)
+        {
+            border.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent);
+        }
     }
 
     private async void OpenLink(string url)
