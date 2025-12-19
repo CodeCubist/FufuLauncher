@@ -657,8 +657,7 @@ namespace FufuLauncher.ViewModels
                     }
                     catch { }
                 }
-
-                // 尝试关闭 BetterGI
+                
                 try
                 {
                     await _gameLauncherService.StopBetterGIAsync();

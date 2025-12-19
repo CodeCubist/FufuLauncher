@@ -1,5 +1,4 @@
-﻿
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -17,6 +16,7 @@ using FufuLauncher.Contracts.Services;
 using FufuLauncher.Helpers;
 using FufuLauncher.Messages;
 using Microsoft.UI.Dispatching;
+using Microsoft.UI.Xaml.Input;
 
 public class GameAccountData
 {
@@ -52,6 +52,70 @@ namespace FufuLauncher.Views
             
             this.Loaded += BlankPage_Loaded;
         }
+        
+        private void PathTextBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (ApplyPathButton != null)
+            {
+                ApplyPathButton.IsEnabled = !string.IsNullOrWhiteSpace(PathTextBox.Text);
+            }
+        }
+        
+        private async void ApplyPath_Click(object sender, RoutedEventArgs e)
+        {
+            await ProcessPathInput(PathTextBox.Text.Trim());
+        }
+        
+        private async Task ProcessPathInput(string path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                ShowEmptyState();
+                return;
+            }
+
+            try
+            {
+                if (Directory.Exists(path))
+                {
+                    await LoadGameInfoAsync(path);
+                    await _localSettingsService.SaveSettingAsync("GameInstallationPath", path);
+                    WeakReferenceMessenger.Default.Send(new GamePathChangedMessage(path));
+            
+                    Debug.WriteLine($"[ApplyPath_Click] 手动输入路径成功: {path}");
+                }
+                else
+                {
+                    var dialog = new ContentDialog
+                    {
+                        Title = "无效路径",
+                        Content = "输入的路径不存在，请检查路径是否正确。",
+                        PrimaryButtonText = "确定",
+                        XamlRoot = this.XamlRoot
+                    };
+                    await dialog.ShowAsync();
+            
+                    if (await _localSettingsService.ReadSettingAsync("GameInstallationPath") is string savedPath)
+                    {
+                        PathTextBox.Text = savedPath.Trim('"').Trim();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[ProcessPathInput] 处理失败: {ex.Message}");
+                await ShowError($"路径处理失败: {ex.Message}");
+            }
+        }
+        private async void PathTextBox_KeyDown(object sender, KeyRoutedEventArgs e)
+        {
+            if (e.Key == Windows.System.VirtualKey.Enter && ApplyPathButton.IsEnabled)
+            {
+                e.Handled = true;
+                await ProcessPathInput(PathTextBox.Text.Trim());
+            }
+        }
+        
 
         private async void BlankPage_Loaded(object sender, RoutedEventArgs e)
         {

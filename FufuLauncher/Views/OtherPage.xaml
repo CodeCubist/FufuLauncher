@@ -42,30 +42,43 @@
                                 <RowDefinition Height="8"/>
                                 <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
-                            
+    
                             <TextBlock Grid.Row="0" Text="程序路径" FontSize="14" Opacity="0.8"/>
                             <Grid Grid.Row="2" ColumnSpacing="8">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 
-                                <TextBox Grid.Column="0" Text="{x:Bind ViewModel.AdditionalProgramPath, Mode=TwoWay}" 
+                                <TextBox Grid.Column="0" 
+                                         Text="{x:Bind ViewModel.AdditionalProgramPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
                                          IsEnabled="{x:Bind ViewModel.IsAdditionalProgramEnabled, Mode=OneWay}" 
-                                         PlaceholderText="点击浏览按钮选择可执行文件..." MinHeight="36"
-                                         LostFocus="TextBox_LostFocus"/>
-                                <Button Grid.Column="1" Content="浏览..." Command="{x:Bind ViewModel.BrowseProgramCommand}" 
+                                         PlaceholderText="输入或选择可执行文件路径..." 
+                                         MinHeight="36"
+                                         LostFocus="TextBox_LostFocus"
+                                         KeyDown="ProgramPath_KeyDown"/>
+                                
+                                <Button Grid.Column="1" 
+                                        Content="应用" 
+                                        Command="{x:Bind ViewModel.ApplyProgramPathCommand}" 
+                                        IsEnabled="{x:Bind ViewModel.IsApplyButtonEnabled, Mode=OneWay}" 
+                                        MinHeight="36" 
+                                        Padding="12,8"
+                                        Margin="0,0,8,0"/>
+                                
+                                <Button Grid.Column="2" 
+                                        Content="浏览..." 
+                                        Command="{x:Bind ViewModel.BrowseProgramCommand}" 
                                         IsEnabled="{x:Bind ViewModel.IsAdditionalProgramEnabled, Mode=OneWay}" 
-                                        MinHeight="36" Padding="16,8"/>
+                                        MinHeight="36" 
+                                        Padding="16,8"/>
                             </Grid>
                         </Grid>
                         
-                        <TextBlock Grid.Row="3" Text="• 仅支持 .exe 格式程序&#x0a;• 游戏启动后自动在附加运行&#x0a;• 请确保路径有效且程序可访问" 
+                        <TextBlock Grid.Row="3" Text="仅支持 .exe 格式程序&#x0a;游戏启动后自动在附加运行&#x0a;如果选择路径无反应，请手动输入路径" 
                                    FontSize="12" Opacity="0.6" TextWrapping="Wrap" Margin="0,0,0,16"/>
                         
-                        <TextBlock Grid.Row="4" Text="{x:Bind ViewModel.StatusMessage, Mode=OneWay}" FontSize="12" 
-                                   Opacity="0.7" Foreground="{ThemeResource SystemFillColorCautionBrush}" 
-                                   Visibility="{x:Bind ViewModel.StatusMessage, Mode=OneWay, Converter={StaticResource NullToVisibilityConverter}}"/>
                     </Grid>
 
                     

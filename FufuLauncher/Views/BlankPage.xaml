@@ -28,18 +28,34 @@
                         
                         
                         <TextBlock Grid.Row="1" Text="游戏路径" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,12"/>
-                        
                         <Grid Grid.Row="2" Margin="0,0,0,12">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
+
+                            <TextBox x:Name="PathTextBox" 
+                                     PlaceholderText="如无法选择路径，请手动输入路径"
+                                     TextWrapping="Wrap" 
+                                     TextChanged="PathTextBox_TextChanged"
+                                     KeyDown="PathTextBox_KeyDown"
+                                     Margin="0,0,8,0"/>
                             
-                            <TextBox x:Name="PathTextBox" IsReadOnly="True" PlaceholderText="点击按钮选择游戏目录"
-                                     TextWrapping="Wrap" Margin="0,0,12,0"/>
+                            <Button Grid.Column="1" 
+                                    x:Name="ApplyPathButton" 
+                                    Content="应用" 
+                                    Click="ApplyPath_Click" 
+                                    IsEnabled="False" 
+                                    Padding="12,6" 
+                                    Margin="0,0,8,0"/>
                             
-                            <Button Grid.Column="1" Content="选择" Click="SelectPath_Click" 
-                                    Style="{StaticResource AccentButtonStyle}" Padding="16,8"/>
+                            <Button Grid.Column="2" 
+                                    Content="选择" 
+                                    Click="SelectPath_Click" 
+                                    Style="{StaticResource AccentButtonStyle}" 
+                                    Padding="16,8"/>
+                            
                         </Grid>
                         
                         <ProgressRing x:Name="LoadingRing" Grid.Row="3" Width="20" Height="20" 

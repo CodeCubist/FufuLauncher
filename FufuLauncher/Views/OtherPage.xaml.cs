@@ -35,6 +35,15 @@ namespace FufuLauncher.Views
         {
             if (sender is TextBox textBox) textBox.Text = textBox.Text.Trim('"');
         }
+        
+        private void ProgramPath_KeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
+        {
+            if (e.Key == Windows.System.VirtualKey.Enter)
+            {
+                e.Handled = true;
+                _ = ViewModel.ApplyProgramPathCommand.ExecuteAsync(null);
+            }
+        }
 
         private void GlobalKeyDown(object sender, KeyRoutedEventArgs args)
         {
