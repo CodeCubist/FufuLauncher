@@ -4,29 +4,29 @@ using Microsoft.UI.Xaml;
 using FufuLauncher.ViewModels;
 using System.Diagnostics;
 using System.IO;
+using Microsoft.UI.Xaml.Media.Animation;
 
 namespace FufuLauncher.Views;
 
 public sealed partial class PanelPage : Page
 {
     public ControlPanelModel ViewModel { get; }
+    private bool _isOnMainPage = true;
 
     public PanelPage()
     {
         ViewModel = App.GetService<ControlPanelModel>();
         DataContext = ViewModel;
         InitializeComponent();
+        
+        SecondaryScrollViewer.IsHitTestVisible = false;
+        SecondaryScrollViewer.VerticalScrollBarVisibility = ScrollBarVisibility.Disabled;
     }
 
-    protected override void OnNavigatedTo(Microsoft.UI.Xaml.Navigation.NavigationEventArgs e)
-    {
-        base.OnNavigatedTo(e);
-    }
-
-    private void RootScrollViewer_Tapped(object sender, TappedRoutedEventArgs e)
+    private void MainScrollViewer_Tapped(object sender, TappedRoutedEventArgs e)
     {
         // Move focus to the ScrollViewer to dismiss NumberBox input focus
-        RootScrollViewer.Focus(FocusState.Programmatic);
+        MainScrollViewer.Focus(FocusState.Programmatic);
     }
 
     private void NumberBox_GotFocus(object sender, RoutedEventArgs e)
@@ -75,5 +75,29 @@ public sealed partial class PanelPage : Page
             XamlRoot = this.XamlRoot
         };
         await dialog.ShowAsync();
+    }
+    
+    private void NavigateButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_isOnMainPage)
+        {
+            SlideToSecondaryPage.Begin();
+            NavigateButton.Content = "返回";
+            _isOnMainPage = false;
+            MainScrollViewer.IsHitTestVisible = false;
+            MainScrollViewer.VerticalScrollBarVisibility = ScrollBarVisibility.Disabled;
+            SecondaryScrollViewer.IsHitTestVisible = true;
+            SecondaryScrollViewer.VerticalScrollBarVisibility = ScrollBarVisibility.Auto;
+        }
+        else
+        {
+            SlideToMainPage.Begin();
+            NavigateButton.Content = "高级功能";
+            _isOnMainPage = true;
+            MainScrollViewer.IsHitTestVisible = true;
+            MainScrollViewer.VerticalScrollBarVisibility = ScrollBarVisibility.Auto;
+            SecondaryScrollViewer.IsHitTestVisible = false;
+            SecondaryScrollViewer.VerticalScrollBarVisibility = ScrollBarVisibility.Disabled;
+        }
     }
 }

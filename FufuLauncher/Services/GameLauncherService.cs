@@ -1,19 +1,16 @@
 ﻿using System;
 using System.Diagnostics;
 using System.IO;
+using System.Text.Json;
 using System.Threading.Tasks;
 using FufuLauncher.Core.Contracts.Services;
 using FufuLauncher.Contracts.Services;
 
 namespace FufuLauncher.Services
 {
-
     public class LaunchResult
     {
-        public bool Success
-        {
-            get; set;
-        }
+        public bool Success { get; set; }
         public string ErrorMessage { get; set; } = string.Empty;
         public string DetailLog { get; set; } = string.Empty;
     }
@@ -65,9 +62,6 @@ namespace FufuLauncher.Services
             }
 
             Debug.WriteLine($"[启动服务] 读取路径: '{path}'");
-            Debug.WriteLine($"[启动服务] 包含非ASCII字符: {path.Any(c => c > 127)}");
-            Debug.WriteLine($"[启动服务] Unicode转义: {string.Join(" ", path.Select(c => ((int)c).ToString("X4")))}");
-
             return path;
         }
 
@@ -168,6 +162,35 @@ namespace FufuLauncher.Services
 
                 if (useInjection)
                 {
+                    bool hideQuestBanner = await GetHideQuestBannerAsync();
+                    bool disableDamageText = await GetDisableDamageTextAsync();
+                    bool useTouchScreen = await GetUseTouchScreenAsync();
+                    bool disableEventCameraMove = await GetDisableEventCameraMoveAsync();
+                    bool removeTeamProgress = await GetRemoveTeamProgressAsync();
+                    bool redirectCombineEntry = await GetRedirectCombineEntryAsync();
+                    bool resin106 = await GetResin106Async();
+                    bool resin201 = await GetResin201Async();
+                    bool resin107009 = await GetResin107009Async();
+                    bool resin107012 = await GetResin107012Async();
+                    bool resin220007 = await GetResin220007Async();
+                    
+                    logBuilder.AppendLine($"[启动流程] 隐藏任务横幅: {hideQuestBanner}");
+                    logBuilder.AppendLine($"[启动流程] 禁用伤害文本: {disableDamageText}");
+                    logBuilder.AppendLine($"[启动流程] 触屏模式: {useTouchScreen}");
+                    logBuilder.AppendLine($"[启动流程] 禁用事件镜头: {disableEventCameraMove}");
+                    logBuilder.AppendLine($"[启动流程] 移除组队进度: {removeTeamProgress}");
+                    logBuilder.AppendLine($"[启动流程] 重定向合成: {redirectCombineEntry}");
+                    logBuilder.AppendLine($"[启动流程] 树脂106: {resin106}");
+                    logBuilder.AppendLine($"[启动流程] 树脂201: {resin201}");
+                    logBuilder.AppendLine($"[启动流程] 树脂107009: {resin107009}");
+                    logBuilder.AppendLine($"[启动流程] 树脂107012: {resin107012}");
+                    logBuilder.AppendLine($"[启动流程] 树脂220007: {resin220007}");
+                    
+                    _launcherService.UpdateConfig(gameExePath, hideQuestBanner, disableDamageText, useTouchScreen,
+                        disableEventCameraMove, removeTeamProgress, redirectCombineEntry,
+                        resin106, resin201, resin107009, resin107012, resin220007);
+                    logBuilder.AppendLine("[启动流程] 配置已同步到共享内存");
+
                     var dllPath = _launcherService.GetDefaultDllPath();
                     logBuilder.AppendLine($"[启动流程] 注入DLL路径: {dllPath}");
 
@@ -343,7 +366,6 @@ namespace FufuLauncher.Services
                             WorkingDirectory = Path.GetDirectoryName(found)
                         };
 
-                        // 如果是.lnk，直接启动即可（Shell 会解析快捷方式）；如果是 exe，也直接启动
                         Process.Start(startInfo);
                         Debug.WriteLine("[BetterGI] 启动成功");
                     }
@@ -367,7 +389,6 @@ namespace FufuLauncher.Services
                 var closeOnExit = await _localSettingsService.ReadSettingAsync("IsBetterGICloseOnExitEnabled");
                 if (enabled == null || !Convert.ToBoolean(enabled) || closeOnExit == null || !Convert.ToBoolean(closeOnExit)) return;
 
-                // 尝试根据已知进程名关闭 BetterGI.exe
                 var processes = Process.GetProcessesByName("BetterGI");
                 if (processes.Length > 0)
                 {
@@ -387,7 +408,6 @@ namespace FufuLauncher.Services
                     return;
                 }
 
-                // 如果未找到进程，则尝试使用 taskkill 关闭
                 try
                 {
                     var startInfo = new ProcessStartInfo
@@ -443,6 +463,248 @@ namespace FufuLauncher.Services
             }
 
             return args.ToString().Trim();
+        }
+        
+        private async Task<bool> GetHideQuestBannerAsync()
+        {
+            try
+            {
+                var configPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "fufu", "FufuConfig.cfg");
+                if (File.Exists(configPath))
+                {
+                    var json = await File.ReadAllTextAsync(configPath);
+                    using var doc = JsonDocument.Parse(json);
+                    if (doc.RootElement.TryGetProperty("EnableQuestBannerControl", out var prop))
+                    {
+                        return !prop.GetBoolean();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[GameLauncherService] 读取HideQuestBanner失败: {ex.Message}");
+            }
+            return false;
+        }
+
+        private async Task<bool> GetDisableDamageTextAsync()
+        {
+            try
+            {
+                var configPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "fufu", "FufuConfig.cfg");
+                if (File.Exists(configPath))
+                {
+                    var json = await File.ReadAllTextAsync(configPath);
+                    using var doc = JsonDocument.Parse(json);
+                    if (doc.RootElement.TryGetProperty("EnableDamageTextControl", out var prop))
+                    {
+                        return !prop.GetBoolean();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[GameLauncherService] 读取DisableDamageText失败: {ex.Message}");
+            }
+            return false;
+        }
+
+        private async Task<bool> GetUseTouchScreenAsync()
+        {
+            try
+            {
+                var configPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "fufu", "FufuConfig.cfg");
+                if (File.Exists(configPath))
+                {
+                    var json = await File.ReadAllTextAsync(configPath);
+                    using var doc = JsonDocument.Parse(json);
+                    if (doc.RootElement.TryGetProperty("EnableTouchScreenMode", out var prop))
+                    {
+                        return prop.GetBoolean();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[GameLauncherService] 读取UseTouchScreen失败: {ex.Message}");
+            }
+            return false;
+        }
+
+        private async Task<bool> GetDisableEventCameraMoveAsync()
+        {
+            try
+            {
+                var configPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "fufu", "FufuConfig.cfg");
+                if (File.Exists(configPath))
+                {
+                    var json = await File.ReadAllTextAsync(configPath);
+                    using var doc = JsonDocument.Parse(json);
+                    if (doc.RootElement.TryGetProperty("EnableEventCameraMove", out var prop))
+                    {
+                        return !prop.GetBoolean();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[GameLauncherService] 读取DisableEventCameraMove失败: {ex.Message}");
+            }
+            return false;
+        }
+
+        private async Task<bool> GetRemoveTeamProgressAsync()
+        {
+            try
+            {
+                var configPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "fufu", "FufuConfig.cfg");
+                if (File.Exists(configPath))
+                {
+                    var json = await File.ReadAllTextAsync(configPath);
+                    using var doc = JsonDocument.Parse(json);
+                    if (doc.RootElement.TryGetProperty("EnableTeamProgress", out var prop))
+                    {
+                        return !prop.GetBoolean();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[GameLauncherService] 读取RemoveTeamProgress失败: {ex.Message}");
+            }
+            return false;
+        }
+
+        private async Task<bool> GetRedirectCombineEntryAsync()
+        {
+            try
+            {
+                var configPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "fufu", "FufuConfig.cfg");
+                if (File.Exists(configPath))
+                {
+                    var json = await File.ReadAllTextAsync(configPath);
+                    using var doc = JsonDocument.Parse(json);
+                    if (doc.RootElement.TryGetProperty("EnableRedirectCombineEntry", out var prop))
+                    {
+                        return prop.GetBoolean();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[GameLauncherService] 读取RedirectCombineEntry失败: {ex.Message}");
+            }
+            return false;
+        }
+
+        private async Task<bool> GetResin106Async()
+        {
+            try
+            {
+                var configPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "fufu", "FufuConfig.cfg");
+                if (File.Exists(configPath))
+                {
+                    var json = await File.ReadAllTextAsync(configPath);
+                    using var doc = JsonDocument.Parse(json);
+                    if (doc.RootElement.TryGetProperty("ResinListItemId000106Allowed", out var prop))
+                    {
+                        return prop.GetBoolean();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[GameLauncherService] 读取Resin106失败: {ex.Message}");
+            }
+            return false;
+        }
+
+        private async Task<bool> GetResin201Async()
+        {
+            try
+            {
+                var configPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "fufu", "FufuConfig.cfg");
+                if (File.Exists(configPath))
+                {
+                    var json = await File.ReadAllTextAsync(configPath);
+                    using var doc = JsonDocument.Parse(json);
+                    if (doc.RootElement.TryGetProperty("ResinListItemId000201Allowed", out var prop))
+                    {
+                        return prop.GetBoolean();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[GameLauncherService] 读取Resin201失败: {ex.Message}");
+            }
+            return false;
+        }
+
+        private async Task<bool> GetResin107009Async()
+        {
+            try
+            {
+                var configPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "fufu", "FufuConfig.cfg");
+                if (File.Exists(configPath))
+                {
+                    var json = await File.ReadAllTextAsync(configPath);
+                    using var doc = JsonDocument.Parse(json);
+                    if (doc.RootElement.TryGetProperty("ResinListItemId107009Allowed", out var prop))
+                    {
+                        return prop.GetBoolean();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[GameLauncherService] 读取Resin107009失败: {ex.Message}");
+            }
+            return false;
+        }
+
+        private async Task<bool> GetResin107012Async()
+        {
+            try
+            {
+                var configPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "fufu", "FufuConfig.cfg");
+                if (File.Exists(configPath))
+                {
+                    var json = await File.ReadAllTextAsync(configPath);
+                    using var doc = JsonDocument.Parse(json);
+                    if (doc.RootElement.TryGetProperty("ResinListItemId107012Allowed", out var prop))
+                    {
+                        return prop.GetBoolean();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[GameLauncherService] 读取Resin107012失败: {ex.Message}");
+            }
+            return false;
+        }
+
+        private async Task<bool> GetResin220007Async()
+        {
+            try
+            {
+                var configPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "fufu", "FufuConfig.cfg");
+                if (File.Exists(configPath))
+                {
+                    var json = await File.ReadAllTextAsync(configPath);
+                    using var doc = JsonDocument.Parse(json);
+                    if (doc.RootElement.TryGetProperty("ResinListItemId220007Allowed", out var prop))
+                    {
+                        return prop.GetBoolean();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[GameLauncherService] 读取Resin220007失败: {ex.Message}");
+            }
+            return false;
         }
     }
 }

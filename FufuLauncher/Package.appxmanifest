@@ -13,7 +13,7 @@
     <Identity
             Name="3a6f3b9a-8c2d-4e1f-9b5a-7c8d9e0f1a2b"
             Publisher="CN=CodeCubist"
-            Version="1.0.2.0" />
+            Version="1.0.3.0" />
 
     <mp:PhoneIdentity PhoneProductId="3a6f3b9a-8c2d-4e1f-9b5a-7c8d9e0f1a2b" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
 

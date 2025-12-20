@@ -14,6 +14,44 @@
     <Page.Resources>
         <converters:EmptyCountToVisibilityConverter x:Key="EmptyCountToVisibilityConverter"/>
         <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+        
+        <Storyboard x:Name="SlideToSecondaryPage">
+            <DoubleAnimation Storyboard.TargetName="MainContentTranslate"
+                           Storyboard.TargetProperty="X"
+                           From="0" To="-800"
+                           Duration="0:0:0.3">
+                <DoubleAnimation.EasingFunction>
+                    <CircleEase EasingMode="EaseOut"/>
+                </DoubleAnimation.EasingFunction>
+            </DoubleAnimation>
+            <DoubleAnimation Storyboard.TargetName="SecondaryContentTranslate"
+                           Storyboard.TargetProperty="X"
+                           From="800" To="0"
+                           Duration="0:0:0.3">
+                <DoubleAnimation.EasingFunction>
+                    <CircleEase EasingMode="EaseOut"/>
+                </DoubleAnimation.EasingFunction>
+            </DoubleAnimation>
+        </Storyboard>
+        
+        <Storyboard x:Name="SlideToMainPage">
+            <DoubleAnimation Storyboard.TargetName="MainContentTranslate"
+                           Storyboard.TargetProperty="X"
+                           From="-800" To="0"
+                           Duration="0:0:0.3">
+                <DoubleAnimation.EasingFunction>
+                    <CircleEase EasingMode="EaseOut"/>
+                </DoubleAnimation.EasingFunction>
+            </DoubleAnimation>
+            <DoubleAnimation Storyboard.TargetName="SecondaryContentTranslate"
+                           Storyboard.TargetProperty="X"
+                           From="0" To="800"
+                           Duration="0:0:0.3">
+                <DoubleAnimation.EasingFunction>
+                    <CircleEase EasingMode="EaseOut"/>
+                </DoubleAnimation.EasingFunction>
+            </DoubleAnimation>
+        </Storyboard>
     </Page.Resources>
 
     <Grid Padding="20">
@@ -22,48 +60,179 @@
             <ColumnDefinition Width="350"/>
         </Grid.ColumnDefinitions>
         
-        <ScrollViewer x:Name="RootScrollViewer" Tapped="RootScrollViewer_Tapped" Grid.Column="0">
-            <StackPanel Spacing="20">
-                <TextBlock Text="游戏控制面板" 
-                           FontSize="24" 
-                           FontWeight="Bold" 
-                           Margin="0,0,0,10"/>
-
-                <Button Content="启动独立控制面板" 
-                        Click="LaunchControlPanelButton_Click"
+        <Grid Grid.Column="0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            
+            <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="10" Margin="0,0,0,15">
+                <Button x:Name="NavigateButton" 
+                        Content="高级设置" 
+                        Click="NavigateButton_Click"
                         HorizontalAlignment="Left"
                         Width="200"
-                        Margin="0,0,0,10"/>
-
+                        Style="{StaticResource AccentButtonStyle}"/>
                 <TextBlock Text="{Binding ConnectionStatus}" 
                            FontSize="14" 
+                           VerticalAlignment="Center"
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-
-                <StackPanel Spacing="10">
-                    <TextBlock Text="FPS 设置" FontWeight="Bold" FontSize="16" />
-                    <ToggleSwitch Header="启用 FPS 覆盖" IsOn="{Binding EnableFpsOverride, Mode=TwoWay}" />
-                    <StackPanel Orientation="Horizontal" Spacing="10">
-                        <Slider Header="目标 FPS" Value="{Binding TargetFps, Mode=TwoWay}" Minimum="30" Maximum="1000" StepFrequency="10" Width="300" />
-                        <NumberBox x:Name="FpsNumberBox" Value="{Binding TargetFps, Mode=TwoWay}" Minimum="30" Maximum="1000" SpinButtonPlacementMode="Hidden" Width="100" VerticalAlignment="Bottom" Margin="0,0,0,4" GotFocus="NumberBox_GotFocus" LostFocus="NumberBox_LostFocus" />
-                    </StackPanel>
-                </StackPanel>
-
-                <StackPanel Spacing="10">
-                    <TextBlock Text="FOV 设置" FontWeight="Bold" FontSize="16" />
-                    <ToggleSwitch Header="启用 FOV 覆盖" IsOn="{Binding EnableFovOverride, Mode=TwoWay}" />
-                    <StackPanel Orientation="Horizontal" Spacing="10">
-                        <Slider Header="目标 FOV" Value="{Binding TargetFov, Mode=TwoWay}" Minimum="30" Maximum="120" StepFrequency="1" Width="300" />
-                        <NumberBox x:Name="FovNumberBox" Value="{Binding TargetFov, Mode=TwoWay}" Minimum="30" Maximum="120" SpinButtonPlacementMode="Hidden" Width="100" VerticalAlignment="Bottom" Margin="0,0,0,4" GotFocus="NumberBox_GotFocus" LostFocus="NumberBox_LostFocus" />
-                    </StackPanel>
-                </StackPanel>
-
-                <StackPanel Spacing="10">
-                    <TextBlock Text="其他设置" FontWeight="Bold" FontSize="16" />
-                    <ToggleSwitch Header="启用雾效覆盖" IsOn="{Binding EnableFogOverride, Mode=TwoWay}" />
-                    <ToggleSwitch Header="启用视角覆盖" IsOn="{Binding EnablePerspectiveOverride, Mode=TwoWay}" />
-                </StackPanel>
             </StackPanel>
-        </ScrollViewer>
+            
+            <Grid Grid.Row="1">
+                <Grid.Clip>
+                    <RectangleGeometry Rect="0,0,800,1000"/>
+                </Grid.Clip>
+                
+                <ScrollViewer x:Name="MainScrollViewer"
+                              Tapped="MainScrollViewer_Tapped"
+                              VerticalScrollBarVisibility="Auto">
+                    <ScrollViewer.RenderTransform>
+                        <TranslateTransform x:Name="MainContentTranslate" X="0"/>
+                    </ScrollViewer.RenderTransform>
+                    
+                    <StackPanel Spacing="20" Width="780">
+                        <TextBlock Text="游戏控制面板" 
+                                   FontSize="24" 
+                                   FontWeight="Bold" 
+                                   Margin="0,0,0,10"/>
+
+                        <Button Content="启动独立控制面板" 
+                                Click="LaunchControlPanelButton_Click"
+                                HorizontalAlignment="Left"
+                                Width="200"
+                                Margin="0,0,0,10"/>
+                        
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            
+                            <TextBlock Grid.Row="0" Text="FPS 设置" FontWeight="Bold" FontSize="16" Margin="0,0,0,10"/>
+                            <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="20">
+                                <ToggleSwitch Header="启用 FPS 覆盖" IsOn="{Binding EnableFpsOverride, Mode=TwoWay}" />
+                                <StackPanel Orientation="Vertical" Spacing="5" Width="300">
+                                    <Slider Header="目标 FPS" Value="{Binding TargetFps, Mode=TwoWay}" Minimum="30" Maximum="1000" StepFrequency="10" />
+                                    <NumberBox x:Name="FpsNumberBox" Value="{Binding TargetFps, Mode=TwoWay}" Minimum="30" Maximum="1000" SpinButtonPlacementMode="Hidden" Width="100" HorizontalAlignment="Left" GotFocus="NumberBox_GotFocus" LostFocus="NumberBox_LostFocus" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Grid>
+                        
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <TextBlock Grid.Row="0" Text="FOV 设置" FontWeight="Bold" FontSize="16" Margin="0,0,0,10"/>
+                            <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="20">
+                                <ToggleSwitch Header="启用 FOV 覆盖" IsOn="{Binding EnableFovOverride, Mode=TwoWay}" />
+                                <StackPanel Orientation="Vertical" Spacing="5" Width="300">
+                                    <Slider Header="目标 FOV" Value="{Binding TargetFov, Mode=TwoWay}" Minimum="30" Maximum="120" StepFrequency="1" />
+                                    <NumberBox x:Name="FovNumberBox" Value="{Binding TargetFov, Mode=TwoWay}" Minimum="30" Maximum="120" SpinButtonPlacementMode="Hidden" Width="100" HorizontalAlignment="Left" GotFocus="NumberBox_GotFocus" LostFocus="NumberBox_LostFocus" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Grid>
+                        
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <TextBlock Grid.Row="0" Text="基础游戏功能" FontWeight="Bold" FontSize="16" Margin="0,0,0,10"/>
+                            <Grid Grid.Row="1">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="20">
+                                    <ToggleSwitch Header="显示任务横幅" IsOn="{Binding EnableQuestBannerControl, Mode=TwoWay}" />
+                                    <ToggleSwitch Header="显示伤害文本" IsOn="{Binding EnableDamageTextControl, Mode=TwoWay}" />
+                                </StackPanel>
+                                <ToggleSwitch Grid.Column="1" Header="触屏操作模式" IsOn="{Binding EnableTouchScreenMode, Mode=TwoWay}" HorizontalAlignment="Left" Margin="0,0,0,0" />
+                            </Grid>
+                        </Grid>
+                    </StackPanel>
+                </ScrollViewer>
+                
+                <ScrollViewer x:Name="SecondaryScrollViewer"
+                              VerticalScrollBarVisibility="Disabled"
+                              IsHitTestVisible="False">
+                    <ScrollViewer.RenderTransform>
+                        <TranslateTransform x:Name="SecondaryContentTranslate" X="800"/>
+                    </ScrollViewer.RenderTransform>
+                    
+                    <StackPanel Spacing="20" Width="780">
+                        <TextBlock Text="高级设置" 
+                                   FontSize="24" 
+                                   FontWeight="Bold" 
+                                   Margin="0,0,0,10"/>
+                        
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <TextBlock Grid.Row="0" Text="画面效果" FontWeight="Bold" FontSize="16" Margin="0,0,0,10"/>
+                            <Grid Grid.Row="1">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <ToggleSwitch Grid.Column="0" Header="启用雾效覆盖" IsOn="{Binding EnableFogOverride, Mode=TwoWay}" />
+                                <ToggleSwitch Grid.Column="1" Header="启用视角覆盖" IsOn="{Binding EnablePerspectiveOverride, Mode=TwoWay}" />
+                            </Grid>
+                        </Grid>
+                        
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <TextBlock Grid.Row="0" Text="高级功能控制" FontWeight="Bold" FontSize="16" Margin="0,0,0,10"/>
+                            <Grid Grid.Row="1">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <ToggleSwitch Grid.Column="0" Header="启用事件镜头移动" IsOn="{Binding EnableEventCameraMove, Mode=TwoWay}" />
+                                <ToggleSwitch Grid.Column="1" Header="启用组队进度限制" IsOn="{Binding EnableTeamProgress, Mode=TwoWay}" />
+                                <ToggleSwitch Grid.Column="2" Header="重定向合成入口" IsOn="{Binding EnableRedirectCombineEntry, Mode=TwoWay}" />
+                            </Grid>
+                        </Grid>
+                        
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <TextBlock Grid.Row="0" Text="树脂物品控制" FontWeight="Bold" FontSize="16" Margin="0,0,0,10"/>
+                            <Grid Grid.Row="1">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="20">
+                                    <ToggleSwitch Header="原粹树脂" IsOn="{Binding ResinListItemId000106Allowed, Mode=TwoWay}" />
+                                    <ToggleSwitch Header="原石" IsOn="{Binding ResinListItemId000201Allowed, Mode=TwoWay}" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="20">
+                                    <ToggleSwitch Header="脆弱树脂" IsOn="{Binding ResinListItemId107009Allowed, Mode=TwoWay}" />
+                                    <ToggleSwitch Header="须臾树脂" IsOn="{Binding ResinListItemId107012Allowed, Mode=TwoWay}" />
+                                </StackPanel>
+                                <ToggleSwitch Grid.Column="2" Header="浓缩树脂" IsOn="{Binding ResinListItemId220007Allowed, Mode=TwoWay}" />
+                            </Grid>
+                        </Grid>
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+        </Grid>
         
         <Border Grid.Column="1" 
                 Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"

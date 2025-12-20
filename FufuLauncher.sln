@@ -1,13 +1,15 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 17
-VisualStudioVersion = 17.14.36301.6 d17.14
+# Visual Studio Version 18
+VisualStudioVersion = 18.3.11222.16
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FufuLauncher", "FufuLauncher\FufuLauncher.csproj", "{1B42D8C7-517E-F337-8B5A-D5ADF940F2BD}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FufuLauncher.Core", "FufuLauncher.Core\FufuLauncher.Core.csproj", "{40D8F100-B201-9EF4-A4AA-59E5D7C599E0}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MihoyoBBS", "MihoyoBBS\MihoyoBBS.csproj", "{7B00411A-05DF-47A7-86C5-972F1D6D2AAF}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Unlocker", "Unlocker\Unlocker.vcxproj", "{E556908B-543B-40B2-BD53-E24A5C4C294B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -49,6 +51,7 @@ Global
 		{40D8F100-B201-9EF4-A4AA-59E5D7C599E0}.Release|x64.Build.0 = Release|x64
 		{40D8F100-B201-9EF4-A4AA-59E5D7C599E0}.Release|x86.ActiveCfg = Release|x86
 		{40D8F100-B201-9EF4-A4AA-59E5D7C599E0}.Release|x86.Build.0 = Release|x86
+		{40D8F100-B201-9EF4-A4AA-59E5D7C599E0}.Release|x64.Deploy.0 = Release|x64
 		{7B00411A-05DF-47A7-86C5-972F1D6D2AAF}.Debug|arm64.ActiveCfg = Debug|Any CPU
 		{7B00411A-05DF-47A7-86C5-972F1D6D2AAF}.Debug|arm64.Build.0 = Debug|Any CPU
 		{7B00411A-05DF-47A7-86C5-972F1D6D2AAF}.Debug|x64.ActiveCfg = Debug|Any CPU
@@ -58,9 +61,19 @@ Global
 		{7B00411A-05DF-47A7-86C5-972F1D6D2AAF}.Release|arm64.ActiveCfg = Release|Any CPU
 		{7B00411A-05DF-47A7-86C5-972F1D6D2AAF}.Release|arm64.Build.0 = Release|Any CPU
 		{7B00411A-05DF-47A7-86C5-972F1D6D2AAF}.Release|x64.ActiveCfg = Release|Any CPU
-		{7B00411A-05DF-47A7-86C5-972F1D6D2AAF}.Release|x64.Build.0 = Release|Any CPU
 		{7B00411A-05DF-47A7-86C5-972F1D6D2AAF}.Release|x86.ActiveCfg = Release|Any CPU
 		{7B00411A-05DF-47A7-86C5-972F1D6D2AAF}.Release|x86.Build.0 = Release|Any CPU
+		{E556908B-543B-40B2-BD53-E24A5C4C294B}.Debug|arm64.ActiveCfg = Debug|Win32
+		{E556908B-543B-40B2-BD53-E24A5C4C294B}.Debug|arm64.Build.0 = Debug|Win32
+		{E556908B-543B-40B2-BD53-E24A5C4C294B}.Debug|x64.ActiveCfg = Debug|x64
+		{E556908B-543B-40B2-BD53-E24A5C4C294B}.Debug|x86.ActiveCfg = Debug|Win32
+		{E556908B-543B-40B2-BD53-E24A5C4C294B}.Debug|x86.Build.0 = Debug|Win32
+		{E556908B-543B-40B2-BD53-E24A5C4C294B}.Release|arm64.ActiveCfg = Release|Win32
+		{E556908B-543B-40B2-BD53-E24A5C4C294B}.Release|arm64.Build.0 = Release|Win32
+		{E556908B-543B-40B2-BD53-E24A5C4C294B}.Release|x64.ActiveCfg = Release|x64
+		{E556908B-543B-40B2-BD53-E24A5C4C294B}.Release|x64.Build.0 = Release|x64
+		{E556908B-543B-40B2-BD53-E24A5C4C294B}.Release|x86.ActiveCfg = Release|Win32
+		{E556908B-543B-40B2-BD53-E24A5C4C294B}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

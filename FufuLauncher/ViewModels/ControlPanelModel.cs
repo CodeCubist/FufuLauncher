@@ -76,7 +76,7 @@ public partial class ControlPanelModel : ObservableObject
         SendCommand($"set_fps {value}");
         SaveConfig();
     }
-
+    
     [ObservableProperty]
     private bool _enableFovOverride;
 
@@ -103,13 +103,101 @@ public partial class ControlPanelModel : ObservableObject
         SendCommand(value ? "enable_display_fog_override" : "disable_display_fog_override");
         SaveConfig();
     }
-
+    
     [ObservableProperty]
     private bool _enablePerspectiveOverride;
 
     partial void OnEnablePerspectiveOverrideChanged(bool value)
     {
         SendCommand(value ? "enable_Perspective_override" : "disable_Perspective_override");
+        SaveConfig();
+    }
+    
+    [ObservableProperty]
+    private bool _enableQuestBannerControl = true;
+
+    partial void OnEnableQuestBannerControlChanged(bool value)
+    {
+        SaveConfig();
+    }
+
+    [ObservableProperty]
+    private bool _enableDamageTextControl = true;
+
+    partial void OnEnableDamageTextControlChanged(bool value)
+    {
+        SaveConfig();
+    }
+
+    [ObservableProperty]
+    private bool _enableTouchScreenMode;
+
+    partial void OnEnableTouchScreenModeChanged(bool value)
+    {
+        SaveConfig();
+    }
+    
+    [ObservableProperty]
+    private bool _enableEventCameraMove = true;
+
+    partial void OnEnableEventCameraMoveChanged(bool value)
+    {
+        SaveConfig();
+    }
+    
+    [ObservableProperty]
+    private bool _enableTeamProgress = true;
+
+    partial void OnEnableTeamProgressChanged(bool value)
+    {
+        SaveConfig();
+    }
+    
+    [ObservableProperty]
+    private bool _enableRedirectCombineEntry;
+
+    partial void OnEnableRedirectCombineEntryChanged(bool value)
+    {
+        SaveConfig();
+    }
+    
+    [ObservableProperty]
+    private bool _resinListItemId000106Allowed;
+
+    partial void OnResinListItemId000106AllowedChanged(bool value)
+    {
+        SaveConfig();
+    }
+
+    [ObservableProperty]
+    private bool _resinListItemId000201Allowed;
+
+    partial void OnResinListItemId000201AllowedChanged(bool value)
+    {
+        SaveConfig();
+    }
+
+    [ObservableProperty]
+    private bool _resinListItemId107009Allowed;
+
+    partial void OnResinListItemId107009AllowedChanged(bool value)
+    {
+        SaveConfig();
+    }
+
+    [ObservableProperty]
+    private bool _resinListItemId107012Allowed;
+
+    partial void OnResinListItemId107012AllowedChanged(bool value)
+    {
+        SaveConfig();
+    }
+
+    [ObservableProperty]
+    private bool _resinListItemId220007Allowed;
+
+    partial void OnResinListItemId220007AllowedChanged(bool value)
+    {
         SaveConfig();
     }
 
@@ -351,6 +439,17 @@ public partial class ControlPanelModel : ObservableObject
                     TargetFov = config.TargetFov;
                     EnableFogOverride = config.EnableFogOverride;
                     EnablePerspectiveOverride = config.EnablePerspectiveOverride;
+                    EnableQuestBannerControl = config.EnableQuestBannerControl;
+                    EnableDamageTextControl = config.EnableDamageTextControl;
+                    EnableTouchScreenMode = config.EnableTouchScreenMode;
+                    EnableEventCameraMove = config.EnableEventCameraMove;
+                    EnableTeamProgress = config.EnableTeamProgress;
+                    EnableRedirectCombineEntry = config.EnableRedirectCombineEntry;
+                    ResinListItemId000106Allowed = config.ResinListItemId000106Allowed;
+                    ResinListItemId000201Allowed = config.ResinListItemId000201Allowed;
+                    ResinListItemId107009Allowed = config.ResinListItemId107009Allowed;
+                    ResinListItemId107012Allowed = config.ResinListItemId107012Allowed;
+                    ResinListItemId220007Allowed = config.ResinListItemId220007Allowed;
                     
                     if (config.GamePlayTimeData != null)
                     {
@@ -394,6 +493,18 @@ public partial class ControlPanelModel : ObservableObject
                 TargetFov = TargetFov,
                 EnableFogOverride = EnableFogOverride,
                 EnablePerspectiveOverride = EnablePerspectiveOverride,
+                EnableQuestBannerControl = EnableQuestBannerControl,
+                EnableDamageTextControl = EnableDamageTextControl,
+                EnableTouchScreenMode = EnableTouchScreenMode,
+                EnableEventCameraMove = EnableEventCameraMove,
+                EnableTeamProgress = EnableTeamProgress,
+                EnableRedirectCombineEntry = EnableRedirectCombineEntry,
+                ResinListItemId000106Allowed = ResinListItemId000106Allowed,
+                ResinListItemId000201Allowed = ResinListItemId000201Allowed,
+                ResinListItemId107009Allowed = ResinListItemId107009Allowed,
+                ResinListItemId107012Allowed = ResinListItemId107012Allowed,
+                ResinListItemId220007Allowed = ResinListItemId220007Allowed,
+                
                 GamePlayTimeData = _playTimeData,
                 LastPlayDate = DateTime.Now.ToString("yyyy-MM-dd")
             };
@@ -409,4 +520,30 @@ public partial class ControlPanelModel : ObservableObject
             Debug.WriteLine($"Error saving config: {ex.Message}");
         }
     }
+}
+
+public class ControlPanelConfig
+{
+    public bool EnableFpsOverride { get; set; }
+    public int TargetFps { get; set; }
+    public bool EnableFovOverride { get; set; }
+    public float TargetFov { get; set; }
+    public bool EnableFogOverride { get; set; }
+    public bool EnablePerspectiveOverride { get; set; }
+    
+    public bool EnableQuestBannerControl { get; set; } = true;
+    public bool EnableDamageTextControl { get; set; } = true;
+    public bool EnableTouchScreenMode { get; set; }
+    
+    public bool EnableEventCameraMove { get; set; } = true;
+    public bool EnableTeamProgress { get; set; } = true;
+    public bool EnableRedirectCombineEntry { get; set; }
+    public bool ResinListItemId000106Allowed { get; set; }
+    public bool ResinListItemId000201Allowed { get; set; }
+    public bool ResinListItemId107009Allowed { get; set; }
+    public bool ResinListItemId107012Allowed { get; set; }
+    public bool ResinListItemId220007Allowed { get; set; }
+    
+    public Dictionary<string, long> GamePlayTimeData { get; set; }
+    public string LastPlayDate { get; set; }
 }

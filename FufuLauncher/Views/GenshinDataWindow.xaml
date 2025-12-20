@@ -25,13 +25,11 @@
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
             
-            <!-- 标题栏 -->
             <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="16" Margin="0,0,0,24">
                 <FontIcon Glyph="&#xE8B9;" FontSize="32"/>
                 <TextBlock Text="旅行札记详细数据" FontSize="28" FontWeight="Bold" 
                            VerticalAlignment="Center"/>
                 
-                <!-- 保留手动刷新按钮，但可以改为可选 -->
                 <Button Command="{Binding LoadDataCommand}" 
                         Padding="16,8" CornerRadius="6"
                         IsEnabled="{Binding IsLoading, Converter={StaticResource InverseBoolConverter}}">
@@ -47,7 +45,6 @@
                            FontSize="13" VerticalAlignment="Center" Margin="16,0,0,0"/>
             </StackPanel>
             
-            <!-- 用户信息 -->
             <StackPanel Grid.Row="1" Spacing="8" Margin="0,0,0,24"
                         Visibility="{Binding TravelersDiary, Converter={StaticResource NullToVisibilityConverter}}">
                 <TextBlock FontSize="20" FontWeight="Bold">
@@ -61,12 +58,10 @@
                 </TextBlock>
             </StackPanel>
             
-            <!-- 数据展示区 -->
             <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
                 <StackPanel Spacing="20" 
                             Visibility="{Binding TravelersDiary, Converter={StaticResource NullToVisibilityConverter}}">
                     
-                    <!-- 今日数据卡片 -->
                     <Border Background="{ThemeResource CardBackgroundFillColorDefault}" 
                             CornerRadius="8" Padding="24">
                         <StackPanel Spacing="16">
@@ -100,8 +95,7 @@
                             </Grid>
                         </StackPanel>
                     </Border>
-                    
-                    <!-- 本月累计卡片 -->
+
                     <Border Background="{ThemeResource CardBackgroundFillColorDefault}" 
                             CornerRadius="8" Padding="24">
                         <StackPanel Spacing="16">
@@ -155,7 +149,6 @@
                         </StackPanel>
                     </Border>
                     
-                    <!-- 收入来源详细分析 -->
                     <Border Background="{ThemeResource CardBackgroundFillColorDefault}" 
                             CornerRadius="8" Padding="24">
                         <StackPanel Spacing="16">
@@ -173,22 +166,18 @@
                                                 <ColumnDefinition Width="Auto"/>
                                             </Grid.ColumnDefinitions>
                                             
-                                            <!-- 颜色标识 -->
                                             <Ellipse Grid.Column="0" Width="12" Height="12" 
                                                      Fill="{Binding Color}" Margin="0,0,12,0"/>
                                             
-                                            <!-- 来源名称 -->
                                             <TextBlock Grid.Column="1" Text="{Binding Action}" 
                                                        FontSize="16" VerticalAlignment="Center"/>
                                             
-                                            <!-- 数量 -->
                                             <TextBlock Grid.Column="2" FontSize="14" FontWeight="SemiBold" 
                                                        Margin="24,0,24,0" VerticalAlignment="Center">
                                                 <Run Text="{Binding Num}"/>
                                                 <Run Text="原石"/>
                                             </TextBlock>
-                                            
-                                            <!-- 百分比 -->
+
                                             <TextBlock Grid.Column="3" FontSize="14" Opacity="0.7" VerticalAlignment="Center">
                                                 <Run Text="{Binding Percent}"/>
                                                 <Run Text="%"/>
@@ -198,7 +187,6 @@
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
                             
-                            <!-- 总计 -->
                             <Border BorderThickness="1,0,0,0" 
                                     BorderBrush="{ThemeResource DividerStrokeColorDefault}" 
                                     Margin="0,16,0,0" Padding="16,0,0,0">
@@ -218,7 +206,6 @@
                         </StackPanel>
                     </Border>
                     
-                    <!-- 数据说明 -->
                     <Border Background="{ThemeResource CardBackgroundFillColorDefault}" 
                             CornerRadius="8" Padding="20" Opacity="0.8">
                         <StackPanel Spacing="4">
