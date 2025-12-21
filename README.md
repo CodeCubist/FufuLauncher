@@ -1,6 +1,6 @@
 # [芙芙启动器](https://github.com/CodeCubist/FufuLauncher)
 
-![Version](https://img.shields.io/badge/Version-v1.0.2-blue)
+![Version](https://img.shields.io/badge/Version-v1.0.3-blue)
 ![Platform](https://img.shields.io/badge/Platform-Windows%2010%2F11-brightgreen)
 ![License](https://img.shields.io/badge/License-MIT-orange)
 
@@ -45,3 +45,5 @@
 
 * 请在使用项目前安装 **.NET 8.0** 或以上任意版本和 **Webview2** 运行时
 * 本项目仅供学习交流使用，请支持官方正版游戏。
+
+[![Star History Chart](https://api.star-history.com/svg?repos=CodeCubist/FufuLauncher&type=date&legend=top-left)](https://www.star-history.com/#CodeCubist/FufuLauncher&type=date&legend=top-left)
