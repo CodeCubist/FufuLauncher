@@ -12,6 +12,18 @@
             <ResourceDictionary.MergedDictionaries>
                 <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
             </ResourceDictionary.MergedDictionaries>
+
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Light">
+                    <SolidColorBrush x:Key="CustomPanelBackgroundBrush" 
+                                     Color="{ThemeResource CardBackgroundFillColorDefault}"/>
+                </ResourceDictionary>
+
+                <ResourceDictionary x:Key="Default">
+                    <SolidColorBrush x:Key="CustomPanelBackgroundBrush" 
+                                     Color="#D9101010"/>
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
             <helpers:IntToVisibilityConverter x:Key="IntToVisibilityConverter"/>
             <helpers:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
             <helpers:BoolToGlyphConverter x:Key="BoolToGlyphConverter"/>
@@ -52,7 +64,7 @@
                 <Grid CornerRadius="12"
                       BorderThickness="1"
                       BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                      Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                      Background="{ThemeResource CustomPanelBackgroundBrush}"
                       MinHeight="280" 
                       MaxHeight="280">
         
@@ -199,7 +211,7 @@
                 
                 <Grid Padding="16" CornerRadius="8" BorderThickness="1" 
                       BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                      Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
+                      Background="{ThemeResource CustomPanelBackgroundBrush}">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
@@ -217,9 +229,6 @@
                             HorizontalAlignment="Stretch" CornerRadius="4" Padding="12,8"
                             Style="{StaticResource AccentButtonStyle}">
                         <Button.Resources>
-                            <SolidColorBrush x:Key="ButtonBackground" Color="{ThemeResource SystemAccentColor}"/>
-                            <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="{ThemeResource SystemAccentColorLight1}"/>
-                            <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="{ThemeResource SystemAccentColorDark1}"/>
                         </Button.Resources>
                     </Button>
                 </Grid>
@@ -234,7 +243,6 @@
                         Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                         BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
                     <Button.Resources>
-                        <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="{ThemeResource CardBackgroundFillColorSecondaryBrush}"/>
                     </Button.Resources>
                 </Button>
             </Grid>
@@ -247,7 +255,6 @@
                     Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                     BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
                 <Button.Resources>
-                    <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="{ThemeResource CardBackgroundFillColorSecondaryBrush}"/>
                 </Button.Resources>
                 <StackPanel Orientation="Horizontal" Spacing="8">
                     <FontIcon Glyph="&#xE8B7;" FontSize="16"/>
@@ -263,9 +270,6 @@
                     Margin="0,0,32,32" CornerRadius="24" Padding="36,18"
                     FontSize="16" FontWeight="SemiBold">
                 <Button.Resources>
-                    <SolidColorBrush x:Key="ButtonBackground" Color="#FF00B4FF"/>
-                    <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#FF20C4FF"/>
-                    <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#FF0090E0"/>
                 </Button.Resources>
                 <StackPanel Orientation="Horizontal" Spacing="12">
                     <ProgressRing Width="20" Height="20"

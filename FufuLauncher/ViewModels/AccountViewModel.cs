@@ -11,7 +11,6 @@ namespace FufuLauncher.ViewModels;
 
 public partial class AccountViewModel : ObservableRecipient
 {
-    private readonly ILocalSettingsService _localSettingsService;
     private readonly IUserInfoService _userInfoService;
     private readonly IUserConfigService _userConfigService;
 
@@ -46,7 +45,6 @@ public partial class AccountViewModel : ObservableRecipient
         IUserInfoService userInfoService,
         IUserConfigService userConfigService)
     {
-        _localSettingsService = localSettingsService;
         _userInfoService = userInfoService;
         _userConfigService = userConfigService;
 

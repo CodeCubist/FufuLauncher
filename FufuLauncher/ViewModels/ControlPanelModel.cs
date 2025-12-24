@@ -34,6 +34,24 @@ public partial class ControlPanelModel : ObservableObject
 
     [ObservableProperty]
     private string _connectionStatus = "请启动游戏";
+    
+    [ObservableProperty]
+    private bool _enableFpsFakeReporting;
+    
+    [ObservableProperty]
+    private bool _enableFovCutsceneFix;
+
+    partial void OnEnableFovCutsceneFixChanged(bool value)
+    {
+        SendCommand(value ? "enable_fov_cutscene_fix" : "disable_fov_cutscene_fix");
+        SaveConfig();
+    }
+
+    partial void OnEnableFpsFakeReportingChanged(bool value)
+    {
+        SendCommand(value ? "enable_fps_fake_reporting" : "disable_fps_fake_reporting");
+        SaveConfig();
+    }
 
     public ControlPanelModel()
     {
@@ -414,9 +432,13 @@ public partial class ControlPanelModel : ObservableObject
     private void ApplyConfig()
     {
         SendCommand(EnableFpsOverride ? "enable_fps_override" : "disable_fps_override");
+        SendCommand(EnableFpsFakeReporting ? "enable_fps_fake_reporting" : "disable_fps_fake_reporting");
         SendCommand($"set_fps {TargetFps}");
+        
         SendCommand(EnableFovOverride ? "enable_fov_override" : "disable_fov_override");
+        SendCommand(EnableFovCutsceneFix ? "enable_fov_cutscene_fix" : "disable_fov_cutscene_fix");
         SendCommand($"set_fov {TargetFov}");
+        
         SendCommand(EnableFogOverride ? "enable_display_fog_override" : "disable_display_fog_override");
         SendCommand(EnablePerspectiveOverride ? "enable_Perspective_override" : "disable_Perspective_override");
     }
@@ -449,6 +471,8 @@ public partial class ControlPanelModel : ObservableObject
                     ResinListItemId107009Allowed = config.ResinListItemId107009Allowed;
                     ResinListItemId107012Allowed = config.ResinListItemId107012Allowed;
                     ResinListItemId220007Allowed = config.ResinListItemId220007Allowed;
+                    EnableFpsFakeReporting = config.EnableFpsFakeReporting;
+                    EnableFovCutsceneFix = config.EnableFovCutsceneFix;
 
                     if (config.GamePlayTimeData != null)
                     {
@@ -487,6 +511,8 @@ public partial class ControlPanelModel : ObservableObject
             var config = new ControlPanelConfig
             {
                 EnableFpsOverride = EnableFpsOverride,
+                EnableFpsFakeReporting = EnableFpsFakeReporting,
+                EnableFovCutsceneFix = EnableFovCutsceneFix,
                 TargetFps = TargetFps,
                 EnableFovOverride = EnableFovOverride,
                 TargetFov = TargetFov,
@@ -503,7 +529,6 @@ public partial class ControlPanelModel : ObservableObject
                 ResinListItemId107009Allowed = ResinListItemId107009Allowed,
                 ResinListItemId107012Allowed = ResinListItemId107012Allowed,
                 ResinListItemId220007Allowed = ResinListItemId220007Allowed,
-
                 GamePlayTimeData = _playTimeData,
                 LastPlayDate = DateTime.Now.ToString("yyyy-MM-dd")
             };
@@ -523,68 +548,25 @@ public partial class ControlPanelModel : ObservableObject
 
 public class ControlPanelConfig
 {
-    public bool EnableFpsOverride
-    {
-        get; set;
-    }
-    public int TargetFps
-    {
-        get; set;
-    }
-    public bool EnableFovOverride
-    {
-        get; set;
-    }
-    public float TargetFov
-    {
-        get; set;
-    }
-    public bool EnableFogOverride
-    {
-        get; set;
-    }
-    public bool EnablePerspectiveOverride
-    {
-        get; set;
-    }
+    public bool EnableFpsOverride { get; set; }
+    public int TargetFps { get; set; }
+    public bool EnableFovOverride { get; set; }
+    public float TargetFov { get; set; }
+    public bool EnableFogOverride { get; set; }
+    public bool EnablePerspectiveOverride { get; set; }
     public bool RemoveQuestBanner { get; set; } = true;
     public bool RemoveDamageText { get; set; } = true;
-    public bool EnableTouchScreenMode
-    {
-        get; set;
-    }
+    public bool EnableTouchScreenMode { get; set; }
     public bool DisableEventCameraMove { get; set; } = true;
     public bool RemoveTeamProgressLimit { get; set; } = true;
-    public bool EnableRedirectCombineEntry
-    {
-        get; set;
-    }
-    public bool ResinListItemId000106Allowed
-    {
-        get; set;
-    }
-    public bool ResinListItemId000201Allowed
-    {
-        get; set;
-    }
-    public bool ResinListItemId107009Allowed
-    {
-        get; set;
-    }
-    public bool ResinListItemId107012Allowed
-    {
-        get; set;
-    }
-    public bool ResinListItemId220007Allowed
-    {
-        get; set;
-    }
-    public Dictionary<string, long> GamePlayTimeData
-    {
-        get; set;
-    }
-    public string LastPlayDate
-    {
-        get; set;
-    }
+    public bool EnableRedirectCombineEntry { get; set; }
+    public bool ResinListItemId000106Allowed { get; set; }
+    public bool ResinListItemId000201Allowed { get; set; }
+    public bool ResinListItemId107009Allowed { get; set; }
+    public bool ResinListItemId107012Allowed { get; set; }
+    public bool ResinListItemId220007Allowed { get; set; }
+    public Dictionary<string, long> GamePlayTimeData { get; set; }
+    public string LastPlayDate { get; set; }
+    public bool EnableFovCutsceneFix { get; set; }
+    public bool EnableFpsFakeReporting { get; set; }
 }

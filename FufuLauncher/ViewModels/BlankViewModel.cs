@@ -18,7 +18,7 @@ using WinRT.Interop;
 
 namespace FufuLauncher.ViewModels
 {
-    public partial class GameAccount
+    public class GameAccount
     {
         public Guid InnerId { get; set; } = Guid.NewGuid();
         public string Name { get; set; } = string.Empty;

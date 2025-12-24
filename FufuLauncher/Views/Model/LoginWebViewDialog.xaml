@@ -49,7 +49,7 @@
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
 
-            <Button Grid.Column="1" x:Name="CancelButton" 
+            <Button Grid.Column="1"
                     Content="取消" Margin="0,0,8,0"
                     Padding="16,8" CornerRadius="6"
                     Click="CancelButton_Click"/>

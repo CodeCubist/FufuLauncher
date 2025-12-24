@@ -17,8 +17,8 @@
     </Page.Resources>
 
     <Grid>
-        <NavigationView x:Name="MainNavigationView"
-                        IsBackButtonVisible="Collapsed"
+        <NavigationView
+            IsBackButtonVisible="Collapsed"
                         PaneDisplayMode="LeftMinimal"
                         IsPaneToggleButtonVisible="True"
                         IsSettingsVisible="False"
@@ -34,7 +34,7 @@
                 
                 <NavigationViewItem Content="高级设置" Tag="AdvancedSettings">
                     <NavigationViewItem.Icon>
-                        <FontIcon Glyph="&#xE114;"/>
+                        <FontIcon Glyph="&#xE115;"/>
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
             </NavigationView.MenuItems>
@@ -49,13 +49,13 @@
                         <ColumnDefinition Width="350"/>
                     </Grid.ColumnDefinitions>
                     
-                    <Grid Grid.Column="0" x:Name="MainContentArea">
+                    <Grid Grid.Column="0">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
                         
-                        <Grid Grid.Row="1" x:Name="PageContentContainer">
+                        <Grid Grid.Row="1">
                             <Grid x:Name="BasicSettingsPage" Visibility="Visible">
                                 <StackPanel Spacing="20">
                                     <Grid>
@@ -67,10 +67,9 @@
                                                    FontSize="24" 
                                                    FontWeight="Bold" 
                                                    Margin="40,0,0,10"/>
-                                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" HorizontalAlignment="Right" Margin="0,0,500,10">
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,40,10">
                                             <TextBlock Text="注入" VerticalAlignment="Center" FontSize="14"/>
-                                            <ToggleSwitch IsOn="{x:Bind MainViewModel.UseInjection, Mode=TwoWay}"
-                                                          />
+                                            <ToggleSwitch IsOn="{x:Bind MainViewModel.UseInjection, Mode=TwoWay}" />
                                         </StackPanel>
                                     </Grid>
                                     
@@ -85,10 +84,23 @@
                                         
                                         <TextBlock Grid.Row="0" Text="FPS 设置" FontWeight="Bold" FontSize="16" Margin="0,0,0,10"/>
                                         <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="20">
-                                            <ToggleSwitch Header="启用 FPS 突破" IsOn="{Binding EnableFpsOverride, Mode=TwoWay}" />
-                                            <StackPanel Orientation="Vertical" Spacing="5" Width="300">
-                                                <Slider Header="目标 FPS" Value="{Binding TargetFps, Mode=TwoWay}" Minimum="30" Maximum="1000" StepFrequency="10" />
-                                                <NumberBox x:Name="FpsNumberBox" Value="{Binding TargetFps, Mode=TwoWay}" Minimum="30" Maximum="1000" SpinButtonPlacementMode="Hidden" Width="100" HorizontalAlignment="Left" GotFocus="NumberBox_GotFocus" LostFocus="NumberBox_LostFocus" />
+                                            <StackPanel Orientation="Vertical" Spacing="10">
+                                                <ToggleSwitch Header="启用 FPS 突破" 
+                                                              IsOn="{Binding EnableFpsOverride, Mode=TwoWay}" 
+                                                              ToolTipService.ToolTip="解锁游戏帧率上限，允许超过默认的 60 FPS"/>
+                                            </StackPanel>
+    
+                                            <StackPanel Orientation="Vertical" Spacing="5" Width="300" VerticalAlignment="Center">
+                                                <Slider Header="目标 FPS" 
+                                                        Value="{Binding TargetFps, Mode=TwoWay}" 
+                                                        Minimum="30" Maximum="1000" StepFrequency="10" 
+                                                        ToolTipService.ToolTip="拖动调整期望的最大帧率"/>
+        
+                                                <NumberBox Value="{Binding TargetFps, Mode=TwoWay}" 
+                                                           Minimum="30" Maximum="1000" 
+                                                           SpinButtonPlacementMode="Hidden" Width="100" HorizontalAlignment="Left" 
+                                                           GotFocus="NumberBox_GotFocus" LostFocus="NumberBox_LostFocus" 
+                                                           ToolTipService.ToolTip="输入目标帧率数值"/>
                                             </StackPanel>
                                         </StackPanel>
                                     </Grid>
@@ -100,10 +112,15 @@
                                         </Grid.RowDefinitions>
                                         <TextBlock Grid.Row="0" Text="FOV 设置" FontWeight="Bold" FontSize="16" Margin="0,0,0,10"/>
                                         <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="20">
-                                            <ToggleSwitch Header="启用 FOV 修改" IsOn="{Binding EnableFovOverride, Mode=TwoWay}" />
-                                            <StackPanel Orientation="Vertical" Spacing="5" Width="300">
+                                            <StackPanel Orientation="Vertical" Spacing="10">
+                                                <ToggleSwitch Header="启用 FOV 修改" IsOn="{Binding EnableFovOverride, Mode=TwoWay}" 
+                                                              ToolTipService.ToolTip="允许自定义视野范围，获得更宽广的视角"/>
+                                            </StackPanel>
+
+                                            <StackPanel Orientation="Vertical" Spacing="5" Width="300" VerticalAlignment="Center">
                                                 <Slider Header="目标 FOV" Value="{Binding TargetFov, Mode=TwoWay}" Minimum="30" Maximum="120" StepFrequency="1" />
-                                                <NumberBox x:Name="FovNumberBox" Value="{Binding TargetFov, Mode=TwoWay}" Minimum="30" Maximum="120" SpinButtonPlacementMode="Hidden" Width="100" HorizontalAlignment="Left" GotFocus="NumberBox_GotFocus" LostFocus="NumberBox_LostFocus" />
+                                                <NumberBox Value="{Binding TargetFov, Mode=TwoWay}" Minimum="30" Maximum="120" SpinButtonPlacementMode="Hidden" Width="100" HorizontalAlignment="Left" GotFocus="NumberBox_GotFocus" LostFocus="NumberBox_LostFocus" 
+                                                           ToolTipService.ToolTip="调整视野角度，数值越大视野越宽"/>
                                             </StackPanel>
                                         </StackPanel>
                                     </Grid>
@@ -120,10 +137,18 @@
                                                 <ColumnDefinition Width="*"/>
                                             </Grid.ColumnDefinitions>
                                             <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="20">
-                                                <ToggleSwitch Header="移除任务横幅" IsOn="{Binding RemoveQuestBanner, Mode=TwoWay}" />
-                                                <ToggleSwitch Header="移除伤害文本" IsOn="{Binding RemoveDamageText, Mode=TwoWay}" />
+                                                <ToggleSwitch Header="移除任务横幅" 
+                                                              IsOn="{Binding RemoveQuestBanner, Mode=TwoWay}" 
+                                                              ToolTipService.ToolTip="移除地图左上角的任务图"/>
+                  
+                                                <ToggleSwitch Header="移除伤害文本" 
+                                                              IsOn="{Binding RemoveDamageText, Mode=TwoWay}" 
+                                                              ToolTipService.ToolTip="攻击时不显示伤害数字，使画面更简洁"/>
                                             </StackPanel>
-                                            <ToggleSwitch Grid.Column="1" Header="触屏操作模式" IsOn="{Binding EnableTouchScreenMode, Mode=TwoWay}" HorizontalAlignment="Left" Margin="0,0,0,0" />
+                                            <ToggleSwitch Grid.Column="1" Header="触屏操作模式" 
+                                                          IsOn="{Binding EnableTouchScreenMode, Mode=TwoWay}" 
+                                                          HorizontalAlignment="Left" Margin="0,0,0,0" 
+                                                          ToolTipService.ToolTip="在PC客户端使用手机触屏UI"/>
                                         </Grid>
                                     </Grid>
                                 </StackPanel>
@@ -148,8 +173,13 @@
                                                 <ColumnDefinition Width="*"/>
                                                 <ColumnDefinition Width="*"/>
                                             </Grid.ColumnDefinitions>
-                                            <ToggleSwitch Header="启用雾效去除" IsOn="{Binding EnableFogOverride, Mode=TwoWay}" />
-                                            <ToggleSwitch Grid.Column="1" Header="启用反虚化" IsOn="{Binding EnablePerspectiveOverride, Mode=TwoWay}" />
+                                            <ToggleSwitch Header="启用雾效去除" 
+                                                          IsOn="{Binding EnableFogOverride, Mode=TwoWay}" 
+                                                          ToolTipService.ToolTip="移除远处的环境雾气，使远景更清晰"/>
+                  
+                                            <ToggleSwitch Grid.Column="1" Header="启用反虚化" 
+                                                          IsOn="{Binding EnablePerspectiveOverride, Mode=TwoWay}" 
+                                                          ToolTipService.ToolTip="移除角色或物体的虚化/透明效果"/>
                                         </Grid>
                                     </Grid>
                                     
@@ -165,33 +195,17 @@
                                                 <ColumnDefinition Width="*"/>
                                                 <ColumnDefinition Width="*"/>
                                             </Grid.ColumnDefinitions>
-                                            <ToggleSwitch Grid.Column="0" Header="禁用大招动画" IsOn="{Binding DisableEventCameraMove, Mode=TwoWay}" />
-                                            <ToggleSwitch Grid.Column="1" Header="移除配队条" IsOn="{Binding RemoveTeamProgressLimit, Mode=TwoWay}" />
-                                            <ToggleSwitch Grid.Column="2" Header="重定向合成入口" IsOn="{Binding EnableRedirectCombineEntry, Mode=TwoWay}" />
-                                        </Grid>
-                                    </Grid>
-                                    
-                                    <Grid>
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="Auto"/>
-                                        </Grid.RowDefinitions>
-                                        <TextBlock Grid.Row="0" Text="树脂物品控制" FontWeight="Bold" FontSize="16" Margin="0,0,0,10"/>
-                                        <Grid Grid.Row="1">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="*"/>
-                                            </Grid.ColumnDefinitions>
-                                            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="20">
-                                                <ToggleSwitch Header="原粹树脂" IsOn="{Binding ResinListItemId000106Allowed, Mode=TwoWay}" />
-                                                <ToggleSwitch Header="原石" IsOn="{Binding ResinListItemId000201Allowed, Mode=TwoWay}" />
-                                            </StackPanel>
-                                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="20">
-                                                <ToggleSwitch Header="脆弱树脂" IsOn="{Binding ResinListItemId107009Allowed, Mode=TwoWay}" />
-                                                <ToggleSwitch Header="须臾树脂" IsOn="{Binding ResinListItemId107012Allowed, Mode=TwoWay}" />
-                                            </StackPanel>
-                                            <ToggleSwitch Grid.Column="2" Header="浓缩树脂" IsOn="{Binding ResinListItemId220007Allowed, Mode=TwoWay}" />
+                                            <ToggleSwitch Grid.Column="0" Header="禁用大招动画" 
+                                                          IsOn="{Binding DisableEventCameraMove, Mode=TwoWay}" 
+                                                          ToolTipService.ToolTip="释放元素爆发时不再播放特写镜头，保持当前视角"/>
+              
+                                            <ToggleSwitch Grid.Column="1" Header="移除配队条" 
+                                                          IsOn="{Binding RemoveTeamProgressLimit, Mode=TwoWay}" 
+                                                          ToolTipService.ToolTip="移除2秒配队界面的加载动画"/>
+              
+                                            <ToggleSwitch Grid.Column="2" Header="重定向合成入口" 
+                                                          IsOn="{Binding EnableRedirectCombineEntry, Mode=TwoWay}" 
+                                                          ToolTipService.ToolTip="随时随地打开合成台"/>
                                         </Grid>
                                     </Grid>
                                 </StackPanel>

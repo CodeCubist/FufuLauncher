@@ -5,14 +5,11 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using FufuLauncher.Contracts.Services;
-using FufuLauncher.Helpers;
-using FufuLauncher.Messages;
 using FufuLauncher.Models;
 using FufuLauncher.Services;
 using FufuLauncher.Services.Background;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Windows.Storage;
 using CommunityToolkit.Mvvm.Messaging.Messages;
 
 namespace FufuLauncher.ViewModels
