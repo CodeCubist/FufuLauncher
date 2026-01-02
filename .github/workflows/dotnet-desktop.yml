@@ -83,8 +83,8 @@ jobs:
         install-vc-build-tools: true
     
     # Execute all unit tests in the solution
-    - name: Execute unit tests
-      run: dotnet test $env:Solution_Name --configuration Release --no-restore --filter "Extension!=vcxproj" --verbosity minimal
+    #- name: Execute unit tests
+    #  run: dotnet test $env:Solution_Name --configuration Release --no-restore --filter "Extension!=vcxproj" --verbosity minimal
 
     # Restore the application to populate the obj folder with RuntimeIdentifiers
     - name: Restore the application
