@@ -13,7 +13,7 @@ public sealed partial class LoginWebViewDialog : Window
     private bool _loginCompleted = false;
     private AppWindow _appWindow;
     private DispatcherTimer _autoCheckTimer;
-    private bool _isChecking = false; // 防止重复检查的标志
+    private bool _isChecking = false;
 
     public LoginWebViewDialog()
     {
@@ -31,18 +31,15 @@ public sealed partial class LoginWebViewDialog : Window
         this.ExtendsContentIntoTitleBar = true;
         this.SetTitleBar(new Grid() { Height = 0 });
 
-        // 初始化自动检测定时器
         _autoCheckTimer = new DispatcherTimer();
-        _autoCheckTimer.Interval = TimeSpan.FromSeconds(3); // 每3秒检查一次
+        _autoCheckTimer.Interval = TimeSpan.FromSeconds(3); 
         _autoCheckTimer.Tick += AutoCheckTimer_Tick;
     }
 
     private async void CancelButton_Click(object sender, RoutedEventArgs e)
     {
-        // 停止自动检测
         _autoCheckTimer?.Stop();
 
-        // 清除本次登录的Cookie（只清除米游社的）
         await ClearMiyousheCookiesAsync();
 
         Close();
@@ -59,7 +56,6 @@ public sealed partial class LoginWebViewDialog : Window
         {
             if (LoginWebView?.CoreWebView2?.CookieManager != null)
             {
-                // 只清除米游社域名的Cookie
                 var cookies = await LoginWebView.CoreWebView2.CookieManager.GetCookiesAsync("https://www.miyoushe.com");
                 foreach (var cookie in cookies)
                 {
@@ -106,14 +102,12 @@ public sealed partial class LoginWebViewDialog : Window
             }
             if (sender.Source?.AbsoluteUri.Contains("miyoushe.com") == true)
             {
-                // 启动自动检测定时器
                 if (!_autoCheckTimer.IsEnabled)
                 {
                     _autoCheckTimer.Start();
                     Debug.WriteLine("开始自动检测登录状态");
                 }
 
-                // 立即检查一次Cookie
                 await CheckAndSaveLoginStatus();
             }
         }
@@ -134,21 +128,16 @@ public sealed partial class LoginWebViewDialog : Window
 
         try
         {
-            // 获取所有米游社的Cookie
             var cookies = await LoginWebView.CoreWebView2.CookieManager.GetCookiesAsync("https://www.miyoushe.com");
 
-            // 调试：显示所有Cookie信息
             Debug.WriteLine($"检测到 {cookies.Count} 个Cookie");
             foreach (var cookie in cookies)
             {
                 Debug.WriteLine($"  {cookie.Name}: {cookie.Value}");
             }
 
-            // 关键登录Cookie检查
             var loginCookieNames = new[] { "account_id", "ltuid", "ltoken", "cookie_token", "login_ticket", "stuid", "stoken" };
             var hasKeyCookies = cookies.Any(c => loginCookieNames.Contains(c.Name));
-
-            // 检查是否有足够数量的Cookie且包含关键登录Cookie
             if (cookies.Count >= 3 && hasKeyCookies)
             {
                 var latestCookieString = string.Join("; ", cookies.Select(c => $"{c.Name}={c.Value}"));
@@ -160,14 +149,8 @@ public sealed partial class LoginWebViewDialog : Window
                     await ClearMiyousheCookiesAsync();
                     _loginCompleted = true;
                     StatusText.Text = "登录成功！正在关闭...";
-
-                    // 停止定时器
                     _autoCheckTimer.Stop();
-
-                    // 延迟关闭，让用户看到成功提示
                     await Task.Delay(2000);
-
-                    // 关闭窗口前不清除Cookie（因为已经保存了）
                     Close();
                 }
             }
@@ -209,8 +192,6 @@ public sealed partial class LoginWebViewDialog : Window
 
             if (config.Account == null) config.Account = new AccountConfig();
             config.Account.Cookie = cookieString;
-
-            // 提取account_id或ltuid作为Stuid
             if (cookieString.Contains("account_id="))
             {
                 var match = System.Text.RegularExpressions.Regex.Match(cookieString, @"account_id=(\d+)");
@@ -247,8 +228,6 @@ public sealed partial class LoginWebViewDialog : Window
     }
 
     public bool DidLoginSucceed() => _loginCompleted;
-
-    // 窗口关闭时停止定时器
     private void Window_Closed(object sender, WindowEventArgs args)
     {
         _autoCheckTimer?.Stop();
