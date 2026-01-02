@@ -30,12 +30,35 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Install Windows 11 SDK
+    - name: Install required SDKs
       run: |
-        # 安装 Windows App SDK 构建依赖
-        choco install windows-sdk-11-version-26100 -y
-        choco install visualstudio2022-workload-native-desktop -y
-        choco install visualstudio2022-workload-manageddesktop -y
+        # 安装 Windows 11 SDK
+        choco install -y windows-sdk-11-version-26100
+        
+        # 安装 Visual Studio 构建工具（必须！）
+        choco install -y visualstudio2022buildtools
+        choco install -y visualstudio2022-workload-manageddesktopbuildtools
+        choco install -y visualstudio2022-workload-nativedesktopbuildtools
+        
+        # 添加必要的路径
+        echo "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Current\Bin" >> $env:GITHUB_PATH
+        echo "C:\Program Files (x86)\Windows Kits\10\bin\10.0.26100.0\x64" >> $env:GITHUB_PATH
+    
+    - name: Fix Windows App SDK paths
+      run: |
+        # 关键修复：创建缺失的 DLL 路径
+        $missingPath = "C:\Program Files\dotnet\sdk\10.0.101\Microsoft\VisualStudio\v18.0\AppxPackage"
+        $sourcePath = "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VisualStudio\v18.0\AppxPackage"
+        
+        # 创建目录结构
+        New-Item -ItemType Directory -Path $missingPath -Force
+        
+        # 复制必要的 DLL 文件
+        if (Test-Path $sourcePath) {
+          Copy-Item "$sourcePath\*.dll" $missingPath -Force
+          echo "复制了必要的 DLL 文件"
+        } else {
+          echo "源路径不存在: $sourcePath"
     
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
