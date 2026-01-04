@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Navigation;
+using Microsoft.UI.Xaml.Media.Animation;
 
 namespace FufuLauncher.Views;
 
@@ -16,6 +17,59 @@ public sealed partial class MainPage : Page
     public XamlUICommand OpenLinkCommand
     {
         get;
+    }
+    
+    private void Copyright_PointerEntered(object sender, PointerRoutedEventArgs e)
+    {
+        AnimateCopyrightOpacity(0.8);
+    }
+    
+    private void Copyright_PointerExited(object sender, PointerRoutedEventArgs e)
+    {
+        AnimateCopyrightOpacity(0.05);
+    }
+    
+    private void AnimateCopyrightOpacity(double toOpacity)
+    {
+        var storyboard = new Storyboard();
+        var animation = new DoubleAnimation
+        {
+            To = toOpacity,
+            Duration = new Duration(TimeSpan.FromMilliseconds(300)),
+            EnableDependentAnimation = true
+        };
+
+        Storyboard.SetTarget(animation, CopyrightText);
+        Storyboard.SetTargetProperty(animation, "Opacity");
+
+        storyboard.Children.Add(animation);
+        storyboard.Begin();
+    }
+    private void ScreenshotButton_PointerEntered(object sender, PointerRoutedEventArgs e)
+    {
+        AnimateBlurOpacity(0);
+    }
+
+    private void ScreenshotButton_PointerExited(object sender, PointerRoutedEventArgs e)
+    {
+        AnimateBlurOpacity(1.0);
+    }
+
+    private void AnimateBlurOpacity(double toOpacity)
+    {
+        var storyboard = new Storyboard();
+        var animation = new DoubleAnimation
+        {
+            To = toOpacity,
+            Duration = new Duration(TimeSpan.FromMilliseconds(200)),
+            EnableDependentAnimation = true
+        };
+
+        Storyboard.SetTarget(animation, ScreenshotBlurBorder);
+        Storyboard.SetTargetProperty(animation, "Opacity");
+
+        storyboard.Children.Add(animation);
+        storyboard.Begin();
     }
 
     private bool _isInitialized = false;

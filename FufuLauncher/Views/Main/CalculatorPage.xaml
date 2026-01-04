@@ -4,20 +4,69 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:viewModels="using:FufuLauncher.ViewModels"
     mc:Ignorable="d"
     Background="Transparent">
-    
-    <Grid>
-        <WebView2 x:Name="CalculatorWebView" 
-                  HorizontalAlignment="Stretch"
-                  VerticalAlignment="Stretch"/>
+
+    <Grid Padding="24">
         
-        
-        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
-                    Visibility="{x:Bind ViewModel.IsLoading, Mode=OneWay}">
-            <ProgressRing IsActive="True" Width="40" Height="40"/>
-            <TextBlock Text="{x:Bind ViewModel.StatusMessage, Mode=OneWay}" 
-                       Margin="0,12,0,0" HorizontalAlignment="Center"/>
-        </StackPanel>
+        <Border x:Name="WebCardContainer"
+                HorizontalAlignment="Stretch"
+                VerticalAlignment="Stretch"
+                CornerRadius="16"
+                Background="{ThemeResource LayerFillColorDefaultBrush}"
+                Translation="0,0,32"
+                SizeChanged="WebCardContainer_SizeChanged">
+            
+            <Border.Shadow>
+                <ThemeShadow />
+            </Border.Shadow>
+
+            <Grid>
+                <WebView2 x:Name="CalculatorWebView"
+                          HorizontalAlignment="Stretch"
+                          VerticalAlignment="Stretch"
+                          DefaultBackgroundColor="Transparent"/>
+
+                <Grid x:Name="LoadingOverlay"
+                      Visibility="{x:Bind ViewModel.IsLoading, Mode=OneWay}"
+                      HorizontalAlignment="Stretch"
+                      VerticalAlignment="Stretch"
+                      Canvas.ZIndex="10">
+                    
+                    <Grid.Background>
+                        <SolidColorBrush Color="{ThemeResource SystemAltHighColor}" Opacity="0.95"/>
+                    </Grid.Background>
+
+                    <StackPanel HorizontalAlignment="Center" 
+                                VerticalAlignment="Center" 
+                                Spacing="20">
+                        
+                        <Grid Width="80" Height="80">
+                            <ProgressRing IsActive="True" 
+                                          Width="60" 
+                                          Height="60"
+                                          IsIndeterminate="True"/>
+                        </Grid>
+
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="正在加载..." 
+                                       Style="{ThemeResource SubtitleTextBlockStyle}"
+                                       HorizontalAlignment="Center"
+                                       Foreground="{ThemeResource SystemControlForegroundBaseHighBrush}"/>
+                            
+                            <TextBlock Text="{x:Bind ViewModel.StatusMessage, Mode=OneWay}" 
+                                       Style="{ThemeResource CaptionTextBlockStyle}"
+                                       HorizontalAlignment="Center"
+                                       Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}"
+                                       TextWrapping="Wrap"
+                                       MaxLines="2"
+                                       MaxWidth="300"
+                                       TextAlignment="Center"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Grid>
+            </Grid>
+        </Border>
     </Grid>
 </Page>

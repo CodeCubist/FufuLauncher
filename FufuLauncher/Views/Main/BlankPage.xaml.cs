@@ -142,29 +142,43 @@ namespace FufuLauncher.Views
                 CodesLoadingRing.Visibility = Visibility.Collapsed;
             }
         }
+        
+        private void ToggleCodes_Click(object sender, RoutedEventArgs e)
+        {
+            if (RedeemContentPanel.Visibility == Visibility.Visible)
+            {
+                RedeemContentPanel.Visibility = Visibility.Collapsed;
+                RedeemChevron.Glyph = "\uE70D"; // ChevronDown
+            }
+            else
+            {
+                RedeemContentPanel.Visibility = Visibility.Visible;
+                RedeemChevron.Glyph = "\uE70E"; // ChevronUp
+            }
+        }
 
         private void CopyCode_Click(object sender, RoutedEventArgs e)
-{
-    if (sender is Button btn && btn.Tag is string code)
-    {
-        var package = new Windows.ApplicationModel.DataTransfer.DataPackage();
-        package.SetText(code);
-        Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(package);
-        
-        var originalContent = btn.Content;
-        btn.Content = "已复制";
-        btn.IsEnabled = false;
-        
-        Task.Delay(1000).ContinueWith(_ => 
         {
-            DispatcherQueue.TryEnqueue(() => 
+            if (sender is Button btn && btn.Tag is string code)
             {
-                btn.Content = originalContent;
-                btn.IsEnabled = true;
-            });
-        });
-    }
-}
+                var package = new Windows.ApplicationModel.DataTransfer.DataPackage();
+                package.SetText(code);
+                Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(package);
+                
+                var originalContent = btn.Content;
+                btn.Content = "已复制";
+                btn.IsEnabled = false;
+                
+                Task.Delay(1000).ContinueWith(_ => 
+                {
+                    DispatcherQueue.TryEnqueue(() => 
+                    {
+                        btn.Content = originalContent;
+                        btn.IsEnabled = true;
+                    });
+                });
+            }
+        }
 
         private async void ApplyPath_Click(object sender, RoutedEventArgs e)
         {
@@ -263,75 +277,75 @@ namespace FufuLauncher.Views
             }
         }
         private async Task PerformServerSwitch(string gameDir, string configPath, bool toBilibili)
-{
-    try
-    {
-        // 官服: channel=1, sub_channel=1, cps=mihoyo
-        // B服: channel=14, sub_channel=0, cps=bilibili
-        string channel = toBilibili ? "14" : "1";
-        string subChannel = toBilibili ? "0" : "1";
-        string cps = toBilibili ? "bilibili" : "mihoyo";
-
-        string[] lines = await File.ReadAllLinesAsync(configPath);
-        for (int i = 0; i < lines.Length; i++)
         {
-            if (lines[i].StartsWith("channel=")) lines[i] = $"channel={channel}";
-            else if (lines[i].StartsWith("sub_channel=")) lines[i] = $"sub_channel={subChannel}";
-            else if (lines[i].StartsWith("cps=")) lines[i] = $"cps={cps}";
-        }
-        await File.WriteAllLinesAsync(configPath, lines);
-
-        string dataDirName = "YuanShen_Data";
-        if (!Directory.Exists(Path.Combine(gameDir, dataDirName)))
-        {
-            dataDirName = "GenshinImpact_Data";
-        }
-        
-        string pluginsDir = Path.Combine(gameDir, dataDirName, "Plugins");
-        string targetSdkPath = Path.Combine(pluginsDir, "PCGameSDK.dll");
-        
-        if (!Directory.Exists(pluginsDir)) Directory.CreateDirectory(pluginsDir);
-
-        if (toBilibili)
-        {
-            string appBaseDir = AppContext.BaseDirectory; 
-            string sourceSdkPath = Path.Combine(appBaseDir, "Assets", "PCGameSDK.dll");
-
-            if (File.Exists(sourceSdkPath))
+            try
             {
-                File.Copy(sourceSdkPath, targetSdkPath, true);
-            }
-            else
-            {
-                await ShowError($"缺失核心文件：{sourceSdkPath}\n请确保已将 PCGameSDK.dll 放入软件的 Assets 文件夹。");
-                return;
-            }
-        }
-        else
-        {
-            if (File.Exists(targetSdkPath))
-            {
-                File.Delete(targetSdkPath);
-            }
-        }
-        
-        await LoadGameConfig(_currentConfig.GamePath);
-        
-        var successDialog = new ContentDialog
-        {
-            Title = "切换成功",
-            Content = $"已成功切换至 {(toBilibili ? "Bilibili 服" : "官方服务器")}。\nSDK已{(toBilibili ? "部署" : "清理")}。",
-            CloseButtonText = "确定",
-            XamlRoot = this.XamlRoot
-        };
-        await successDialog.ShowAsync();
+                // 官服: channel=1, sub_channel=1, cps=mihoyo
+                // B服: channel=14, sub_channel=0, cps=bilibili
+                string channel = toBilibili ? "14" : "1";
+                string subChannel = toBilibili ? "0" : "1";
+                string cps = toBilibili ? "bilibili" : "mihoyo";
 
-    }
-    catch (Exception ex)
-    {
-        await ShowError($"切换失败: {ex.Message}");
-    }
-}
+                string[] lines = await File.ReadAllLinesAsync(configPath);
+                for (int i = 0; i < lines.Length; i++)
+                {
+                    if (lines[i].StartsWith("channel=")) lines[i] = $"channel={channel}";
+                    else if (lines[i].StartsWith("sub_channel=")) lines[i] = $"sub_channel={subChannel}";
+                    else if (lines[i].StartsWith("cps=")) lines[i] = $"cps={cps}";
+                }
+                await File.WriteAllLinesAsync(configPath, lines);
+
+                string dataDirName = "YuanShen_Data";
+                if (!Directory.Exists(Path.Combine(gameDir, dataDirName)))
+                {
+                    dataDirName = "GenshinImpact_Data";
+                }
+                
+                string pluginsDir = Path.Combine(gameDir, dataDirName, "Plugins");
+                string targetSdkPath = Path.Combine(pluginsDir, "PCGameSDK.dll");
+                
+                if (!Directory.Exists(pluginsDir)) Directory.CreateDirectory(pluginsDir);
+
+                if (toBilibili)
+                {
+                    string appBaseDir = AppContext.BaseDirectory; 
+                    string sourceSdkPath = Path.Combine(appBaseDir, "Assets", "PCGameSDK.dll");
+
+                    if (File.Exists(sourceSdkPath))
+                    {
+                        File.Copy(sourceSdkPath, targetSdkPath, true);
+                    }
+                    else
+                    {
+                        await ShowError($"缺失核心文件：{sourceSdkPath}\n请确保已将 PCGameSDK.dll 放入软件的 Assets 文件夹。");
+                        return;
+                    }
+                }
+                else
+                {
+                    if (File.Exists(targetSdkPath))
+                    {
+                        File.Delete(targetSdkPath);
+                    }
+                }
+                
+                await LoadGameConfig(_currentConfig.GamePath);
+                
+                var successDialog = new ContentDialog
+                {
+                    Title = "切换成功",
+                    Content = $"已成功切换至 {(toBilibili ? "Bilibili 服" : "官方服务器")}。\nSDK已{(toBilibili ? "部署" : "清理")}。",
+                    CloseButtonText = "确定",
+                    XamlRoot = this.XamlRoot
+                };
+                await successDialog.ShowAsync();
+
+            }
+            catch (Exception ex)
+            {
+                await ShowError($"切换失败: {ex.Message}");
+            }
+        }
         
         private async Task LoadGameConfig(string gameExePath)
         {

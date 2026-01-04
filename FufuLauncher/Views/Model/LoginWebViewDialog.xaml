@@ -7,51 +7,60 @@
     mc:Ignorable="d"
     Title="登录米游社">
 
+    <Window.SystemBackdrop>
+        <MicaBackdrop Kind="BaseAlt"/>
+    </Window.SystemBackdrop>
+
     <Grid>
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        
-        <Grid Grid.Row="0" Margin="0">
-            <Border Background="White" BorderThickness="0">
-                <WebView2 x:Name="LoginWebView"
-                          Source="https://www.miyoushe.com/ys/"
-                          NavigationCompleted="LoginWebView_NavigationCompleted"/>
-            </Border>
-
-            <ProgressRing x:Name="LoadingRing"
-                          IsActive="True"
-                          Width="40"
-                          Height="40"
-                          VerticalAlignment="Center"
-                          HorizontalAlignment="Center"
-                          Canvas.ZIndex="10"/>
-            
-            <TextBlock x:Name="StatusText"
-                       Text="请在页面中登录您的米游社账户..."
-                       Margin="16"
-                       VerticalAlignment="Bottom"
-                       HorizontalAlignment="Center"
-                       Opacity="0.8"
-                       Canvas.ZIndex="10"/>
+        <Grid x:Name="AppTitleBar" Grid.Row="0" Height="32" Background="Transparent">
+            <TextBlock Text="登录米游社" 
+                       VerticalAlignment="Center" 
+                       Margin="16,0,0,0" 
+                       Style="{ThemeResource CaptionTextBlockStyle}"
+                       Opacity="0.8"/>
         </Grid>
 
-        
-        
-        <Grid Grid.Row="1" 
+        <ProgressBar x:Name="LoadingBar" 
+                     Grid.Row="1"
+                     IsIndeterminate="True" 
+                     Visibility="Visible"
+                     VerticalAlignment="Top"/>
+
+        <Border Grid.Row="2" Background="White" BorderThickness="0">
+            <WebView2 x:Name="LoginWebView"
+                      Source="https://www.miyoushe.com/ys/"
+                      NavigationCompleted="LoginWebView_NavigationCompleted"/>
+        </Border>
+
+        <TextBlock x:Name="StatusText"
+                   Grid.Row="2"
+                   Text="请在页面中登录您的米游社账户..."
+                   Margin="16"
+                   VerticalAlignment="Bottom"
+                   HorizontalAlignment="Center"
+                   Opacity="0.8"
+                   Foreground="Black"
+                   Canvas.ZIndex="10"/>
+
+        <Grid Grid.Row="3" 
               Background="{ThemeResource SolidBackgroundFillColorBaseBrush}"
-              Padding="16,8">
+              Padding="16,12">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
 
             <Button Grid.Column="1"
-                    Content="取消" Margin="0,0,8,0"
-                    Padding="16,8" CornerRadius="6"
+                    Content="取消" 
+                    Padding="24,6" 
+                    CornerRadius="4"
                     Click="CancelButton_Click"/>
         </Grid>
     </Grid>

@@ -4,7 +4,9 @@ using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.Web.WebView2.Core;
-using MihoyoBBS;
+using Windows.Graphics;
+using Microsoft.UI;
+using MihoyoBBS; 
 
 namespace FufuLauncher.Views;
 
@@ -18,30 +20,46 @@ public sealed partial class LoginWebViewDialog : Window
     public LoginWebViewDialog()
     {
         InitializeComponent();
-
+        
         var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
-        var windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hwnd);
+        var windowId = Win32Interop.GetWindowIdFromWindow(hwnd);
         _appWindow = AppWindow.GetFromWindowId(windowId);
+        
+        InitializeWindowConfiguration(windowId);
+        
+        _autoCheckTimer = new DispatcherTimer();
+        _autoCheckTimer.Interval = TimeSpan.FromSeconds(3);
+        _autoCheckTimer.Tick += AutoCheckTimer_Tick;
+    }
+
+    private void InitializeWindowConfiguration(WindowId windowId)
+    {
+        this.ExtendsContentIntoTitleBar = true;
+        this.SetTitleBar(AppTitleBar);
 
         if (_appWindow != null)
         {
-            _appWindow.SetPresenter(AppWindowPresenterKind.FullScreen);
+            _appWindow.SetPresenter(AppWindowPresenterKind.Default);
+            
+            var displayArea = DisplayArea.GetFromWindowId(windowId, DisplayAreaFallback.Primary);
+            
+            int width = (int)(displayArea.WorkArea.Width * 0.6);
+            int height = (int)(displayArea.WorkArea.Height * 0.75);
+            
+            width = Math.Max(width, 1024);
+            height = Math.Max(height, 768);
+            
+            int x = (displayArea.WorkArea.Width - width) / 2;
+            int y = (displayArea.WorkArea.Height - height) / 2;
+
+            _appWindow.MoveAndResize(new RectInt32(x, y, width, height));
         }
-
-        this.ExtendsContentIntoTitleBar = true;
-        this.SetTitleBar(new Grid() { Height = 0 });
-
-        _autoCheckTimer = new DispatcherTimer();
-        _autoCheckTimer.Interval = TimeSpan.FromSeconds(3); 
-        _autoCheckTimer.Tick += AutoCheckTimer_Tick;
     }
 
     private async void CancelButton_Click(object sender, RoutedEventArgs e)
     {
         _autoCheckTimer?.Stop();
-
         await ClearMiyousheCookiesAsync();
-
         Close();
     }
 
@@ -72,7 +90,8 @@ public sealed partial class LoginWebViewDialog : Window
 
     private async void LoginWebView_NavigationCompleted(WebView2 sender, CoreWebView2NavigationCompletedEventArgs args)
     {
-        LoadingRing.IsActive = false;
+        LoadingBar.Visibility = Visibility.Collapsed;
+        LoadingBar.IsIndeterminate = false;
 
         try
         {
@@ -99,9 +118,7 @@ public sealed partial class LoginWebViewDialog : Window
                 {
                     StatusText.Text = "点击'完成登录'保存";
                 }
-            }
-            if (sender.Source?.AbsoluteUri.Contains("miyoushe.com") == true)
-            {
+
                 if (!_autoCheckTimer.IsEnabled)
                 {
                     _autoCheckTimer.Start();
@@ -111,7 +128,6 @@ public sealed partial class LoginWebViewDialog : Window
                 await CheckAndSaveLoginStatus();
             }
         }
-
         catch (Exception ex)
         {
             Debug.WriteLine($"操作失败: {ex.Message}");
@@ -128,28 +144,31 @@ public sealed partial class LoginWebViewDialog : Window
 
         try
         {
+            
             var cookies = await LoginWebView.CoreWebView2.CookieManager.GetCookiesAsync("https://www.miyoushe.com");
 
             Debug.WriteLine($"检测到 {cookies.Count} 个Cookie");
-            foreach (var cookie in cookies)
-            {
-                Debug.WriteLine($"  {cookie.Name}: {cookie.Value}");
-            }
-
+            
             var loginCookieNames = new[] { "account_id", "ltuid", "ltoken", "cookie_token", "login_ticket", "stuid", "stoken" };
             var hasKeyCookies = cookies.Any(c => loginCookieNames.Contains(c.Name));
+            
             if (cookies.Count >= 3 && hasKeyCookies)
             {
                 var latestCookieString = string.Join("; ", cookies.Select(c => $"{c.Name}={c.Value}"));
 
                 if (!string.IsNullOrEmpty(latestCookieString))
                 {
-                    StatusText.Text = "检测到登录成功，正在保存...";
+                    StatusText.Text = "正在保存...";
+                    LoadingBar.Visibility = Visibility.Visible;
+                    LoadingBar.IsIndeterminate = true;
+
                     await SaveCookiesAsync(latestCookieString);
                     await ClearMiyousheCookiesAsync();
+                    
                     _loginCompleted = true;
-                    StatusText.Text = "登录成功！正在关闭...";
+                    StatusText.Text = "登录成功";
                     _autoCheckTimer.Stop();
+                    
                     await Task.Delay(2000);
                     Close();
                 }
@@ -173,7 +192,6 @@ public sealed partial class LoginWebViewDialog : Window
         }
     }
 
-
     private async Task SaveCookiesAsync(string cookieString)
     {
         try
@@ -192,6 +210,7 @@ public sealed partial class LoginWebViewDialog : Window
 
             if (config.Account == null) config.Account = new AccountConfig();
             config.Account.Cookie = cookieString;
+            
             if (cookieString.Contains("account_id="))
             {
                 var match = System.Text.RegularExpressions.Regex.Match(cookieString, @"account_id=(\d+)");
@@ -218,7 +237,6 @@ public sealed partial class LoginWebViewDialog : Window
             await File.WriteAllTextAsync(path, newJson);
 
             Debug.WriteLine($"文件已保存: {path}");
-            Debug.WriteLine($"保存的Cookie: {cookieString}");
         }
         catch (Exception ex)
         {
@@ -228,8 +246,4 @@ public sealed partial class LoginWebViewDialog : Window
     }
 
     public bool DidLoginSucceed() => _loginCompleted;
-    private void Window_Closed(object sender, WindowEventArgs args)
-    {
-        _autoCheckTimer?.Stop();
-    }
 }

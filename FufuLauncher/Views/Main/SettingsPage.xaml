@@ -176,17 +176,6 @@
                             </StackPanel>
                         </StackPanel>
                         
-                        <StackPanel Style="{StaticResource SettingItemStyle}" Margin="0,12,0,0">
-                            <TextBlock Text="面板背景透明度" 
-                                       Style="{ThemeResource BodyStrongTextBlockStyle}"
-                                       FontSize="14"/>
-                            <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
-                                <Slider x:Name="PanelOpacitySlider" Width="260" Minimum="0" Maximum="1" StepFrequency="0.05"
-                                        Value="{x:Bind ViewModel.PanelBackgroundOpacity, Mode=TwoWay}"/>
-                                <TextBlock Text="{Binding Value, ElementName=PanelOpacitySlider, Converter={StaticResource StringFormatConverter}, ConverterParameter='{}{0:P0}'}"
-                                           VerticalAlignment="Center"/>
-                            </StackPanel>
-                        </StackPanel>
                         
                         <StackPanel Style="{StaticResource SettingItemStyle}" Margin="0,12,0,0">
                             <TextBlock Text="背景图片透明度" 

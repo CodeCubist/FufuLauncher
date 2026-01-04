@@ -45,18 +45,21 @@ namespace FufuLauncher.ViewModels
         [ObservableProperty] private ObservableCollection<SocialMediaItem> _socialMediaList = new();
         [ObservableProperty] private Brush _panelBackgroundBrush;
         private double _panelOpacityValue = 0.5;
-
+        
         private BannerItem _currentBanner;
         public BannerItem CurrentBanner
         {
             get => _currentBanner;
-            set => SetProperty(ref _currentBanner, value);
+            set
+            {
+                SetProperty(ref _currentBanner, value);
+            }
         }
 
         partial void OnIsGameLaunchingChanged(bool value) => IsGameNotLaunching = !value;
 
         [ObservableProperty] private bool _isPanelExpanded = true;
-        [ObservableProperty] private bool _isActivityPostsExpanded = true;
+        
         private DispatcherQueueTimer _bannerTimer;
 
         public Visibility ImageVisibility => IsVideoBackground ? Visibility.Collapsed : Visibility.Visible;
@@ -99,10 +102,7 @@ namespace FufuLauncher.ViewModels
         {
             get;
         }
-        public IRelayCommand ToggleActivityCommand
-        {
-            get;
-        }
+
         public IRelayCommand ToggleBackgroundTypeCommand
         {
             get;
@@ -145,7 +145,7 @@ namespace FufuLauncher.ViewModels
 
             LoadBackgroundCommand = new AsyncRelayCommand(LoadBackgroundAsync);
             TogglePanelCommand = new RelayCommand(() => IsPanelExpanded = !IsPanelExpanded);
-            ToggleActivityCommand = new RelayCommand(() => IsActivityPostsExpanded = !IsActivityPostsExpanded);
+            // ToggleActivityCommand = new RelayCommand(() => IsActivityPostsExpanded = !IsActivityPostsExpanded);
             ToggleBackgroundTypeCommand = new RelayCommand(ToggleBackgroundType);
             ExecuteCheckinCommand = new AsyncRelayCommand(ExecuteCheckinAsync);
             LaunchGameCommand = new AsyncRelayCommand(LaunchGameAsync);
@@ -430,61 +430,112 @@ namespace FufuLauncher.ViewModels
             _ = LoadBackgroundAsync();
         }
 
-        private async Task LoadContentAsync()
+private async Task LoadContentAsync()
+{
+    if (Banners != null && Banners.Count > 0)
+    {
+        if (CurrentBanner == null)
         {
-            try
+            CurrentBanner = Banners[0];
+        }
+        
+        _bannerTimer?.Start();
+        
+        return; 
+    }
+
+    try
+    {
+        
+        var serverJson = await _localSettingsService.ReadSettingAsync(LocalSettingsService.BackgroundServerKey);
+        int serverValue = serverJson != null ? Convert.ToInt32(serverJson) : 0;
+        var server = (ServerType)serverValue;
+        
+        var content = await _contentService.GetGameContentAsync(server);
+
+        if (content != null)
+        {
+            await UpdateUI(() =>
             {
-                var serverJson = await _localSettingsService.ReadSettingAsync(LocalSettingsService.BackgroundServerKey);
-                int serverValue = serverJson != null ? Convert.ToInt32(serverJson) : 0;
-                var server = (ServerType)serverValue;
-
-                var content = await _contentService.GetGameContentAsync(server);
-                if (content != null)
+                _bannerTimer?.Stop();
+                CurrentBanner = null;
+                
+                Banners.Clear();
+                foreach (var banner in content.Banners ?? Array.Empty<BannerItem>())
                 {
-                    await UpdateUI(() =>
+                    Banners.Add(banner);
+                }
+                
+                var posts = content.Posts ?? Array.Empty<PostItem>();
+
+                ActivityPosts.Clear();
+                foreach (var post in posts.Where(p => p.Type == "POST_TYPE_ACTIVITY")) 
+                    ActivityPosts.Add(post);
+
+                AnnouncementPosts.Clear();
+                foreach (var post in posts.Where(p => p.Type == "POST_TYPE_ANNOUNCE")) 
+                    AnnouncementPosts.Add(post);
+
+                InfoPosts.Clear();
+                foreach (var post in posts.Where(p => p.Type == "POST_TYPE_INFO")) 
+                    InfoPosts.Add(post);
+                
+                SocialMediaList.Clear();
+                foreach (var item in content.SocialMediaList ?? Array.Empty<SocialMediaItem>())
+                {
+                    SocialMediaList.Add(item);
+                }
+                
+                if (Banners.Count > 0)
+                {
+                    _dispatcherQueue.TryEnqueue(async () =>
                     {
-                        Banners.Clear();
-                        foreach (var banner in content.Banners ?? Array.Empty<BannerItem>())
-                            Banners.Add(banner);
-
-                        var posts = content.Posts ?? Array.Empty<PostItem>();
-                        ActivityPosts.Clear();
-                        foreach (var post in posts.Where(p => p.Type == "POST_TYPE_ACTIVITY"))
-                            ActivityPosts.Add(post);
-
-                        AnnouncementPosts.Clear();
-                        foreach (var post in posts.Where(p => p.Type == "POST_TYPE_ANNOUNCE"))
-                            AnnouncementPosts.Add(post);
-
-                        InfoPosts.Clear();
-                        foreach (var post in posts.Where(p => p.Type == "POST_TYPE_INFO"))
-                            InfoPosts.Add(post);
-
-                        SocialMediaList.Clear();
-                        foreach (var item in content.SocialMediaList ?? Array.Empty<SocialMediaItem>())
-                            SocialMediaList.Add(item);
-
-                        if (Banners.Count > 0)
+                        try
                         {
-                            CurrentBanner = Banners[0];
-                            _bannerTimer?.Start();
+                            await Task.Delay(50);
+                            
+                            if (Banners.Count > 0)
+                            {
+                                CurrentBanner = Banners[0];
+                                _bannerTimer?.Start();
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.WriteLine($"设置 Banner 选中项失败: {ex.Message}");
                         }
                     });
                 }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"内容加载失败: {ex.Message}");
-            }
+            });
         }
+    }
+    catch (Exception ex)
+    {
+        Debug.WriteLine($"内容加载失败: {ex.Message}");
+    }
+}
 
         private void RotateBanner()
         {
-            if (Banners?.Count > 1)
+            if (Banners == null || Banners.Count < 2) return;
+
+            if (CurrentBanner == null)
             {
-                var currentIndex = CurrentBanner != null ? Math.Max(0, Banners.IndexOf(CurrentBanner)) : 0;
+                CurrentBanner = Banners[0];
+                return;
+            }
+
+            try
+            {
+                var currentIndex = Banners.IndexOf(CurrentBanner);
+                if (currentIndex == -1) currentIndex = 0;
+
                 var nextIndex = (currentIndex + 1) % Banners.Count;
                 CurrentBanner = Banners[nextIndex];
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"轮播图切换错误: {ex.Message}");
             }
         }
 

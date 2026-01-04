@@ -11,7 +11,7 @@
     PersistenceId="MainWindow"
     mc:Ignorable="d">
 
-    <Grid>
+    <Grid x:Name="RootGrid">
         <tb:TaskbarIcon x:Name="TrayIcon"
                         IconSource="/Assets/WindowIcon.ico"
                         ToolTipText="芙芙启动器"
@@ -39,8 +39,17 @@
             <Rectangle x:Name="GlobalBackgroundOverlay"
                        HorizontalAlignment="Stretch"
                        VerticalAlignment="Stretch"
-                       Opacity="0.3"/> 
+                       Opacity="0.2"/> 
         </Grid>
+
+       <Grid x:Name="PageBackgroundOverlay" 
+              HorizontalAlignment="Stretch" 
+              VerticalAlignment="Stretch" 
+              IsHitTestVisible="False">
+            <Grid.RenderTransform>
+                <TranslateTransform x:Name="OverlayTranslate" Y="2000"/>
+            </Grid.RenderTransform>
+       </Grid>
 
         <Frame x:Name="AgreementFrame" Visibility="Collapsed" Background="Transparent"/>
 
@@ -56,12 +65,43 @@
                         Background="{x:Null}">
 
             <NavigationView.Resources>
-                <Style TargetType="NavigationViewItem">
-                    <Setter Property="MinHeight" Value="48"/>
-                    <Setter Property="Margin" Value="0,1,0,1"/>
-                </Style>
-                <SolidColorBrush x:Key="NavigationViewContentBackground" Color="Transparent"/>
-                <SolidColorBrush x:Key="NavigationViewContentGridBorderBrush" Color="Transparent"/>
+                <ResourceDictionary>
+                    <ResourceDictionary.ThemeDictionaries>
+                        <ResourceDictionary x:Key="Light">
+                            <AcrylicBrush x:Key="NavigationViewDefaultPaneBackground" 
+                                          TintColor="#F3F3F3" 
+                                          TintOpacity="0.5" 
+                                          FallbackColor="#E6F3F3F3"/>
+                            <AcrylicBrush x:Key="NavigationViewExpandedPaneBackground" 
+                                          TintColor="#F3F3F3" 
+                                          TintOpacity="0.5" 
+                                          FallbackColor="#E6F3F3F3"/>
+                        </ResourceDictionary>
+                        <ResourceDictionary x:Key="Dark">
+                            <AcrylicBrush x:Key="NavigationViewDefaultPaneBackground" 
+                                          TintColor="#151515" 
+                                          TintOpacity="0.6" 
+                                          FallbackColor="#E6151515"/>
+                            <AcrylicBrush x:Key="NavigationViewExpandedPaneBackground" 
+                                          TintColor="#151515" 
+                                          TintOpacity="0.6" 
+                                          FallbackColor="#E6151515"/>
+                        </ResourceDictionary>
+                    </ResourceDictionary.ThemeDictionaries>
+
+                    <CornerRadius x:Key="OverlayCornerRadius">0</CornerRadius>
+                    <CornerRadius x:Key="NavigationViewContentGridCornerRadius">0</CornerRadius>
+                    <CornerRadius x:Key="NavigationViewItemCornerRadius">0</CornerRadius>
+                    <Thickness x:Key="NavigationViewContentGridBorderThickness">0</Thickness>
+                    <Thickness x:Key="NavigationViewBorderThickness">0</Thickness>
+                    
+                    <Style TargetType="NavigationViewItem">
+                        <Setter Property="MinHeight" Value="48"/>
+                        <Setter Property="Margin" Value="0,1,0,1"/>
+                    </Style>
+                    <SolidColorBrush x:Key="NavigationViewContentBackground" Color="Transparent"/>
+                    <SolidColorBrush x:Key="NavigationViewContentGridBorderBrush" Color="Transparent"/>
+               </ResourceDictionary>
             </NavigationView.Resources>
 
             <NavigationView.PaneHeader>
@@ -75,57 +115,99 @@
             <NavigationView.MenuItems>
                 <NavigationViewItem Content="主页" Tag="FufuLauncher.ViewModels.MainViewModel">
                     <NavigationViewItem.Icon>
-                        <FontIcon Glyph="&#xE10F;" FontFamily="Segoe MDL2 Assets" FontSize="28"/>
+                        <FontIcon Glyph="&#xE80F;" FontFamily="Segoe Fluent Icons" FontSize="24"/>
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
-                <NavigationViewItem Content="面板" Tag="FufuLauncher.ViewModels.ControlPanelModel">
+                
+                <NavigationViewItem Content="控制面板" Tag="FufuLauncher.ViewModels.ControlPanelModel">
                     <NavigationViewItem.Icon>
-                        <FontIcon Glyph="&#xE770;" FontFamily="Segoe MDL2 Assets" FontSize="28"/>
+                        <FontIcon Glyph="&#xE80A;" FontFamily="Segoe Fluent Icons" FontSize="24"/>
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
-                <NavigationViewItem Content="文件" Tag="FufuLauncher.ViewModels.BlankViewModel">
+                
+                <NavigationViewItem Content="游戏设置" Tag="FufuLauncher.ViewModels.BlankViewModel">
                     <NavigationViewItem.Icon>
-                        <FontIcon Glyph="&#xE7FC;" FontFamily="Segoe MDL2 Assets" FontSize="28"/>
+                        <FontIcon Glyph="&#xE7FC;" FontFamily="Segoe Fluent Icons" FontSize="24"/>
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
-                <NavigationViewItem Content="账户" Tag="FufuLauncher.ViewModels.AccountViewModel">
+                
+                <NavigationViewItem Content="账户设置" Tag="FufuLauncher.ViewModels.AccountViewModel">
                     <NavigationViewItem.Icon>
-                        <FontIcon Glyph="&#xE77B;" FontFamily="Segoe MDL2 Assets" FontSize="28"/>
+                        <FontIcon Glyph="&#xE77B;" FontFamily="Segoe Fluent Icons" FontSize="24"/>
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
-                <NavigationViewItem Content="其他" Tag="FufuLauncher.ViewModels.OtherViewModel">
+                
+                <NavigationViewItem Content="其他功能" Tag="FufuLauncher.ViewModels.OtherViewModel">
                     <NavigationViewItem.Icon>
-                        <FontIcon Glyph="&#xE9F5;" FontFamily="Segoe MDL2 Assets" FontSize="28"/>
+                        <FontIcon Glyph="&#xE71D;" FontFamily="Segoe Fluent Icons" FontSize="24"/>
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
+                
                 <NavigationViewItem Content="养成计算" Tag="FufuLauncher.ViewModels.CalculatorViewModel">
                     <NavigationViewItem.Icon>
-                        <FontIcon Glyph="&#xE835;" FontFamily="Segoe MDL2 Assets" FontSize="28"/>
+                        <FontIcon Glyph="&#xE8EF;" FontFamily="Segoe Fluent Icons" FontSize="24"/>
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
+                
                 <NavigationViewItem Content="插件管理" Tag="FufuLauncher.ViewModels.PluginViewModel">
                     <NavigationViewItem.Icon>
-                        <FontIcon Glyph="&#xE7B5;" FontFamily="Segoe MDL2 Assets" FontSize="28"/>
+                        <FontIcon Glyph="&#xE7B5;" FontFamily="Segoe Fluent Icons" FontSize="24"/>
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
             </NavigationView.MenuItems>
 
             <NavigationView.FooterMenuItems>
-                <NavigationViewItem Content="设置" Tag="FufuLauncher.ViewModels.SettingsViewModel">
-                    <NavigationViewItem.Icon>
-                        <FontIcon x:Name="SettingsIcon" Glyph="&#xE713;" FontFamily="Segoe MDL2 Assets" FontSize="28">
+                <NavigationViewItem Content="设置中心" Tag="FufuLauncher.ViewModels.SettingsViewModel">
+                   <NavigationViewItem.Icon>
+                        <FontIcon x:Name="SettingsIcon" 
+                                  Glyph="&#xE713;" FontFamily="Segoe Fluent Icons" 
+                                  FontSize="24"
+                                  RenderTransformOrigin="0.5,0.5">
                             <FontIcon.RenderTransform>
-                                <RotateTransform CenterX="14" CenterY="14"/>
+                                <RotateTransform x:Name="SettingsIconRotation" Angle="0"/>
                             </FontIcon.RenderTransform>
                         </FontIcon>
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
             </NavigationView.FooterMenuItems>
 
-            <Frame x:Name="ContentFrame" Background="Transparent" />
+            <Frame x:Name="ContentFrame" Background="Transparent"/>
         </NavigationView>
 
-        <Grid HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+        <Grid x:Name="SystemMessageBar"
+              HorizontalAlignment="Center"
+              VerticalAlignment="Bottom"
+              Margin="0,0,0,20"
+              Height="40"
+              CornerRadius="20"
+              IsHitTestVisible="False"
+              Visibility="Collapsed" 
+              Canvas.ZIndex="2000">
+            
+            <Grid.RenderTransform>
+               <TranslateTransform x:Name="SystemMessageTranslate" Y="100"/>
+            </Grid.RenderTransform>
+
+            <Border CornerRadius="20" BorderThickness="1" BorderBrush="#1A000000">
+                <Border.Background>
+                    <AcrylicBrush TintColor="White" 
+                                TintOpacity="0.0" 
+                                  FallbackColor="#10FFFFFF"
+                                  Opacity="0.6"/>
+                </Border.Background>
+            
+                <Border.Shadow>
+                    <ThemeShadow/>
+                </Border.Shadow>
+            </Border>
+
+            <StackPanel Orientation="Horizontal" Spacing="8" Padding="16,0,16,0" VerticalAlignment="Center">
+                <FontIcon x:Name="SystemMessageIcon" Glyph="&#xE774;" FontSize="16"/>
+                <TextBlock x:Name="SystemMessageText" Text="网络状态检测中..." FontSize="13" FontWeight="Medium"/>
+            </StackPanel>
+        </Grid>
+
+        <Grid HorizontalAlignment="Stretch" VerticalAlignment="Stretch" IsHitTestVisible="False">
             <StackPanel x:Name="NotificationPanel" 
                         Orientation="Vertical" 
                         Spacing="8"
@@ -143,26 +225,33 @@
               Canvas.ZIndex="1000"
               Margin="80,0,140,0"
               IsHitTestVisible="False">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="*"/>
-            </Grid.ColumnDefinitions>
+            
+            <Border HorizontalAlignment="Left"
+                    VerticalAlignment="Center"
+                    CornerRadius="8"
+                    Padding="8,4,12,4">
+                
+                <Border.Background>
+                    <AcrylicBrush TintColor="White" 
+                                  TintOpacity="0.0" 
+                                  Opacity="0.6"
+                                  FallbackColor="#22FFFFFF"/>
+                </Border.Background>
 
-            <Image x:Name="TitleBarIcon" 
-                   Grid.Column="0" 
-                   Width="24" 
-                   Height="24" 
-                   Margin="0,0,0,0"
-                   VerticalAlignment="Center"
-                   HorizontalAlignment="Left"/>
+                 <StackPanel Orientation="Horizontal" Spacing="0">
+                    <Image x:Name="TitleBarIcon" 
+                           Width="20" 
+                           Height="20" 
+                           Margin="0,0,8,0"
+                           VerticalAlignment="Center"/>
 
-            <TextBlock x:Name="TitleBarText"
-                       Grid.Column="1" 
-                       Text="芙芙启动器"
-                       FontSize="13"
-                       FontWeight="SemiBold"
-                       VerticalAlignment="Center"
-                       Margin="12,0,0,0"/>
+                    <TextBlock x:Name="TitleBarText"
+                               Text="芙芙启动器"
+                               FontSize="12"
+                               FontWeight="SemiBold"
+                               VerticalAlignment="Center"/>
+                </StackPanel>
+            </Border>
         </Grid>
     </Grid>
 </windowex:WindowEx>

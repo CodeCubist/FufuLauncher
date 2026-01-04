@@ -16,9 +16,14 @@ using CommunityToolkit.Mvvm.Messaging.Messages;
 using FufuLauncher.ViewModels;
 using FufuLauncher.Services.Background;
 using Windows.Media.Playback;
+using Windows.UI;
 using FufuLauncher.Services;
 using FufuLauncher.Models;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.UI.Xaml.Hosting; 
+using System.Numerics;
+using System.Net;
+using System.Net.NetworkInformation;
 
 namespace FufuLauncher;
 
@@ -29,10 +34,23 @@ public sealed partial class MainWindow : WindowEx
     private readonly IBackgroundRenderer _backgroundRenderer;
     private readonly ILocalSettingsService _localSettingsService;
     private MediaPlayer? _globalBackgroundPlayer;
-    private double _frameBackgroundOpacity = 0.5;
+    private double _frameBackgroundOpacity = 0.0;
     private bool _minimizeToTray;
     private bool _isExit;
+    private bool _isOverlayShown = false;
     
+    private bool _isVideoBackground = false;
+
+    // 【新增】网络检测与消息条自动收回逻辑变量
+    private DispatcherTimer _networkCheckTimer;
+    private DispatcherTimer _messageDismissTimer;
+    private bool? _lastNetworkAvailable = null; // 记录上一次网络状态，null代表刚启动
+    private bool? _lastProxyEnabled = null;     // 记录上一次代理状态
+    private bool _isSystemMessageVisible = false;
+    
+    // 标记主界面是否已加载
+    private bool _isMainUiLoaded = false;
+
     [DllImport("advapi32.dll", SetLastError = true)]
     private static extern bool OpenProcessToken(IntPtr ProcessHandle, uint DesiredAccess, out IntPtr TokenHandle);
 
@@ -83,11 +101,8 @@ public sealed partial class MainWindow : WindowEx
         ExitApplicationCommand = new RelayCommand(ExitApplication);
 
         AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets/WindowIcon.ico"));
-        
         Title = "芙芙启动器";
-
         ExtendsContentIntoTitleBar = true;
-        
         AppWindow.Closing += AppWindow_Closing;
 
         dispatcherQueue = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
@@ -108,26 +123,16 @@ public sealed partial class MainWindow : WindowEx
         if (Content is FrameworkElement rootElement)
         {
             rootElement.ActualThemeChanged += (s, e) => UpdateBackgroundOverlayTheme();
-            UpdateBackgroundOverlayTheme();
         }
         
-        Debug.WriteLine("[MainWindow] 开始注册消息监听...");
         WeakReferenceMessenger.Default.Register<ValueChangedMessage<WindowBackdropType>>(this, (r, m) =>
         {
-            Debug.WriteLine($"[MainWindow] 收到消息! 准备切换背景为: {m.Value}");
-            dispatcherQueue.TryEnqueue(() =>
-            {
-                ApplyBackdrop(m.Value);
-            });
+            dispatcherQueue.TryEnqueue(() => ApplyBackdrop(m.Value));
         });
 
         WeakReferenceMessenger.Default.Register<NotificationMessage>(this, (r, m) =>
         {
-            dispatcherQueue.TryEnqueue(() =>
-            {
-                try { ShowNotification(m); }
-                catch (Exception ex) { Debug.WriteLine($"显示通知异常: {ex.Message}"); }
-            });
+            dispatcherQueue.TryEnqueue(() => ShowNotification(m));
         });
 
         WeakReferenceMessenger.Default.Register<BackgroundRefreshMessage>(this, (r, m) =>
@@ -157,13 +162,150 @@ public sealed partial class MainWindow : WindowEx
         dispatcherQueue.TryEnqueue(async () => await LoadBackgroundImageOpacityAsync());
         Activated += OnWindowActivated;
         
-        dispatcherQueue.TryEnqueue(() => 
+        dispatcherQueue.TryEnqueue(() => CheckAndWarnUacElevation());
+
+        this.SizeChanged += MainWindow_SizeChanged;
+        
+        UpdateBackgroundOverlayTheme();
+
+        // 【新增】初始化自动收回计时器 (4秒后自动收回)
+        _messageDismissTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(4) };
+        _messageDismissTimer.Tick += (s, e) => HideSystemMessage();
+
+        // 【新增】初始化网络检测定时器 (3秒检测一次)
+        // 注意：此处不再立即 Start，而是等待主界面加载完成后在 ShowMainContent 中启动
+        _networkCheckTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
+        _networkCheckTimer.Tick += (s, e) => CheckNetworkAndProxyStatus();
+        
+        // 此处移除立即调用，避免未进入主页就显示状态条
+        // CheckNetworkAndProxyStatus(); 
+    }
+
+    // 【修改】检测逻辑：只在状态变化时触发通知
+    private async void CheckNetworkAndProxyStatus()
+    {
+        // 如果主界面没加载，不执行任何操作
+        if (!_isMainUiLoaded) return;
+
+        // 在后台线程检测，避免卡顿 UI
+        var (currentNetwork, currentProxy) = await Task.Run(() => 
         {
-            CheckAndWarnUacElevation();
+            bool isNet = NetworkInterface.GetIsNetworkAvailable();
+            bool isProxy = false;
+            if (isNet)
+            {
+                try
+                {
+                    var proxy = WebRequest.GetSystemWebProxy();
+                    Uri resource = new Uri("https://www.microsoft.com");
+                    isProxy = !proxy.IsBypassed(resource);
+                }
+                catch { isProxy = false; }
+            }
+            return (isNet, isProxy);
         });
 
-        Activated += OnWindowActivated;
+        bool shouldNotify = false;
+        string msg = "";
+        string icon = "";
+        Color color = Colors.White;
+
+        // 1. 检测是否刚断网 (当前断网，且上次状态是“有网”或者是“刚启动未知”)
+        if (!currentNetwork && (_lastNetworkAvailable == null || _lastNetworkAvailable == true))
+        {
+            shouldNotify = true;
+            msg = "网络连接已断开，请检测你的网络设置";
+            icon = "\uEB55";
+            color = Colors.OrangeRed;
+        }
+        // 2. 检测是否刚开启代理 (当前有网且有代理，且上次状态是“无代理”或者是“刚启动未知”)
+        else if (currentNetwork && currentProxy && (_lastProxyEnabled == null || _lastProxyEnabled == false))
+        {
+            shouldNotify = true;
+            msg = "正在使用代理网络连接，请注意你的流量消耗";
+            icon = "\uE12B"; 
+            color = Colors.DodgerBlue;
+        }
+
+        // 更新状态记录
+        _lastNetworkAvailable = currentNetwork;
+        _lastProxyEnabled = currentProxy;
+
+        // 如果需要通知，显示悬浮条（会自动收回）
+        if (shouldNotify)
+        {
+            ShowAutoDismissMessage(msg, icon, color);
+        }
+    }
+
+    // 【新增】显示并自动收回消息条
+    private void ShowAutoDismissMessage(string message, string iconGlyph, Color iconColor)
+    {
+        // 再次确认UI状态
+        if (!_isMainUiLoaded) return;
         
+        // 确保容器可见（如果之前被设置为 Collapsed）
+        if (SystemMessageBar.Visibility == Visibility.Collapsed)
+            SystemMessageBar.Visibility = Visibility.Visible;
+
+        // 更新UI内容
+        SystemMessageText.Text = message;
+        SystemMessageIcon.Glyph = iconGlyph;
+        SystemMessageIcon.Foreground = new SolidColorBrush(iconColor);
+
+        // 重置自动收回倒计时
+        _messageDismissTimer.Stop();
+        _messageDismissTimer.Start();
+
+        // 如果已经在显示，不需要重新播放滑入动画，只需更新文字和重置计时器
+        if (_isSystemMessageVisible) return;
+
+        _isSystemMessageVisible = true;
+        
+        // 滑入动画 (Slide Up)
+        var anim = new DoubleAnimation
+        {
+            From = 100,
+            To = 0,
+            Duration = TimeSpan.FromMilliseconds(400),
+            EasingFunction = new CircleEase { EasingMode = EasingMode.EaseOut }
+        };
+        Storyboard.SetTarget(anim, SystemMessageTranslate);
+        Storyboard.SetTargetProperty(anim, "Y");
+        var sb = new Storyboard();
+        sb.Children.Add(anim);
+        sb.Begin();
+    }
+
+    // 【新增】隐藏消息条 (由计时器触发)
+    private void HideSystemMessage()
+    {
+        _messageDismissTimer.Stop();
+        
+        if (!_isSystemMessageVisible) return;
+        _isSystemMessageVisible = false;
+
+        // 滑出动画 (Slide Down)
+        var anim = new DoubleAnimation
+        {
+            From = 0,
+            To = 100,
+            Duration = TimeSpan.FromMilliseconds(400),
+            EasingFunction = new CircleEase { EasingMode = EasingMode.EaseIn }
+        };
+        Storyboard.SetTarget(anim, SystemMessageTranslate);
+        Storyboard.SetTargetProperty(anim, "Y");
+        var sb = new Storyboard();
+        sb.Children.Add(anim);
+        sb.Begin();
+    }
+
+    private void MainWindow_SizeChanged(object sender, WindowSizeChangedEventArgs args)
+    {
+        if (!_isOverlayShown)
+        {
+            OverlayTranslate.Y = this.Bounds.Height + 100;
+        }
     }
     
     private async void CheckAndWarnUacElevation()
@@ -184,24 +326,15 @@ public sealed partial class MainWindow : WindowEx
                     if (rootElement.XamlRoot == null) await tcs.Task;
                 }
                 
-                ContentDialog dialog = new ContentDialog();
-            
-                // 必须设置 XamlRoot
-                dialog.XamlRoot = rootElement.XamlRoot;
-            
-                dialog.Title = "权限警告";
-                dialog.Content = "程序正以管理员身份运行。\n这会导致无法使用文件选择器。\n建议直接正常启动程序，不要使用“以管理员身份运行”。";
-                dialog.CloseButtonText = "我知道了";
-                dialog.DefaultButton = ContentDialogButton.Close;
-
-                try
+                ContentDialog dialog = new ContentDialog
                 {
-                    await dialog.ShowAsync();
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"[MainWindow] 弹窗显示失败: {ex.Message}");
-                }
+                    XamlRoot = rootElement.XamlRoot,
+                    Title = "权限警告",
+                    Content = "程序正以管理员身份运行，可能会影响部分功能。",
+                    CloseButtonText = "我知道了",
+                    DefaultButton = ContentDialogButton.Close
+                };
+                try { await dialog.ShowAsync(); } catch { }
             }
         }
     }
@@ -211,64 +344,44 @@ public sealed partial class MainWindow : WindowEx
         try
         {
             if (!IsRunningAsAdministrator()) return false;
-
             IntPtr tokenHandle = IntPtr.Zero;
-            try
+            if (OpenProcessToken(GetCurrentProcess(), 0x0008, out tokenHandle))
             {
-                if (OpenProcessToken(GetCurrentProcess(), 0x0008, out tokenHandle))
+                int size = Marshal.SizeOf(typeof(int));
+                IntPtr ptr = Marshal.AllocHGlobal(size);
+                try
                 {
-                    int size = Marshal.SizeOf(typeof(int));
-                    IntPtr ptr = Marshal.AllocHGlobal(size);
-                    try
+                    if (GetTokenInformation(tokenHandle, TOKEN_INFORMATION_CLASS.TokenElevationType, ptr, (uint)size, out _))
                     {
-                        if (GetTokenInformation(tokenHandle, TOKEN_INFORMATION_CLASS.TokenElevationType, ptr, (uint)size, out _))
-                        {
-                            var type = (TOKEN_ELEVATION_TYPE)Marshal.ReadInt32(ptr);
-                            return type == TOKEN_ELEVATION_TYPE.TokenElevationTypeFull;
-                        }
+                        var type = (TOKEN_ELEVATION_TYPE)Marshal.ReadInt32(ptr);
+                        return type == TOKEN_ELEVATION_TYPE.TokenElevationTypeFull;
                     }
-                    finally { Marshal.FreeHGlobal(ptr); }
                 }
+                finally { Marshal.FreeHGlobal(ptr); if (tokenHandle != IntPtr.Zero) CloseHandle(tokenHandle); }
             }
-            finally { if (tokenHandle != IntPtr.Zero) CloseHandle(tokenHandle); }
         }
         catch { }
         return false;
     }
+
     private async Task LoadBackgroundImageOpacityAsync()
     {
         try
         {
             var valueObj = await _localSettingsService.ReadSettingAsync("GlobalBackgroundImageOpacity");
             double opacity = 1.0;
-            if (valueObj != null && double.TryParse(valueObj.ToString(), out var parsed))
-            {
-                opacity = parsed;
-            }
+            if (valueObj != null && double.TryParse(valueObj.ToString(), out var parsed)) opacity = parsed;
             ApplyBackgroundImageOpacity(opacity);
         }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"[MainWindow] 加载背景图片透明度失败: {ex.Message}");
-            ApplyBackgroundImageOpacity(1.0);
-        }
+        catch { ApplyBackgroundImageOpacity(1.0); }
     }
 
     private void ApplyBackgroundImageOpacity(double value)
     {
         var clamped = Math.Clamp(value, 0.0, 1.0);
-        
-        if (GlobalBackgroundImage != null)
-        {
-            GlobalBackgroundImage.Opacity = clamped;
-        }
-    
-        if (GlobalBackgroundVideo != null)
-        {
-            GlobalBackgroundVideo.Opacity = clamped;
-        }
+        if (GlobalBackgroundImage != null) GlobalBackgroundImage.Opacity = clamped;
+        if (GlobalBackgroundVideo != null) GlobalBackgroundVideo.Opacity = clamped;
     }
-    
     
     private void ShowWindow()
     {
@@ -287,13 +400,8 @@ public sealed partial class MainWindow : WindowEx
     private async void AppWindow_Closing(Microsoft.UI.Windowing.AppWindow sender, Microsoft.UI.Windowing.AppWindowClosingEventArgs args)
     {
         if (_isExit) return;
-
         args.Cancel = true;
-
-        if (_minimizeToTray)
-        {
-            this.Hide();
-        }
+        if (_minimizeToTray) this.Hide();
         else
         {
             await SaveWindowSizeAsync();
@@ -310,16 +418,11 @@ public sealed partial class MainWindow : WindowEx
             var saveEnabledObj = await localSettings.ReadSettingAsync("IsSaveWindowSizeEnabled");
             if (saveEnabledObj != null && Convert.ToBoolean(saveEnabledObj))
             {
-                // 保存当前窗口大小
                 await localSettings.SaveSettingAsync("SavedWindowWidth", this.Width);
                 await localSettings.SaveSettingAsync("SavedWindowHeight", this.Height);
-                Debug.WriteLine($"[MainWindow] 窗口大小已保存: {this.Width}x{this.Height}");
             }
         }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"[MainWindow] 保存窗口大小失败: {ex.Message}");
-        }
+        catch { }
     }
 
     private void UpdateBackgroundOverlayTheme()
@@ -327,21 +430,45 @@ public sealed partial class MainWindow : WindowEx
         if (Content is FrameworkElement rootElement)
         {
             var currentTheme = rootElement.ActualTheme;
-            
             if (currentTheme == ElementTheme.Default)
-            {
-                currentTheme = Application.Current.RequestedTheme == ApplicationTheme.Dark 
-                    ? ElementTheme.Dark 
-                    : ElementTheme.Light;
-            }
+                currentTheme = Application.Current.RequestedTheme == ApplicationTheme.Dark ? ElementTheme.Dark : ElementTheme.Light;
             
             if (currentTheme == ElementTheme.Dark)
-            {
                 GlobalBackgroundOverlay.Fill = new SolidColorBrush(Colors.Black);
+            else
+                GlobalBackgroundOverlay.Fill = new SolidColorBrush(Colors.White);
+            
+            if (_isVideoBackground)
+            {
+                var solidColor = currentTheme == ElementTheme.Dark ? Colors.Black : Colors.White;
+                solidColor.A = (byte)(currentTheme == ElementTheme.Dark ? 120 : 150); 
+                PageBackgroundOverlay.Background = new SolidColorBrush(solidColor);
             }
             else
             {
-                GlobalBackgroundOverlay.Fill = new SolidColorBrush(Colors.White);
+                var acrylic = new AcrylicBrush();
+                
+                if (currentTheme == ElementTheme.Dark)
+                {
+                    acrylic.TintColor = Colors.Black;
+                    acrylic.TintOpacity = 0.3; 
+                    acrylic.FallbackColor = Color.FromArgb(20, 0, 0, 0);
+                }
+                else
+                {
+                    acrylic.TintColor = Colors.White;
+                    acrylic.TintOpacity = 0.2; 
+                    acrylic.FallbackColor = Color.FromArgb(20, 255, 255, 255);
+                }
+                
+                PageBackgroundOverlay.Background = acrylic;
+            }
+            
+            // 更新悬浮条的 Acrylic 背景以适配主题
+            if (SystemMessageBar.Children.Count > 0 && SystemMessageBar.Children[0] is Border msgBorder && msgBorder.Background is AcrylicBrush msgAcrylic)
+            {
+                msgAcrylic.TintColor = currentTheme == ElementTheme.Dark ? Colors.Black : Colors.White;
+                msgAcrylic.Opacity = currentTheme == ElementTheme.Dark ? 0.7 : 0.6;
             }
 
             ApplyFrameBackgroundOpacity(_frameBackgroundOpacity);
@@ -353,46 +480,34 @@ public sealed partial class MainWindow : WindowEx
         try
         {
             var localSettingsService = App.GetService<ILocalSettingsService>();
-
             var backdropJson = await localSettingsService.ReadSettingAsync("WindowBackdrop");
             WindowBackdropType backdropType;
 
             if (backdropJson != null)
-            {
                 backdropType = (WindowBackdropType)Convert.ToInt32(backdropJson);
-            }
             else
             {
                 var acrylicEnabled = await localSettingsService.ReadSettingAsync("IsAcrylicEnabled");
                 bool isEnabled = acrylicEnabled == null ? true : Convert.ToBoolean(acrylicEnabled);
                 backdropType = isEnabled ? WindowBackdropType.Acrylic : WindowBackdropType.None;
             }
-
             ApplyBackdrop(backdropType);
         }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"加载背景设置失败: {ex.Message}");
-            ApplyBackdrop(WindowBackdropType.Acrylic);
-        }
+        catch { ApplyBackdrop(WindowBackdropType.Acrylic); }
     }
+
     private async Task LoadGlobalBackgroundAsync()
     {
         try
         {
             var globalBgSetting = await _localSettingsService.ReadSettingAsync("UseGlobalBackground");
             bool useGlobalBg = globalBgSetting == null ? true : Convert.ToBoolean(globalBgSetting);
-            if (!useGlobalBg)
-            {
-                await ClearGlobalBackgroundAsync();
-                return;
-            }
+            if (!useGlobalBg) { await ClearGlobalBackgroundAsync(); return; }
 
             var customPathObj = await _localSettingsService.ReadSettingAsync("CustomBackgroundPath");
             var customPath = customPathObj?.ToString();
-            var hasCustom = !string.IsNullOrEmpty(customPath) && File.Exists(customPath);
-
-            if (hasCustom)
+            
+            if (!string.IsNullOrEmpty(customPath) && File.Exists(customPath))
             {
                 var customResult = await _backgroundRenderer.GetCustomBackgroundAsync(customPath);
                 await ApplyGlobalBackgroundAsync(customResult);
@@ -401,11 +516,7 @@ public sealed partial class MainWindow : WindowEx
 
             var enabledJson = await _localSettingsService.ReadSettingAsync(LocalSettingsService.IsBackgroundEnabledKey);
             bool isEnabled = enabledJson == null ? true : Convert.ToBoolean(enabledJson);
-            if (!isEnabled)
-            {
-                await ClearGlobalBackgroundAsync();
-                return;
-            }
+            if (!isEnabled) { await ClearGlobalBackgroundAsync(); return; }
 
             var preferVideoSetting = await _localSettingsService.ReadSettingAsync("UserPreferVideoBackground");
             bool preferVideo = preferVideoSetting != null && Convert.ToBoolean(preferVideoSetting);
@@ -417,33 +528,19 @@ public sealed partial class MainWindow : WindowEx
             var result = await _backgroundRenderer.GetBackgroundAsync(server, preferVideo);
             await ApplyGlobalBackgroundAsync(result);
         }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"[MainWindow] 加载全局背景失败: {ex.Message}");
-            await ClearGlobalBackgroundAsync();
-        }
+        catch { await ClearGlobalBackgroundAsync(); }
     }
 
     private Task ApplyGlobalBackgroundAsync(BackgroundRenderResult? result)
     {
         return RunOnUIThreadAsync(() =>
         {
-            if (result == null)
-            {
-                GlobalBackgroundImage.Source = null;
-                GlobalBackgroundImage.Visibility = Visibility.Collapsed;
-                GlobalBackgroundVideo.Source = null;
-                GlobalBackgroundVideo.Visibility = Visibility.Collapsed;
-                _globalBackgroundPlayer?.Pause();
-                _globalBackgroundPlayer = null;
-                return;
-            }
+            if (result == null) { ClearGlobalBackgroundAsync(); return; }
 
             if (result.IsVideo)
             {
-                GlobalBackgroundImage.Source = null;
+                _isVideoBackground = true;
                 GlobalBackgroundImage.Visibility = Visibility.Collapsed;
-
                 _globalBackgroundPlayer?.Pause();
                 _globalBackgroundPlayer = new MediaPlayer
                 {
@@ -452,20 +549,18 @@ public sealed partial class MainWindow : WindowEx
                     IsLoopingEnabled = true,
                     AutoPlay = true
                 };
-
                 GlobalBackgroundVideo.SetMediaPlayer(_globalBackgroundPlayer);
                 GlobalBackgroundVideo.Visibility = Visibility.Visible;
             }
             else
             {
+                _isVideoBackground = false;
                 _globalBackgroundPlayer?.Pause();
-                _globalBackgroundPlayer = null;
-                GlobalBackgroundVideo.Source = null;
                 GlobalBackgroundVideo.Visibility = Visibility.Collapsed;
-
                 GlobalBackgroundImage.Source = result.ImageSource;
                 GlobalBackgroundImage.Visibility = Visibility.Visible;
             }
+            UpdateBackgroundOverlayTheme();
         });
     }
 
@@ -481,34 +576,23 @@ public sealed partial class MainWindow : WindowEx
             _globalBackgroundPlayer = null;
         });
     }
+
     private void ApplyBackdrop(WindowBackdropType type)
     {
-        Debug.WriteLine($"[MainWindow] 执行 ApplyBackdrop: {type}");
         try
         {
             this.SystemBackdrop = null;
-            Debug.WriteLine("[MainWindow] 旧背景已清除");
-
             switch (type)
             {
                 case WindowBackdropType.Mica:
-                    Debug.WriteLine("[MainWindow] 创建 MicaBackdrop...");
                     this.SystemBackdrop = new Microsoft.UI.Xaml.Media.MicaBackdrop();
                     break;
                 case WindowBackdropType.Acrylic:
-                    Debug.WriteLine("[MainWindow] 创建 DesktopAcrylicBackdrop...");
                     this.SystemBackdrop = new Microsoft.UI.Xaml.Media.DesktopAcrylicBackdrop();
                     break;
-                default:
-                    Debug.WriteLine("[MainWindow] 设置为纯色 (SystemBackdrop = null)");
-                    break;
             }
-            Debug.WriteLine("[MainWindow] 背景设置完成");
         }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"[MainWindow]设置背景报错: {ex}");
-        }
+        catch { }
     }
 
     public async Task InitializeWindowSizeAsync()
@@ -523,50 +607,24 @@ public sealed partial class MainWindow : WindowEx
                 var widthObj = await localSettings.ReadSettingAsync("SavedWindowWidth");
                 var heightObj = await localSettings.ReadSettingAsync("SavedWindowHeight");
 
-                if (widthObj != null && heightObj != null)
+                if (widthObj != null && heightObj != null && 
+                    double.TryParse(widthObj.ToString(), out double w) && 
+                    double.TryParse(heightObj.ToString(), out double h))
                 {
-                    if (double.TryParse(widthObj.ToString(), out double w) && double.TryParse(heightObj.ToString(), out double h))
-                    {
-                        Width = w;
-                        Height = h;
-                        Debug.WriteLine($"[MainWindow] 已恢复窗口大小: {w}x{h}");
-                        return;
-                    }
+                    Width = w;
+                    Height = h;
+                    if (!_isOverlayShown) OverlayTranslate.Y = h + 100;
+                    return;
                 }
             }
-
-            var displayArea = Microsoft.UI.Windowing.DisplayArea.GetFromWindowId(
-                AppWindow.Id,
-                Microsoft.UI.Windowing.DisplayAreaFallback.Primary
-            );
-
-            if (displayArea != null)
-            {
-                var screenWidth = displayArea.WorkArea.Width;
-                var screenHeight = displayArea.WorkArea.Height;
-
-                if (screenWidth >= 2560 && screenHeight >= 1440)
-                {
-                    Width = 1750;
-                    Height = 1000;
-                }
-                else
-                {
-                    Width = 1360;
-                    Height = 768;
-                }
-            }
-            else
-            {
-                Width = 1360;
-                Height = 768;
-            }
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"设置初始窗口大小失败: {ex.Message}");
             Width = 1360;
             Height = 768;
+            if (!_isOverlayShown) OverlayTranslate.Y = Height + 100;
+        }
+        catch 
+        { 
+            Width = 1360; 
+            Height = 768; 
         }
     }
 
@@ -575,20 +633,11 @@ public sealed partial class MainWindow : WindowEx
         try
         {
             SetTitleBar(AppTitleBar);
-
             var iconPath = Path.Combine(AppContext.BaseDirectory, "Assets/WindowIcon.ico");
-            if (File.Exists(iconPath))
-            {
-                TitleBarIcon.Source = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage(new Uri(iconPath));
-            }
-
+            if (File.Exists(iconPath)) TitleBarIcon.Source = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage(new Uri(iconPath));
             UpdateTitleBarWithAdminStatus();
         }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"设置标题栏失败: {ex.Message}");
-        }
-
+        catch { }
         Activated -= OnWindowActivated;
     }
 
@@ -597,13 +646,9 @@ public sealed partial class MainWindow : WindowEx
         try
         {
             bool isAdmin = IsRunningAsAdministrator();
-            var baseTitle = "芙芙启动器";
-            TitleBarText.Text = isAdmin ? $"{baseTitle} [管理员]" : baseTitle;
+            TitleBarText.Text = isAdmin ? "芙芙启动器 [管理员]" : "芙芙启动器";
         }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"更新管理员标题失败: {ex.Message}");
-        }
+        catch { }
     }
 
     private bool IsRunningAsAdministrator()
@@ -616,16 +661,22 @@ public sealed partial class MainWindow : WindowEx
                 return principal.IsInRole(WindowsBuiltInRole.Administrator);
             }
         }
-        catch
-        {
-            return false;
-        }
+        catch { return false; }
     }
 
     private async void NavigationView_Loaded(object sender, RoutedEventArgs e)
     {
         try
         {
+            foreach (var item in NavigationView.MenuItems)
+            {
+                if (item is FrameworkElement uiItem) SetupSpringAnimation(uiItem);
+            }
+            foreach (var item in NavigationView.FooterMenuItems)
+            {
+                if (item is FrameworkElement uiItem) SetupSpringAnimation(uiItem);
+            }
+            
             await LoadFrameBackgroundOpacityAsync();
              await LoadOverlayOpacityAsync();
              await LoadAndApplyAcrylicSettingAsync();
@@ -633,11 +684,45 @@ public sealed partial class MainWindow : WindowEx
              await LoadMinimizeToTraySettingAsync();
              await CheckUserAgreementAsync();
         }
-        catch (Exception ex)
+        catch { ShowMainContent(); }
+    }
+
+    private void SetupSpringAnimation(FrameworkElement element)
+    {
+        var visual = ElementCompositionPreview.GetElementVisual(element);
+        var compositor = visual.Compositor;
+
+        element.SizeChanged += (s, e) =>
         {
-            Debug.WriteLine($"导航加载异常: {ex.Message}");
-            ShowMainContent();
+            visual.CenterPoint = new Vector3((float)e.NewSize.Width / 2f, (float)e.NewSize.Height / 2f, 0f);
+        };
+
+        element.PointerPressed += (s, e) =>
+        {
+            var anim = compositor.CreateSpringVector3Animation();
+            anim.Target = "Scale";
+            anim.FinalValue = new Vector3(0.92f, 0.92f, 1f);
+            
+            anim.Period = TimeSpan.FromMilliseconds(20); 
+            anim.DampingRatio = 0.6f; 
+            
+            visual.StartAnimation("Scale", anim);
+        };
+
+        void ResetScale()
+        {
+            var anim = compositor.CreateSpringVector3Animation();
+            anim.Target = "Scale";
+            anim.FinalValue = new Vector3(1f, 1f, 1f);
+            
+            anim.Period = TimeSpan.FromMilliseconds(60); 
+            anim.DampingRatio = 0.5f; 
+            
+            visual.StartAnimation("Scale", anim);
         }
+
+        element.PointerReleased += (s, e) => ResetScale();
+        element.PointerExited += (s, e) => ResetScale();
     }
 
     private async Task LoadMinimizeToTraySettingAsync()
@@ -647,66 +732,49 @@ public sealed partial class MainWindow : WindowEx
             var value = await _localSettingsService.ReadSettingAsync("MinimizeToTray");
             _minimizeToTray = value != null && Convert.ToBoolean(value);
         }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"加载托盘设置失败: {ex.Message}");
-            _minimizeToTray = false;
-        }
+        catch { _minimizeToTray = false; }
     }
 
     private async Task CheckUserAgreementAsync()
     {
         try
         {
-            var localSettingsService = App.GetService<ILocalSettingsService>();
-            var accepted = await localSettingsService.ReadSettingAsync("UserAgreementAccepted");
-
-            bool isAccepted = false;
-            if (accepted != null)
-            {
-                try { isAccepted = Convert.ToBoolean(accepted); }
-                catch { isAccepted = false; }
-            }
-
+            var accepted = await _localSettingsService.ReadSettingAsync("UserAgreementAccepted");
+            bool isAccepted = accepted != null && Convert.ToBoolean(accepted);
             if (!isAccepted) ShowAgreementPage();
             else ShowMainContent();
         }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"协议检查失败: {ex.Message}");
-            ShowMainContent();
-        }
+        catch { ShowMainContent(); }
     }
 
     private void ShowAgreementPage()
     {
-        try
-        {
-            AgreementFrame.Visibility = Visibility.Visible;
-            NavigationView.Visibility = Visibility.Collapsed;
-            AgreementFrame.Navigate(typeof(Views.AgreementPage));
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"显示协议页异常: {ex.Message}");
-        }
+        // 确保协议页面显示时，系统消息条是关闭的
+        _isMainUiLoaded = false;
+        SystemMessageBar.Visibility = Visibility.Collapsed;
+        _networkCheckTimer.Stop();
+
+        AgreementFrame.Visibility = Visibility.Visible;
+        NavigationView.Visibility = Visibility.Collapsed;
+        AgreementFrame.Navigate(typeof(Views.AgreementPage));
     }
 
     private void ShowMainContent()
     {
-        try
-        {
-            AgreementFrame.Visibility = Visibility.Collapsed;
-            NavigationView.Visibility = Visibility.Visible;
-            NavigationView.SelectedItem = NavigationView.MenuItems[0];
+        AgreementFrame.Visibility = Visibility.Collapsed;
+        NavigationView.Visibility = Visibility.Visible;
+        NavigationView.SelectedItem = NavigationView.MenuItems[0];
 
-            if (ContentFrame.CurrentSourcePageType != typeof(Views.MainPage))
-                ContentFrame.Navigate(typeof(Views.MainPage));
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"显示主内容异常: {ex.Message}");
-        }
+        if (ContentFrame.CurrentSourcePageType != typeof(Views.MainPage))
+            ContentFrame.Navigate(typeof(Views.MainPage));
+            
+        UpdatePageOverlayState(true);
+
+        // 【修改】主界面加载完成，启动网络检测逻辑
+        _isMainUiLoaded = true;
+        SystemMessageBar.Visibility = Visibility.Visible; // 恢复可见性（但不一定弹出，取决于Y轴偏移）
+        _networkCheckTimer.Start();
+        CheckNetworkAndProxyStatus(); // 立即检测一次
     }
 
     private void NavigationView_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
@@ -714,44 +782,26 @@ public sealed partial class MainWindow : WindowEx
         if (args.SelectedItem is NavigationViewItem selectedItem)
         {
             var viewModelTag = selectedItem.Tag?.ToString();
-
+            
             if (viewModelTag == "FufuLauncher.ViewModels.SettingsViewModel")
             {
-                PlaySettingsIconRotationAnimation();
+                var anim = new DoubleAnimation
+                {
+                    From = 0,
+                    To = 360, 
+                    Duration = new Duration(TimeSpan.FromSeconds(0.7)),
+                    EasingFunction = new CircleEase { EasingMode = EasingMode.EaseOut } 
+                };
+
+                Storyboard.SetTarget(anim, SettingsIconRotation);
+                Storyboard.SetTargetProperty(anim, "Angle");
+
+                var sb = new Storyboard();
+                sb.Children.Add(anim);
+                sb.Begin();
             }
 
             if (!string.IsNullOrEmpty(viewModelTag)) NavigateToPage(viewModelTag);
-        }
-    }
-
-    private void PlaySettingsIconRotationAnimation()
-    {
-        try
-        {
-            if (SettingsIcon != null)
-            {
-                if (SettingsIcon.RenderTransform == null || SettingsIcon.RenderTransform is not RotateTransform)
-                {
-                    SettingsIcon.RenderTransform = new RotateTransform { CenterX = 14, CenterY = 14 };
-                }
-                var rotateAnimation = new DoubleAnimation
-                {
-                    From = 0,
-                    To = 360,
-                    Duration = TimeSpan.FromMilliseconds(300),
-                    EasingFunction = new CircleEase { EasingMode = EasingMode.EaseInOut }
-                };
-
-                var storyboard = new Storyboard();
-                Storyboard.SetTarget(rotateAnimation, SettingsIcon.RenderTransform);
-                Storyboard.SetTargetProperty(rotateAnimation, "Angle");
-                storyboard.Children.Add(rotateAnimation);
-                storyboard.Begin();
-            }
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"播放设置图标动画失败: {ex.Message}");
         }
     }
 
@@ -770,7 +820,67 @@ public sealed partial class MainWindow : WindowEx
             _ => null
         };
 
-        if (pageType != null && ContentFrame.CurrentSourcePageType != pageType) ContentFrame.Navigate(pageType);
+        if (pageType != null && ContentFrame.CurrentSourcePageType != pageType)
+        {
+            ContentFrame.Navigate(pageType);
+            bool isMainPage = pageType == typeof(Views.MainPage);
+            UpdatePageOverlayState(isMainPage);
+        }
+    }
+    
+    private void UpdatePageOverlayState(bool isMainPage)
+    {
+        try
+        {
+            double screenHeight = this.Bounds.Height > 0 ? this.Bounds.Height : 1000;
+            
+            if (isMainPage && _isOverlayShown)
+            {
+                var anim = new DoubleAnimation
+                {
+                    From = 0,
+                    To = screenHeight + 50,
+                    Duration = TimeSpan.FromMilliseconds(400),
+                    EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn }
+                };
+                
+                var sb = new Storyboard();
+                Storyboard.SetTarget(anim, OverlayTranslate);
+                Storyboard.SetTargetProperty(anim, "Y");
+                sb.Children.Add(anim);
+                sb.Begin();
+                
+                _isOverlayShown = false;
+            }
+            else if (!isMainPage && !_isOverlayShown)
+            {
+                OverlayTranslate.Y = screenHeight; 
+                
+                var anim = new DoubleAnimation
+                {
+                    From = screenHeight,
+                    To = 0,
+                    Duration = TimeSpan.FromMilliseconds(500),
+                    EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+                };
+                
+                var sb = new Storyboard();
+                Storyboard.SetTarget(anim, OverlayTranslate);
+                Storyboard.SetTargetProperty(anim, "Y");
+                sb.Children.Add(anim);
+                sb.Begin();
+                
+                _isOverlayShown = true;
+            }
+            else if (!isMainPage && _isOverlayShown)
+            {
+                 OverlayTranslate.Y = 0;
+            }
+        }
+        catch(Exception ex)
+        {
+            Debug.WriteLine($"[MainWindow] 遮罩动画异常: {ex.Message}");
+        }
     }
 
     private void Settings_ColorValuesChanged(UISettings sender, object args)
@@ -784,16 +894,10 @@ public sealed partial class MainWindow : WindowEx
         {
             var notificationCard = CreateNotificationCard(message);
             NotificationPanel.Children.Add(notificationCard);
-
             AnimateNotification(notificationCard, 380, 0, 300);
-
-            if (message.Duration > 0)
-                SetupAutoDismiss(notificationCard, message.Duration);
+            if (message.Duration > 0) SetupAutoDismiss(notificationCard, message.Duration);
         }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"显示通知失败: {ex.Message}");
-        }
+        catch { }
     }
 
     private Grid CreateNotificationCard(NotificationMessage message)
@@ -803,95 +907,26 @@ public sealed partial class MainWindow : WindowEx
             Background = GetNotificationBrush(message.Type),
             CornerRadius = new CornerRadius(8),
             Padding = new Thickness(16, 12, 16, 12),
-            Height = 80,
-            Width = 360,
-            Margin = new Thickness(0, 0, 0, 8),
+            Height = 80, Width = 360, Margin = new Thickness(0, 0, 0, 8),
             RenderTransform = new TranslateTransform { X = 380 }
         };
-
-        var icon = new FontIcon
-        {
-            FontFamily = new FontFamily("Segoe Fluent Icons"),
-            FontSize = 16,
-            Glyph = GetNotificationIcon(message.Type),
-            VerticalAlignment = VerticalAlignment.Top,
-            Margin = new Thickness(0, 2, 0, 0),
-            Foreground = new SolidColorBrush(Colors.White)
-        };
-
+        var icon = new FontIcon { FontFamily = new FontFamily("Segoe Fluent Icons"), FontSize = 16, Glyph = GetNotificationIcon(message.Type), VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 2, 0, 0), Foreground = new SolidColorBrush(Colors.White) };
         var contentPanel = new StackPanel { Spacing = 4, Margin = new Thickness(12, 0, 0, 0) };
-
-        var titleText = new TextBlock
-        {
-            Text = message.Title,
-            FontSize = 14,
-            FontWeight = FontWeights.SemiBold,
-            TextWrapping = TextWrapping.WrapWholeWords,
-            Foreground = new SolidColorBrush(Colors.White)
-        };
-        contentPanel.Children.Add(titleText);
-
-        var messageText = new TextBlock
-        {
-            Text = message.Message,
-            FontSize = 12,
-            Opacity = 0.9,
-            TextWrapping = TextWrapping.WrapWholeWords,
-            Foreground = new SolidColorBrush(Colors.White)
-        };
-        contentPanel.Children.Add(messageText);
-
-        var closeButton = new Button
-        {
-            Content = new FontIcon { Glyph = "\uE711", FontSize = 12 },
-            Background = new SolidColorBrush(Colors.Transparent),
-            BorderBrush = new SolidColorBrush(Colors.Transparent),
-            Width = 32,
-            Height = 32,
-            Padding = new Thickness(0),
-            Margin = new Thickness(0, -4, -4, 0),
-            HorizontalAlignment = HorizontalAlignment.Right,
-            VerticalAlignment = VerticalAlignment.Top,
-            Foreground = new SolidColorBrush(Colors.White),
-            IsHitTestVisible = true,
-        };
-
-        closeButton.Click += (s, e) =>
-        {
-            Debug.WriteLine($"[通知系统] 用户点击关闭按钮");
-            try
-            {
-                if (NotificationPanel.Children.Contains(card))
-                {
-                    NotificationPanel.Children.Remove(card);
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[通知系统] 关闭异常: {ex.Message}");
-            }
-        };
-
-        card.Children.Add(icon);
-        card.Children.Add(contentPanel);
-        card.Children.Add(closeButton);
-
+        contentPanel.Children.Add(new TextBlock { Text = message.Title, FontSize = 14, FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.WrapWholeWords, Foreground = new SolidColorBrush(Colors.White) });
+        contentPanel.Children.Add(new TextBlock { Text = message.Message, FontSize = 12, Opacity = 0.9, TextWrapping = TextWrapping.WrapWholeWords, Foreground = new SolidColorBrush(Colors.White) });
+        
+        var closeButton = new Button { Content = new FontIcon { Glyph = "\uE711", FontSize = 12 }, Background = new SolidColorBrush(Colors.Transparent), BorderBrush = new SolidColorBrush(Colors.Transparent), Width = 32, Height = 32, Margin = new Thickness(0, -4, -4, 0), HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top, Foreground = new SolidColorBrush(Colors.White) };
+        closeButton.Click += (s, e) => { try { NotificationPanel.Children.Remove(card); } catch { } };
+        
+        card.Children.Add(icon); card.Children.Add(contentPanel); card.Children.Add(closeButton);
         return card;
     }
 
     private void AnimateNotification(FrameworkElement element, double from, double to, int duration)
     {
-        var animation = new DoubleAnimation
-        {
-            From = from,
-            To = to,
-            Duration = new Duration(TimeSpan.FromMilliseconds(duration)),
-            EasingFunction = new CircleEase { EasingMode = EasingMode.EaseOut }
-        };
-
+        var animation = new DoubleAnimation { From = from, To = to, Duration = new Duration(TimeSpan.FromMilliseconds(duration)), EasingFunction = new CircleEase { EasingMode = EasingMode.EaseOut } };
         Storyboard.SetTarget(animation, element.RenderTransform);
         Storyboard.SetTargetProperty(animation, "X");
-
         var storyboard = new Storyboard();
         storyboard.Children.Add(animation);
         storyboard.Begin();
@@ -899,22 +934,9 @@ public sealed partial class MainWindow : WindowEx
 
     private void SetupAutoDismiss(FrameworkElement card, int duration)
     {
-        if (duration <= 0) return;
-
         var timer = dispatcherQueue.CreateTimer();
         timer.Interval = TimeSpan.FromMilliseconds(duration);
-        timer.Tick += (s, e) =>
-        {
-            try
-            {
-                if (NotificationPanel.Children.Contains(card))
-                {
-                    NotificationPanel.Children.Remove(card);
-                }
-            }
-            catch { }
-            timer.Stop();
-        };
+        timer.Tick += (s, e) => { try { NotificationPanel.Children.Remove(card); } catch { } timer.Stop(); };
         timer.Start();
     }
 
@@ -933,10 +955,7 @@ public sealed partial class MainWindow : WindowEx
     {
         return type switch
         {
-            NotificationType.Success => "\uE930",
-            NotificationType.Warning => "\uE7BA",
-            NotificationType.Error => "\uE711",
-            _ => "\uE946"
+            NotificationType.Success => "\uE930", NotificationType.Warning => "\uE7BA", NotificationType.Error => "\uE711", _ => "\uE946"
         };
     }
 
@@ -946,18 +965,10 @@ public sealed partial class MainWindow : WindowEx
         {
             var valueObj = await _localSettingsService.ReadSettingAsync("GlobalBackgroundOverlayOpacity");
             double opacity = 0.3;
-            if (valueObj != null && double.TryParse(valueObj.ToString(), out var parsed))
-            {
-                opacity = parsed;
-            }
-
+            if (valueObj != null && double.TryParse(valueObj.ToString(), out var parsed)) opacity = parsed;
             ApplyOverlayOpacity(opacity);
         }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"[MainWindow] 加载背景遮罩透明度失败: {ex.Message}");
-            ApplyOverlayOpacity(0.3);
-        }
+        catch { ApplyOverlayOpacity(0.3); }
     }
 
     private async Task LoadFrameBackgroundOpacityAsync()
@@ -965,65 +976,41 @@ public sealed partial class MainWindow : WindowEx
         try
         {
             var valueObj = await _localSettingsService.ReadSettingAsync("ContentFrameBackgroundOpacity");
-            double opacity = 0.5;
-            if (valueObj != null && double.TryParse(valueObj.ToString(), out var parsed))
-            {
-                opacity = parsed;
-            }
-
+            double opacity = 0.0;
+            if (valueObj != null && double.TryParse(valueObj.ToString(), out var parsed)) opacity = parsed;
             ApplyFrameBackgroundOpacity(opacity);
         }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"[MainWindow] 加载 Frame 背景透明度失败: {ex.Message}");
-            ApplyFrameBackgroundOpacity(0.5);
-        }
+        catch { ApplyFrameBackgroundOpacity(0.0); }
     }
 
     private void ApplyOverlayOpacity(double value)
     {
-        var clamped = Math.Clamp(value, 0.0, 1.0);
-        GlobalBackgroundOverlay.Opacity = clamped;
+        GlobalBackgroundOverlay.Opacity = Math.Clamp(value, 0.0, 1.0);
     }
 
     private void ApplyFrameBackgroundOpacity(double value)
     {
-        // 1. 限制输入范围
         _frameBackgroundOpacity = Math.Clamp(value, 0.0, 1.0);
-
-        // 2. 确保 ContentFrame 可用
         if (ContentFrame == null) return;
+        
+        if (_frameBackgroundOpacity < 0.05)
+        {
+            ContentFrame.Background = new SolidColorBrush(Colors.Transparent);
+            return;
+        }
 
-        // 3. 获取或创建 SolidColorBrush
         SolidColorBrush brush;
-        if (ContentFrame.Background is SolidColorBrush existingBrush)
-        {
-            brush = existingBrush;
-        }
-        else
-        {
-            brush = new SolidColorBrush();
-            ContentFrame.Background = brush;
-        }
+        if (ContentFrame.Background is SolidColorBrush existingBrush) brush = existingBrush;
+        else { brush = new SolidColorBrush(); ContentFrame.Background = brush; }
 
-        // 4. 根据当前主题确定基色 (黑或白)
         var theme = ElementTheme.Default;
         if (Content is FrameworkElement root)
         {
             theme = root.ActualTheme;
-            if (theme == ElementTheme.Default)
-            {
-                theme = Application.Current.RequestedTheme == ApplicationTheme.Dark ? ElementTheme.Dark : ElementTheme.Light;
-            }
+            if (theme == ElementTheme.Default) theme = Application.Current.RequestedTheme == ApplicationTheme.Dark ? ElementTheme.Dark : ElementTheme.Light;
         }
-
         var baseColor = theme == ElementTheme.Dark ? Colors.Black : Colors.White;
-
-        // 5. 【关键修改】直接映射 0.0-1.0 到 0-255
-        // 这样当 _frameBackgroundOpacity 为 0 时，A 也为 0 (完全透明)
         baseColor.A = (byte)(_frameBackgroundOpacity * 255);
-
-        // 6. 应用颜色
         brush.Color = baseColor;
     }
 }

@@ -1,7 +1,9 @@
 ﻿using System.Diagnostics;
+using System.Numerics;
 using FufuLauncher.ViewModels;
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Navigation;
+using Microsoft.UI.Xaml.Hosting;
 using Microsoft.Web.WebView2.Core;
 using Timer = System.Timers.Timer;
 
@@ -9,10 +11,8 @@ namespace FufuLauncher.Views
 {
     public sealed partial class CalculatorPage : Page
     {
-        public CalculatorViewModel ViewModel
-        {
-            get;
-        }
+        public CalculatorViewModel ViewModel { get; }
+
         private Timer _loadingTimeoutTimer;
         private Timer _minDisplayTimer;
         private bool _isNavigationEventsSubscribed = false;
@@ -25,8 +25,24 @@ namespace FufuLauncher.Views
             InitializeComponent();
 
             Debug.WriteLine("=== CalculatorPage 初始化 ===");
-
             _ = InitializeWebViewAsync();
+        }
+
+        private void WebCardContainer_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            if (CalculatorWebView != null)
+            {
+                var visual = ElementCompositionPreview.GetElementVisual(CalculatorWebView);
+                var compositor = visual.Compositor;
+
+                var clipGeometry = compositor.CreateRoundedRectangleGeometry();
+
+                clipGeometry.Size = new Vector2((float)e.NewSize.Width, (float)e.NewSize.Height);
+
+                clipGeometry.CornerRadius = new Vector2(16, 16);
+
+                visual.Clip = compositor.CreateGeometricClip(clipGeometry);
+            }
         }
 
         private async Task InitializeWebViewAsync()
@@ -41,42 +57,30 @@ namespace FufuLauncher.Views
 
                 Debug.WriteLine("WebView2 初始化成功！");
 
+                CalculatorWebView.DefaultBackgroundColor = Windows.UI.Color.FromArgb(0, 0, 0, 0);
                 CalculatorWebView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
-
-                if (!_isNavigationEventsSubscribed)
-                {
-
-                    CalculatorWebView.CoreWebView2.NavigationStarting += OnWebViewNavigationStarting;
-
-                    CalculatorWebView.CoreWebView2.FrameNavigationStarting += OnWebViewFrameNavigationStarting;
-
-                    CalculatorWebView.CoreWebView2.NewWindowRequested += OnNewWindowRequested;
-
-                    CalculatorWebView.CoreWebView2.DOMContentLoaded += OnDOMContentLoaded;
-
-                    _isNavigationEventsSubscribed = true;
-                    Debug.WriteLine("导航事件已订阅");
-                }
-
-                ViewModel.StatusMessage = "正在加载养成计算器...";
 
                 CalculatorWebView.CoreWebView2.Settings.UserAgent =
                     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+
+                if (!_isNavigationEventsSubscribed)
+                {
+                    CalculatorWebView.CoreWebView2.NavigationStarting += OnWebViewNavigationStarting;
+                    CalculatorWebView.CoreWebView2.FrameNavigationStarting += OnWebViewFrameNavigationStarting;
+                    CalculatorWebView.CoreWebView2.NewWindowRequested += OnNewWindowRequested;
+                    CalculatorWebView.CoreWebView2.DOMContentLoaded += OnDOMContentLoaded;
+                    
+                    _isNavigationEventsSubscribed = true;
+                }
 
                 LoadCalculatorPage();
             }
             catch (Exception ex)
             {
                 Debug.WriteLine("WebView2 初始化失败: " + ex.Message);
-                ViewModel.StatusMessage = "WebView2 运行时未安装。请下载并安装";
+                ViewModel.StatusMessage = "组件初始化失败，请检查 Edge WebView2 Runtime。";
                 ViewModel.IsLoading = false;
             }
-        }
-
-        protected override void OnNavigatedTo(NavigationEventArgs e)
-        {
-            base.OnNavigatedTo(e);
-            Debug.WriteLine("页面导航到 CalculatorPage");
         }
 
         private void LoadCalculatorPage()
@@ -86,20 +90,17 @@ namespace FufuLauncher.Views
                 Debug.WriteLine("开始加载计算器页面...");
                 _isPageLoaded = false;
                 ViewModel.IsLoading = true;
-                ViewModel.StatusMessage = "正在连接米游社服务器...";
+                ViewModel.StatusMessage = "正在同步养成数据...";
 
                 StartLoadingTimeout();
-
                 StartMinDisplayTimer();
 
                 var targetUri = new Uri("https://act.mihoyo.com/ys/event/calculator/index.html");
-                Debug.WriteLine("导航到: " + targetUri.ToString());
                 CalculatorWebView.Source = targetUri;
             }
             catch (Exception ex)
             {
-                Debug.WriteLine("加载失败: " + ex.Message);
-                ViewModel.StatusMessage = "加载失败: " + ex.Message;
+                ViewModel.StatusMessage = "加载异常: " + ex.Message;
                 ViewModel.IsLoading = false;
                 StopLoadingTimeout();
                 StopMinDisplayTimer();
@@ -117,7 +118,7 @@ namespace FufuLauncher.Views
         private void StartMinDisplayTimer()
         {
             StopMinDisplayTimer();
-            _minDisplayTimer = new Timer(1000);
+            _minDisplayTimer = new Timer(800);
             _minDisplayTimer.Elapsed += OnMinDisplayTimeComplete;
             _minDisplayTimer.Start();
         }
@@ -127,10 +128,8 @@ namespace FufuLauncher.Views
             StopMinDisplayTimer();
             DispatcherQueue.TryEnqueue(() =>
             {
-
                 if (_isPageLoaded)
                 {
-                    Debug.WriteLine("最小显示时间到，页面已加载，隐藏提示");
                     ViewModel.IsLoading = false;
                 }
             });
@@ -152,8 +151,7 @@ namespace FufuLauncher.Views
             {
                 if (ViewModel.IsLoading)
                 {
-                    Debug.WriteLine("加载超时！");
-                    ViewModel.StatusMessage = "加载超时，请检查网络连接";
+                    ViewModel.StatusMessage = "连接超时，请检查网络设置";
                     ViewModel.IsLoading = false;
                 }
             });
@@ -171,39 +169,28 @@ namespace FufuLauncher.Views
 
         private void OnDOMContentLoaded(CoreWebView2 sender, CoreWebView2DOMContentLoadedEventArgs args)
         {
-            Debug.WriteLine("DOM内容加载完成！页面已可显示");
+            Debug.WriteLine("DOM内容加载完成！");
             _isPageLoaded = true;
-
             DispatcherQueue.TryEnqueue(() =>
             {
-
-                ViewModel.StatusMessage = "";
+                ViewModel.StatusMessage = "加载完成";
             });
-
             StopLoadingTimeout();
         }
 
         private void OnWebViewNavigationStarting(CoreWebView2 sender, CoreWebView2NavigationStartingEventArgs args)
         {
-            Debug.WriteLine("[主框架] 导航请求: " + args.Uri);
             CheckAndBlockNavigation(args);
         }
 
         private void OnWebViewFrameNavigationStarting(CoreWebView2 sender, CoreWebView2NavigationStartingEventArgs args)
         {
-            Debug.WriteLine("[子框架] 导航请求: " + args.Uri);
             CheckAndBlockNavigation(args);
         }
 
         private void OnNewWindowRequested(CoreWebView2 sender, CoreWebView2NewWindowRequestedEventArgs args)
         {
-            Debug.WriteLine("[阻止] 新窗口请求: " + args.Uri);
-            args.Handled = true;
-
-            DispatcherQueue.TryEnqueue(() =>
-            {
-                ViewModel.StatusMessage = "已阻止新窗口打开";
-            });
+            args.Handled = true; 
         }
 
         private void CheckAndBlockNavigation(CoreWebView2NavigationStartingEventArgs args)
@@ -211,50 +198,21 @@ namespace FufuLauncher.Views
             try
             {
                 var uri = new Uri(args.Uri);
-
-                var allowedHost = "act.mihoyo.com";
-                var allowedPath = "/ys/event/calculator/index.html";
-
-                bool isAllowed = uri.Host.Equals(allowedHost, StringComparison.OrdinalIgnoreCase) &&
-                                uri.AbsolutePath.Equals(allowedPath, StringComparison.OrdinalIgnoreCase);
+                bool isAllowed = uri.Host.EndsWith("mihoyo.com", StringComparison.OrdinalIgnoreCase);
 
                 if (!isAllowed)
                 {
-                    Debug.WriteLine("[阻止] 不允许的导航: " + uri.Host + uri.AbsolutePath);
+                    Debug.WriteLine("[阻止] 外部链接: " + uri.Host);
                     args.Cancel = true;
-
                     DispatcherQueue.TryEnqueue(() =>
                     {
-                        ViewModel.StatusMessage = "已阻止外部链接: " + uri.Host;
+                        if(!ViewModel.IsLoading) ViewModel.StatusMessage = "已拦截外部链接";
                     });
                 }
-                else
-                {
-                    Debug.WriteLine("[允许] 导航到: " + uri.ToString());
-                }
             }
-            catch (Exception ex)
+            catch
             {
-                Debug.WriteLine("导航检查异常: " + ex.Message);
                 args.Cancel = true;
-            }
-        }
-
-        private void OnNavigationCompleted(WebView2 sender, CoreWebView2NavigationCompletedEventArgs args)
-        {
-            StopLoadingTimeout();
-
-            if (!args.IsSuccess)
-            {
-                Debug.WriteLine("导航失败: " + args.WebErrorStatus.ToString());
-                ViewModel.StatusMessage = "页面加载失败: " + args.WebErrorStatus.ToString();
-                ViewModel.IsLoading = false;
-                _isPageLoaded = false;
-            }
-            else
-            {
-                Debug.WriteLine("导航完成（但DOM可能还在加载）");
-
             }
         }
     }
