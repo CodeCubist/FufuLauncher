@@ -46,6 +46,10 @@ namespace FufuLauncher.ViewModels
         [ObservableProperty] private Brush _panelBackgroundBrush;
         private double _panelOpacityValue = 0.5;
         
+        [ObservableProperty] private double _infoCardHeight = 310;
+        [ObservableProperty] private string _infoExpandIcon = "\uE70E";
+        private bool _isInfoCardExpanded = true;
+
         private BannerItem _currentBanner;
         public BannerItem CurrentBanner
         {
@@ -102,6 +106,11 @@ namespace FufuLauncher.ViewModels
         {
             get;
         }
+        
+        public IRelayCommand ToggleInfoCardCommand
+        {
+            get;
+        }
 
         public IRelayCommand ToggleBackgroundTypeCommand
         {
@@ -145,7 +154,7 @@ namespace FufuLauncher.ViewModels
 
             LoadBackgroundCommand = new AsyncRelayCommand(LoadBackgroundAsync);
             TogglePanelCommand = new RelayCommand(() => IsPanelExpanded = !IsPanelExpanded);
-            // ToggleActivityCommand = new RelayCommand(() => IsActivityPostsExpanded = !IsActivityPostsExpanded);
+            ToggleInfoCardCommand = new RelayCommand(ToggleInfoCard);
             ToggleBackgroundTypeCommand = new RelayCommand(ToggleBackgroundType);
             ExecuteCheckinCommand = new AsyncRelayCommand(ExecuteCheckinAsync);
             LaunchGameCommand = new AsyncRelayCommand(LaunchGameAsync);
@@ -161,13 +170,27 @@ namespace FufuLauncher.ViewModels
             
             WeakReferenceMessenger.Default.Register<PanelOpacityChangedMessage>(this, (r, m) =>
             {
-                
                 _dispatcherQueue.TryEnqueue(() =>
                 {
                     _panelOpacityValue = m.Value;
                     UpdatePanelBackgroundBrush();
                 });
             });
+        }
+        
+        private void ToggleInfoCard()
+        {
+            _isInfoCardExpanded = !_isInfoCardExpanded;
+            if (_isInfoCardExpanded)
+            {
+                InfoCardHeight = 310;
+                InfoExpandIcon = "\uE70E";
+            }
+            else
+            {
+                InfoCardHeight = 135;
+                InfoExpandIcon = "\uE70D";
+            }
         }
 
         public async Task InitializeAsync()
@@ -178,7 +201,6 @@ namespace FufuLauncher.ViewModels
             await LoadContentAsync();
             await LoadCheckinStatusAsync();
             UseInjection = await _gameLauncherService.GetUseInjectionAsync();
-
             
             try 
             {
@@ -196,7 +218,6 @@ namespace FufuLauncher.ViewModels
         public void SetPanelOpacity(double opacity)
         {
             _panelOpacityValue = opacity;
-            
             _dispatcherQueue.TryEnqueue(UpdatePanelBackgroundBrush);
         }
         
@@ -209,35 +230,27 @@ namespace FufuLauncher.ViewModels
         {
             try
             {
-                
                 var themeService = App.GetService<IThemeSelectorService>();
                 var currentTheme = themeService.Theme;
 
-                
                 if (currentTheme == ElementTheme.Default)
                 {
                     currentTheme = Application.Current.RequestedTheme == ApplicationTheme.Light 
                         ? ElementTheme.Light 
                         : ElementTheme.Dark;
                 }
-
                 
                 Color baseColor;
                 if (currentTheme == ElementTheme.Light)
                 {
-                    
                     baseColor = Microsoft.UI.Colors.White;
                 }
                 else
                 {
-                    
                     baseColor = Color.FromArgb(255, 32, 32, 32);
                 }
-
-                
                 
                 PanelBackgroundBrush = new SolidColorBrush(baseColor) { Opacity = _panelOpacityValue };
-                
                 Debug.WriteLine($"[MainViewModel] 背景已更新 - 主题: {currentTheme}, 透明度: {_panelOpacityValue}");
             }
             catch (Exception ex)
@@ -245,7 +258,6 @@ namespace FufuLauncher.ViewModels
                 Debug.WriteLine($"[MainViewModel] 更新背景失败: {ex.Message}");
             }
         }
-
 
         public async Task OnPageReturnedAsync()
         {
@@ -261,7 +273,6 @@ namespace FufuLauncher.ViewModels
                 PreferVideoBackground = Convert.ToBoolean(pref);
             }
 
-            
             var panelOpacityJson = await _localSettingsService.ReadSettingAsync("PanelBackgroundOpacity");
             try
             {
@@ -272,17 +283,12 @@ namespace FufuLauncher.ViewModels
                 _panelOpacityValue = 0.5;
             }
         }
-
         
         public async Task SetPanelOpacityAsync(double opacity)
         {
             _panelOpacityValue = Math.Clamp(opacity, 0.0, 1.0);
             UpdatePanelBackgroundBrush();
-        
-            
             await _localSettingsService.SaveSettingAsync("PanelBackgroundOpacity", _panelOpacityValue);
-        
-            
             OnPropertyChanged(nameof(PanelBackgroundBrush));
         }
 
@@ -430,90 +436,89 @@ namespace FufuLauncher.ViewModels
             _ = LoadBackgroundAsync();
         }
 
-private async Task LoadContentAsync()
-{
-    if (Banners != null && Banners.Count > 0)
-    {
-        if (CurrentBanner == null)
+        private async Task LoadContentAsync()
         {
-            CurrentBanner = Banners[0];
-        }
-        
-        _bannerTimer?.Start();
-        
-        return; 
-    }
-
-    try
-    {
-        
-        var serverJson = await _localSettingsService.ReadSettingAsync(LocalSettingsService.BackgroundServerKey);
-        int serverValue = serverJson != null ? Convert.ToInt32(serverJson) : 0;
-        var server = (ServerType)serverValue;
-        
-        var content = await _contentService.GetGameContentAsync(server);
-
-        if (content != null)
-        {
-            await UpdateUI(() =>
+            if (Banners != null && Banners.Count > 0)
             {
-                _bannerTimer?.Stop();
-                CurrentBanner = null;
-                
-                Banners.Clear();
-                foreach (var banner in content.Banners ?? Array.Empty<BannerItem>())
+                if (CurrentBanner == null)
                 {
-                    Banners.Add(banner);
+                    CurrentBanner = Banners[0];
                 }
                 
-                var posts = content.Posts ?? Array.Empty<PostItem>();
-
-                ActivityPosts.Clear();
-                foreach (var post in posts.Where(p => p.Type == "POST_TYPE_ACTIVITY")) 
-                    ActivityPosts.Add(post);
-
-                AnnouncementPosts.Clear();
-                foreach (var post in posts.Where(p => p.Type == "POST_TYPE_ANNOUNCE")) 
-                    AnnouncementPosts.Add(post);
-
-                InfoPosts.Clear();
-                foreach (var post in posts.Where(p => p.Type == "POST_TYPE_INFO")) 
-                    InfoPosts.Add(post);
+                _bannerTimer?.Start();
                 
-                SocialMediaList.Clear();
-                foreach (var item in content.SocialMediaList ?? Array.Empty<SocialMediaItem>())
-                {
-                    SocialMediaList.Add(item);
-                }
+                return; 
+            }
+
+            try
+            {
+                var serverJson = await _localSettingsService.ReadSettingAsync(LocalSettingsService.BackgroundServerKey);
+                int serverValue = serverJson != null ? Convert.ToInt32(serverJson) : 0;
+                var server = (ServerType)serverValue;
                 
-                if (Banners.Count > 0)
+                var content = await _contentService.GetGameContentAsync(server);
+
+                if (content != null)
                 {
-                    _dispatcherQueue.TryEnqueue(async () =>
+                    await UpdateUI(() =>
                     {
-                        try
+                        _bannerTimer?.Stop();
+                        CurrentBanner = null;
+                        
+                        Banners.Clear();
+                        foreach (var banner in content.Banners ?? Array.Empty<BannerItem>())
                         {
-                            await Task.Delay(50);
-                            
-                            if (Banners.Count > 0)
-                            {
-                                CurrentBanner = Banners[0];
-                                _bannerTimer?.Start();
-                            }
+                            Banners.Add(banner);
                         }
-                        catch (Exception ex)
+                        
+                        var posts = content.Posts ?? Array.Empty<PostItem>();
+
+                        ActivityPosts.Clear();
+                        foreach (var post in posts.Where(p => p.Type == "POST_TYPE_ACTIVITY")) 
+                            ActivityPosts.Add(post);
+
+                        AnnouncementPosts.Clear();
+                        foreach (var post in posts.Where(p => p.Type == "POST_TYPE_ANNOUNCE")) 
+                            AnnouncementPosts.Add(post);
+
+                        InfoPosts.Clear();
+                        foreach (var post in posts.Where(p => p.Type == "POST_TYPE_INFO")) 
+                            InfoPosts.Add(post);
+                        
+                        SocialMediaList.Clear();
+                        foreach (var item in content.SocialMediaList ?? Array.Empty<SocialMediaItem>())
                         {
-                            Debug.WriteLine($"设置 Banner 选中项失败: {ex.Message}");
+                            SocialMediaList.Add(item);
+                        }
+                        
+                        if (Banners.Count > 0)
+                        {
+                            _dispatcherQueue.TryEnqueue(async () =>
+                            {
+                                try
+                                {
+                                    await Task.Delay(50);
+                                    
+                                    if (Banners.Count > 0)
+                                    {
+                                        CurrentBanner = Banners[0];
+                                        _bannerTimer?.Start();
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    Debug.WriteLine($"设置 Banner 选中项失败: {ex.Message}");
+                                }
+                            });
                         }
                     });
                 }
-            });
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"内容加载失败: {ex.Message}");
+            }
         }
-    }
-    catch (Exception ex)
-    {
-        Debug.WriteLine($"内容加载失败: {ex.Message}");
-    }
-}
 
         private void RotateBanner()
         {
@@ -711,7 +716,6 @@ private async Task LoadContentAsync()
         {
             _ = Task.Run(async () =>
             {
-
                 await _gameLauncherService.SetUseInjectionAsync(value);
                 var actual = await _gameLauncherService.GetUseInjectionAsync();
                 if (actual != value)

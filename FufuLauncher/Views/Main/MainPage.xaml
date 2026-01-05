@@ -14,47 +14,57 @@
                 <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
             </ResourceDictionary.MergedDictionaries>
 
+          
             <ResourceDictionary.ThemeDictionaries>
                 <ResourceDictionary x:Key="Light">
                     <SolidColorBrush x:Key="CustomPanelBackgroundBrush" 
                                      Color="{ThemeResource CardBackgroundFillColorDefault}"/>
                     
+ 
                     <AcrylicBrush x:Key="IosGlassBrush" 
                                   TintColor="#FFFFFF" 
                                   TintOpacity="0.1" 
-                                  FallbackColor="#E6FFFFFF"/>
+         
+                          FallbackColor="#E6FFFFFF"/>
                 </ResourceDictionary>
 
                 <ResourceDictionary x:Key="Default">
                     <SolidColorBrush x:Key="CustomPanelBackgroundBrush" 
-                                     Color="#D9101010"/>
+                    
+                  Color="#D9101010"/>
                     
                     <AcrylicBrush x:Key="IosGlassBrush" 
                                   TintColor="#000000" 
-                                  TintOpacity="0.15" 
+      
+                             TintOpacity="0.15" 
                                   FallbackColor="#E6101010"/>
                 </ResourceDictionary>
             </ResourceDictionary.ThemeDictionaries>
 
-            <helpers:IntToVisibilityConverter x:Key="IntToVisibilityConverter"/>
+         
+    <helpers:IntToVisibilityConverter x:Key="IntToVisibilityConverter"/>
             <helpers:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
             <helpers:BoolToGlyphConverter x:Key="BoolToGlyphConverter"/>
             
             <DataTemplate x:Key="NewsItemTemplate">
                 <Button Background="Transparent" BorderThickness="0" Padding="8,2" Margin="0,1"
                         HorizontalAlignment="Stretch" 
+ 
                         HorizontalContentAlignment="Left" CornerRadius="4"
                         Command="{Binding ElementName=MainPageRoot, Path=OpenLinkCommand}"
                         CommandParameter="{Binding Link}">
                     <Grid>
-                        <Grid.ColumnDefinitions>
+    
+                     <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
+                      
+   </Grid.ColumnDefinitions>
                         <TextBlock Grid.Column="0" Text="{Binding Title}" FontSize="13" 
                                    TextTrimming="CharacterEllipsis" MaxLines="1" Margin="0,0,8,0"/>
                         <TextBlock Grid.Column="1" Text="{Binding Date}" FontSize="12" Opacity="0.5" 
-                                   VerticalAlignment="Center"/>
+  
+                                  VerticalAlignment="Center"/>
                     </Grid>
                 </Button>
             </DataTemplate>
@@ -62,11 +72,13 @@
     </Page.Resources>
 
     <Grid>
-        <Grid>
+   
+      <Grid>
             <ProgressRing Width="60" Height="60"
                           HorizontalAlignment="Center" VerticalAlignment="Center"
                           IsActive="{x:Bind ViewModel.IsBackgroundLoading, Mode=OneWay}"
-                          Visibility="{x:Bind ViewModel.IsBackgroundLoading, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
+                          
+ Visibility="{x:Bind ViewModel.IsBackgroundLoading, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
 
             <Image Source="{x:Bind ViewModel.BackgroundImageSource, Mode=OneWay}"
                    Stretch="UniformToFill"
@@ -74,29 +86,37 @@
                    Visibility="{x:Bind ViewModel.ImageVisibility, Mode=OneWay}" />
 
             <MediaPlayerElement x:Name="BackgroundVideo"
-                                Stretch="UniformToFill"
+       
+                          Stretch="UniformToFill"
                                 Opacity="1.0"
                                 Visibility="{x:Bind ViewModel.VideoVisibility, Mode=OneWay}"
-                                IsHitTestVisible="False"
+         
+                        IsHitTestVisible="False"
                                 AutoPlay="True"/>
         </Grid>
         
         <Grid>
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="360"/>
+         
+        <ColumnDefinition Width="360"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
           
             <StackPanel Grid.Column="0" 
                         Margin="24,0,0,32"
-                        VerticalAlignment="Bottom"
+               
+          VerticalAlignment="Bottom"
                         Spacing="12">
             
                 <Grid CornerRadius="12"
                       BorderThickness="1"
                       BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                       Background="{StaticResource IosGlassBrush}"
-                      Height="310"> 
+                      Height="{x:Bind ViewModel.InfoCardHeight, Mode=OneWay}"
+                      PointerEntered="InfoCard_PointerEntered"
+                      PointerExited="InfoCard_PointerExited"
+                      x:Name="InfoCardGrid">
+                      
                     <Grid.RowDefinitions>
                         <RowDefinition Height="135"/>
                         <RowDefinition Height="*"/>
@@ -117,153 +137,200 @@
                                 </DataTemplate>
                             </FlipView.ItemTemplate>
                         </FlipView>
+                        
+                        <Button x:Name="InfoExpandButton"
+                                VerticalAlignment="Bottom" HorizontalAlignment="Right"
+                                Margin="0,0,8,8"
+                                Background="#99000000"
+                                BorderThickness="0"
+                                CornerRadius="4" 
+                                Padding="6,2"
+                                Opacity="0"
+                                IsHitTestVisible="True"
+                                Command="{x:Bind ViewModel.ToggleInfoCardCommand}">
+                             <FontIcon Glyph="{x:Bind ViewModel.InfoExpandIcon, Mode=OneWay}" 
+                                       FontSize="10" Foreground="White"/>
+                        </Button>
                     </Grid>
 
                     <Pivot Grid.Row="1" Margin="2,0,2,2">
                         <Pivot.Resources>
                             <Style TargetType="PivotHeaderItem">
-                                <Setter Property="FontSize" Value="13"/>
+                         
+        <Setter Property="FontSize" Value="13"/>
                                 <Setter Property="FontWeight" Value="SemiBold"/>
                                 <Setter Property="Margin" Value="0"/>
-                                <Setter Property="Padding" Value="12,0"/>
+                       
+          <Setter Property="Padding" Value="12,0"/>
                                 <Setter Property="MinHeight" Value="32"/>
                             </Style>
                         </Pivot.Resources>
 
-                        <PivotItem Header="活动">
+   
+                      <PivotItem Header="活动">
                             <ListView ItemsSource="{x:Bind ViewModel.ActivityPosts}"
                                       ItemTemplate="{StaticResource NewsItemTemplate}"
-                                      SelectionMode="None"
+         
+                              SelectionMode="None"
                                       Padding="4,0,4,4">
                             </ListView>
-                        </PivotItem>
+     
+                    </PivotItem>
 
                         <PivotItem Header="公告">
                             <ListView ItemsSource="{x:Bind ViewModel.AnnouncementPosts}"
-                                      ItemTemplate="{StaticResource NewsItemTemplate}"
+                          
+             ItemTemplate="{StaticResource NewsItemTemplate}"
                                       SelectionMode="None"
                                       Padding="4,0,4,4">
-                            </ListView>
+           
+                  </ListView>
                         </PivotItem>
 
                         <PivotItem Header="资讯">
                             <ListView ItemsSource="{x:Bind ViewModel.InfoPosts}"
-                                      ItemTemplate="{StaticResource NewsItemTemplate}"
+    
+                                   ItemTemplate="{StaticResource NewsItemTemplate}"
                                       SelectionMode="None"
-                                      Padding="4,0,4,4">
+                           
+            Padding="4,0,4,4">
                             </ListView>
                         </PivotItem>
                     </Pivot>
                 </Grid>
+ 
                 
                 <Grid Padding="16" CornerRadius="8" 
                       BorderThickness="1" 
                       BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                      Background="{StaticResource IosGlassBrush}">
+                    
+   Background="{StaticResource IosGlassBrush}">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
+  
+                   </Grid.RowDefinitions>
                     <TextBlock Grid.Row="0" Text="原神签到" FontSize="15" FontWeight="SemiBold" 
                                Margin="0,0,0,8" Opacity="0.9"/>
                     <StackPanel Grid.Row="1" Spacing="2" Margin="0,0,0,12">
-                        <TextBlock Text="{x:Bind ViewModel.CheckinStatusText, Mode=OneWay}" FontSize="13" TextWrapping="Wrap"/>
+  
+                       <TextBlock Text="{x:Bind ViewModel.CheckinStatusText, Mode=OneWay}" FontSize="13" TextWrapping="Wrap"/>
                         <TextBlock Text="{x:Bind ViewModel.CheckinSummary, Mode=OneWay}" FontSize="11" 
                                    Opacity="0.6" TextWrapping="Wrap"/>
-                    </StackPanel>
+        
+             </StackPanel>
                     <Button Grid.Row="2" Content="{x:Bind ViewModel.CheckinButtonText, Mode=OneWay}"
                             Command="{x:Bind ViewModel.ExecuteCheckinCommand}"
                             IsEnabled="{x:Bind ViewModel.IsCheckinButtonEnabled, Mode=OneWay}"
-                            HorizontalAlignment="Stretch" CornerRadius="4" Padding="12,6"
+     
+                        HorizontalAlignment="Stretch" CornerRadius="4" Padding="12,6"
                             Style="{StaticResource AccentButtonStyle}"/>
                 </Grid>
             </StackPanel>
             <TextBlock Grid.Column="0"
-                       Text="© 2026 FufuLauncher Development Team. All Rights Reserved."
+     
+                   Text="© 2026 FufuLauncher Development Team.All Rights Reserved."
                        FontSize="10"
                        Opacity="0.05"
                        VerticalAlignment="Bottom"
                        HorizontalAlignment="Left"
-                       Margin="30,0,0,10"
+      
+                  Margin="30,0,0,10"
                        PointerEntered="Copyright_PointerEntered"
                        PointerExited="Copyright_PointerExited"
                        x:Name="CopyrightText"
-                       IsHitTestVisible="True"/>
+              
+          IsHitTestVisible="True"/>
             
             <Grid Grid.Column="1" Margin="32" Background="Transparent">
                 <Button VerticalAlignment="Top" HorizontalAlignment="Right" 
                         Margin="0,0,0,12"
-                        Command="{x:Bind ViewModel.ToggleBackgroundTypeCommand}"
+                     
+    Command="{x:Bind ViewModel.ToggleBackgroundTypeCommand}"
                         IsEnabled="{x:Bind ViewModel.IsBackgroundToggleEnabled, Mode=OneWay}" 
                         Content="{x:Bind ViewModel.BackgroundTypeToggleText, Mode=OneWay}"
                         CornerRadius="6" Padding="12,6"
-                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                  
+       Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                         BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"/>
             </Grid>
 
             <Button Grid.Row="1" Grid.Column="1"
                     Command="{x:Bind ViewModel.OpenScreenshotFolderCommand}"
-                    IsEnabled="{x:Bind ViewModel.IsLaunchButtonEnabled, Mode=OneWay}"
+                    IsEnabled="{x:Bind 
+ ViewModel.IsLaunchButtonEnabled, Mode=OneWay}"
                     HorizontalAlignment="Right" VerticalAlignment="Bottom"
                     Margin="0,0,280,32" CornerRadius="24" Padding="0"
                     Background="Transparent"
                     BorderThickness="0"
-                    PointerEntered="ScreenshotButton_PointerEntered"
+                
+     PointerEntered="ScreenshotButton_PointerEntered"
                     PointerExited="ScreenshotButton_PointerExited">
   
                 <Grid>
                     <Border x:Name="ScreenshotBlurBorder"
                             Background="{StaticResource IosGlassBrush}"
-                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+        
+                     BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                             BorderThickness="1"
                             CornerRadius="24"
-                            Opacity="1.0">
+                       
+      Opacity="1.0">
                     </Border>
 
                     <StackPanel Orientation="Horizontal" Spacing="8" Margin="18,12">
                         <FontIcon Glyph="&#xE8B7;" FontSize="16"/>
-                        <TextBlock Text="截图文件夹" FontSize="14" FontWeight="SemiBold"/>
+                        <TextBlock Text="截图文件夹" 
+ FontSize="14" FontWeight="SemiBold"/>
                     </StackPanel>
                 </Grid>
             </Button>
             
             <Button Grid.Row="1" Grid.Column="1"
                     Command="{x:Bind ViewModel.LaunchGameCommand}"
-                    IsEnabled="{x:Bind ViewModel.IsLaunchButtonEnabled, Mode=OneWay}"
+    
+                 IsEnabled="{x:Bind ViewModel.IsLaunchButtonEnabled, Mode=OneWay}"
                     HorizontalAlignment="Right" VerticalAlignment="Bottom"
                     Margin="0,0,32,32" 
                     Padding="0"
-                    Background="Transparent"
+                    
+ Background="Transparent"
                     BorderThickness="0"
                     CornerRadius="24"
                     Translation="0,0,32">
                  
                 <Button.Shadow>
-                    <ThemeShadow /> 
+       
+             <ThemeShadow /> 
                 </Button.Shadow>
                 
                 <Grid>
                     <Border Background="{StaticResource IosGlassBrush}"
-                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+               
+              BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                             BorderThickness="1"
                             CornerRadius="24"/>
 
                     <Border CornerRadius="24">
-                        <Border.Background>
+         
+                <Border.Background>
                             <SolidColorBrush Color="#0078D7" Opacity="0.4"/>
                         </Border.Background>
                     </Border>
 
-                    <StackPanel Orientation="Horizontal" Spacing="12" Padding="36,18">
+           
+          <StackPanel Orientation="Horizontal" Spacing="12" Padding="36,18">
                         <ProgressRing Width="20" Height="20"
                                       IsActive="{x:Bind ViewModel.IsGameLaunching, Mode=OneWay}"
-                                      Visibility="{x:Bind ViewModel.IsGameLaunching, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                      
+                 Visibility="{x:Bind ViewModel.IsGameLaunching, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
         
                         <FontIcon Glyph="{x:Bind ViewModel.LaunchButtonIcon, Mode=OneWay}" FontSize="20"/>
         
                         <TextBlock Text="{x:Bind ViewModel.LaunchButtonText, Mode=OneWay}"
-                                   FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center"/>
+         
+                           FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Grid>
             </Button>
