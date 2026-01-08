@@ -74,28 +74,6 @@
     <Grid>
    
       <Grid>
-            <ProgressRing Width="60" Height="60"
-                          HorizontalAlignment="Center" VerticalAlignment="Center"
-                          IsActive="{x:Bind ViewModel.IsBackgroundLoading, Mode=OneWay}"
-                          
- Visibility="{x:Bind ViewModel.IsBackgroundLoading, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
-
-            <Image Source="{x:Bind ViewModel.BackgroundImageSource, Mode=OneWay}"
-                   Stretch="UniformToFill"
-                   Opacity="1.0"
-                   Visibility="{x:Bind ViewModel.ImageVisibility, Mode=OneWay}" />
-
-            <MediaPlayerElement x:Name="BackgroundVideo"
-       
-                          Stretch="UniformToFill"
-                                Opacity="1.0"
-                                Visibility="{x:Bind ViewModel.VideoVisibility, Mode=OneWay}"
-         
-                        IsHitTestVisible="False"
-                                AutoPlay="True"/>
-        </Grid>
-        
-        <Grid>
             <Grid.ColumnDefinitions>
          
         <ColumnDefinition Width="360"/>
@@ -112,7 +90,7 @@
                       BorderThickness="1"
                       BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                       Background="{StaticResource IosGlassBrush}"
-                      Height="{x:Bind ViewModel.InfoCardHeight, Mode=OneWay}"
+                      Height="{Binding InfoCardHeight, Mode=OneWay}"
                       PointerEntered="InfoCard_PointerEntered"
                       PointerExited="InfoCard_PointerExited"
                       x:Name="InfoCardGrid">
@@ -147,7 +125,7 @@
                                 Padding="6,2"
                                 Opacity="0"
                                 IsHitTestVisible="True"
-                                Command="{x:Bind ViewModel.ToggleInfoCardCommand}">
+                                Command="{Binding ToggleInfoCardCommand}">
                              <FontIcon Glyph="{x:Bind ViewModel.InfoExpandIcon, Mode=OneWay}" 
                                        FontSize="10" Foreground="White"/>
                         </Button>
@@ -215,14 +193,14 @@
                                Margin="0,0,0,8" Opacity="0.9"/>
                     <StackPanel Grid.Row="1" Spacing="2" Margin="0,0,0,12">
   
-                       <TextBlock Text="{x:Bind ViewModel.CheckinStatusText, Mode=OneWay}" FontSize="13" TextWrapping="Wrap"/>
-                        <TextBlock Text="{x:Bind ViewModel.CheckinSummary, Mode=OneWay}" FontSize="11" 
+                       <TextBlock Text="{Binding CheckinStatusText}" FontSize="13" TextWrapping="Wrap"/>
+                        <TextBlock Text="{Binding CheckinSummary}" FontSize="11" 
                                    Opacity="0.6" TextWrapping="Wrap"/>
         
              </StackPanel>
-                    <Button Grid.Row="2" Content="{x:Bind ViewModel.CheckinButtonText, Mode=OneWay}"
-                            Command="{x:Bind ViewModel.ExecuteCheckinCommand}"
-                            IsEnabled="{x:Bind ViewModel.IsCheckinButtonEnabled, Mode=OneWay}"
+                    <Button Grid.Row="2" Content="{Binding CheckinButtonText}"
+                            Command="{Binding ExecuteCheckinCommand}"
+                            IsEnabled="{Binding IsCheckinButtonEnabled, Mode=OneWay}"
      
                         HorizontalAlignment="Stretch" CornerRadius="4" Padding="12,6"
                             Style="{StaticResource AccentButtonStyle}"/>
@@ -244,21 +222,12 @@
           IsHitTestVisible="True"/>
             
             <Grid Grid.Column="1" Margin="32" Background="Transparent">
-                <Button VerticalAlignment="Top" HorizontalAlignment="Right" 
-                        Margin="0,0,0,12"
-                     
-    Command="{x:Bind ViewModel.ToggleBackgroundTypeCommand}"
-                        IsEnabled="{x:Bind ViewModel.IsBackgroundToggleEnabled, Mode=OneWay}" 
-                        Content="{x:Bind ViewModel.BackgroundTypeToggleText, Mode=OneWay}"
-                        CornerRadius="6" Padding="12,6"
-                  
-       Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"/>
+                <!-- per-page background toggle removed (global background only) -->
             </Grid>
 
             <Button Grid.Row="1" Grid.Column="1"
-                    Command="{x:Bind ViewModel.OpenScreenshotFolderCommand}"
-                    IsEnabled="{x:Bind 
+                    Command="{Binding OpenScreenshotFolderCommand}"
+                    IsEnabled="{Binding 
  ViewModel.IsLaunchButtonEnabled, Mode=OneWay}"
                     HorizontalAlignment="Right" VerticalAlignment="Bottom"
                     Margin="0,0,280,32" CornerRadius="24" Padding="0"

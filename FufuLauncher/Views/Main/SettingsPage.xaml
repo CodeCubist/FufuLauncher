@@ -371,14 +371,8 @@
                                       OnContent="已启用"
                                       IsOn="{x:Bind ViewModel.IsBackgroundEnabled, Mode=TwoWay}"/>
                         
-                        <ToggleSwitch Header="将背景应用到所有页面"
-                                      OffContent="仅主页"
-                                      OnContent="所有页面"
-                                      IsOn="{x:Bind ViewModel.IsGlobalBackgroundEnabled, Mode=TwoWay}"
-                                      Margin="0,8,0,0"/>
-                        
                         <StackPanel Margin="0,16,0,0"
-                                    Visibility="{x:Bind ViewModel.IsBackgroundEnabled, Mode=OneWay}">
+                                    Visibility="{x:Bind ViewModel.IsBackgroundEnabled, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
                             
                             <TextBlock Text="背景来源" 
                                        Style="{ThemeResource BodyStrongTextBlockStyle}"
@@ -392,33 +386,12 @@
                                         Padding="12,6"
                                         CornerRadius="6"/>
                                 
-                                <TextBlock Text="{x:Bind ViewModel.CustomBackgroundPath, Mode=OneWay}" 
+                                <!--<TextBlock Text="{x:Bind ViewModel.CustomBackgroundPath, Mode=OneWay}" 
                                            FontSize="12" 
                                            Opacity="0.7" 
                                            TextWrapping="Wrap"
                                            MaxWidth="400"
-                                           Visibility="{x:Bind ViewModel.HasCustomBackground, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
-                                
-                                <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <Button Content="清除自定义背景" 
-                                            Command="{x:Bind ViewModel.ClearCustomBackgroundCommand}"
-                                            HorizontalAlignment="Left"
-                                            Padding="12,6"
-                                            CornerRadius="6"
-                                            Visibility="{x:Bind ViewModel.HasCustomBackground, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
-                                        <Button.Style>
-                                            <Style TargetType="Button" BasedOn="{StaticResource AccentButtonStyle}">
-                                                <Setter Property="Background" Value="{ThemeResource SystemFillColorCriticalBrush}"/>
-                                            </Style>
-                                        </Button.Style>
-                                    </Button>
-                                    
-                                    <Button Content="打开缓存文件夹" 
-                                            Command="{x:Bind ViewModel.OpenBackgroundCacheFolderCommand}"
-                                            HorizontalAlignment="Left"
-                                            Padding="12,6"
-                                            CornerRadius="6"/>
-                                </StackPanel>
+                                           Visibility="{x:Bind ViewModel.HasCustomBackground, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>-->
                             </StackPanel>
                             
                             <ComboBox Header="官方背景服务器" 
@@ -428,13 +401,6 @@
                                 <ComboBoxItem Content="国服 (天空岛)"/>
                                 <ComboBoxItem Content="国际服 (提瓦特)"/>
                             </ComboBox>
-
-                            <TextBlock Text="{x:Bind ViewModel.BackgroundCacheFolderPath, Mode=OneWay}" 
-                                       FontSize="11" 
-                                       Opacity="0.6" 
-                                       TextWrapping="Wrap"
-                                       Margin="0,12,0,0"
-                                       MaxWidth="400"/>
                         </StackPanel>
                     </StackPanel>
                 </Border>

@@ -59,20 +59,13 @@ namespace FufuLauncher.ViewModels
         [ObservableProperty] private string _customBackgroundPath;
         [ObservableProperty] private bool _hasCustomBackground;
         [ObservableProperty] private double _panelBackgroundOpacity = 0.5;
-        [ObservableProperty] private string _backgroundCacheFolderPath;
         [ObservableProperty] private bool _isShortTermSupportEnabled;
         [ObservableProperty] private bool _isBetterGIIntegrationEnabled;
         [ObservableProperty] private bool _isBetterGICloseOnExitEnabled;
-        [ObservableProperty] private bool _isGlobalBackgroundEnabled = true;
         [ObservableProperty] private double _globalBackgroundOverlayOpacity = 0.3;
         [ObservableProperty] private double _contentFrameBackgroundOpacity = 0.5;
         [ObservableProperty] private bool _isSaveWindowSizeEnabled;
         [ObservableProperty] private double _globalBackgroundImageOpacity = 1.0;
-
-        public IAsyncRelayCommand OpenBackgroundCacheFolderCommand
-        {
-            get;
-        }
 
         [ObservableProperty] private WindowBackdropType _currentWindowBackdrop;
         public ICommand SwitchThemeCommand
@@ -88,10 +81,6 @@ namespace FufuLauncher.ViewModels
             get;
         }
         public IAsyncRelayCommand SelectCustomBackgroundCommand
-        {
-            get;
-        }
-        public IAsyncRelayCommand ClearCustomBackgroundCommand
         {
             get;
         }
@@ -173,8 +162,6 @@ namespace FufuLauncher.ViewModels
                 });
 
             SelectCustomBackgroundCommand = new AsyncRelayCommand(SelectCustomBackgroundAsync);
-            ClearCustomBackgroundCommand = new AsyncRelayCommand(ClearCustomBackground);
-            OpenBackgroundCacheFolderCommand = new AsyncRelayCommand(OpenBackgroundCacheFolderAsync);
         }
         
         private void InitializeDefaultResolution()
@@ -202,69 +189,12 @@ namespace FufuLauncher.ViewModels
             }
         }
 
-        private Task LoadBackgroundCachePathAsync()
-        {
-            try
-            {
-                var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-                var cachePath = Path.Combine(localAppData, "FufuLauncher", "BackgroundCache");
-                
-                if (!Directory.Exists(cachePath))
-                {
-                    Directory.CreateDirectory(cachePath);
-                }
-                
-                BackgroundCacheFolderPath = cachePath;
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"加载缓存路径失败: {ex.Message}");
-                BackgroundCacheFolderPath = "无法获取路径";
-            }
-            return Task.CompletedTask;
-        }
-
-        private async Task OpenBackgroundCacheFolderAsync()
-        {
-            try
-            {
-                var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-                var cachePath = Path.Combine(localAppData, "FufuLauncher", "BackgroundCache");
-
-                if (!Directory.Exists(cachePath))
-                {
-                    Directory.CreateDirectory(cachePath);
-                }
-
-                Process.Start(new ProcessStartInfo
-                {
-                    FileName = cachePath,
-                    UseShellExecute = true,
-                    Verb = "open"
-                });
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"打开缓存文件夹失败: {ex.Message}");
-
-                var dialog = new ContentDialog
-                {
-                    Title = "无法打开文件夹",
-                    Content = $"错误: {ex.Message}",
-                    CloseButtonText = "确定",
-                    XamlRoot = App.MainWindow.Content.XamlRoot
-                };
-                await dialog.ShowAsync();
-            }
-        }
-
         public async Task ReloadSettingsAsync()
         {
             _isInitializing = true;
 
             await LoadUserPreferencesAsync();
             await LoadCustomBackgroundSettingsAsync();
-            await LoadBackgroundCachePathAsync();
             UpdateLaunchArgsPreview();
             
             OnPropertyChanged(nameof(IsStartupSoundEnabled));
@@ -285,7 +215,6 @@ namespace FufuLauncher.ViewModels
             OnPropertyChanged(nameof(IsShortTermSupportEnabled));
             OnPropertyChanged(nameof(IsBetterGIIntegrationEnabled));
             OnPropertyChanged(nameof(IsBetterGICloseOnExitEnabled));
-            OnPropertyChanged(nameof(IsGlobalBackgroundEnabled));
             OnPropertyChanged(nameof(GlobalBackgroundOverlayOpacity));
             OnPropertyChanged(nameof(ContentFrameBackgroundOpacity));
             OnPropertyChanged(nameof(IsSaveWindowSizeEnabled));
@@ -301,9 +230,6 @@ namespace FufuLauncher.ViewModels
 
             var enabledJson = await _localSettingsService.ReadSettingAsync(LocalSettingsService.IsBackgroundEnabledKey);
             IsBackgroundEnabled = enabledJson == null ? true : Convert.ToBoolean(enabledJson);
-
-            var globalBgJson = await _localSettingsService.ReadSettingAsync("UseGlobalBackground");
-            IsGlobalBackgroundEnabled = globalBgJson == null ? true : Convert.ToBoolean(globalBgJson);
 
             var languageJson = await _localSettingsService.ReadSettingAsync("AppLanguage");
             int languageValue = languageJson != null ? Convert.ToInt32(languageJson) : 0;
@@ -619,40 +545,21 @@ namespace FufuLauncher.ViewModels
         {
             Debug.WriteLine($"SettingsViewModel: 保存服务器设置 {value}");
             _ = _localSettingsService.SaveSettingAsync(LocalSettingsService.BackgroundServerKey, (int)value);
-            
             WeakReferenceMessenger.Default.Send(new BackgroundRefreshMessage());
-            if (IsBackgroundEnabled)
-            {
-                _ = RefreshMainPageBackground();
-            }
-            
         }
 
         partial void OnIsBackgroundEnabledChanged(bool value)
         {
-            Debug.WriteLine($"SettingsViewModel: 保存背景开关 {value}");
+            // Now means: whether custom background is allowed. If disabled, we fall back to official background.
+            Debug.WriteLine($"SettingsViewModel: 保存自定义背景开关 {value}");
             _ = _localSettingsService.SaveSettingAsync(LocalSettingsService.IsBackgroundEnabledKey, value);
-            
+
             WeakReferenceMessenger.Default.Send(new BackgroundRefreshMessage());
+
             if (!value)
             {
-                _backgroundRenderer.ClearBackground();
+                _backgroundRenderer.ClearCustomBackground();
             }
-            else
-            {
-                _ = RefreshMainPageBackground();
-            }
-            
-        }
-
-        partial void OnIsGlobalBackgroundEnabledChanged(bool value)
-        {
-            Debug.WriteLine($"SettingsViewModel: 保存全局背景开关 {value}");
-            _ = _localSettingsService.SaveSettingAsync("UseGlobalBackground", value);
-            
-            WeakReferenceMessenger.Default.Send(new BackgroundRefreshMessage());
-            _ = RefreshMainPageBackground();
-            
         }
         
         partial void OnIsShortTermSupportEnabledChanged(bool value)
@@ -684,10 +591,10 @@ namespace FufuLauncher.ViewModels
             {
                 GlobalBackgroundOverlayOpacity = clamped;
                 return;
-            }
  
-            _ = _localSettingsService.SaveSettingAsync("GlobalBackgroundOverlayOpacity", clamped);
-            WeakReferenceMessenger.Default.Send(new BackgroundOverlayOpacityChangedMessage(clamped));
+                _ = _localSettingsService.SaveSettingAsync("GlobalBackgroundOverlayOpacity", clamped);
+                WeakReferenceMessenger.Default.Send(new BackgroundOverlayOpacityChangedMessage(clamped));
+            }
         }
 
         partial void OnContentFrameBackgroundOpacityChanged(double value)
@@ -807,36 +714,10 @@ namespace FufuLauncher.ViewModels
             }
         }
 
-        private async Task ClearCustomBackground()
-        {
-            try
-            {
-                await _localSettingsService.SaveSettingAsync<string>("CustomBackgroundPath", null);
-                CustomBackgroundPath = null;
-                HasCustomBackground = false;
-
-                _backgroundRenderer.ClearCustomBackground();
-                WeakReferenceMessenger.Default.Send(new BackgroundRefreshMessage());
-                await RefreshMainPageBackground();
-                
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"清除自定义背景失败: {ex.Message}");
-            }
-        }
-
         private async Task RefreshMainPageBackground()
         {
-            try
-            {
-                var mainViewModel = App.GetService<MainViewModel>();
-                await mainViewModel.InitializeAsync();
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"刷新背景失败: {ex.Message}");
-            }
+            // removed: main page background no longer applies; global background refresh is handled by MainWindow.
+            await Task.CompletedTask;
         }
 
         private static string GetVersionDescription()

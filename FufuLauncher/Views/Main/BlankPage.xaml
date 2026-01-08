@@ -323,7 +323,11 @@
                                                                HorizontalAlignment="Left"/>
                                                 
                                                 <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="13"/>
+                                                    <TextBlock Text="{Binding Remark, TargetNullValue={Binding Name}}" 
+                                                               FontWeight="SemiBold" 
+                                                               FontSize="13"
+                                                               DoubleTapped="AccountName_DoubleTapped"
+                                                               ToolTipService.ToolTip="双击可编辑备注"/>
                                                     <TextBlock Text="{Binding SdkData}" FontSize="10" Opacity="0.4" TextTrimming="CharacterEllipsis" MaxLines="1"/>
                                                 </StackPanel>
 

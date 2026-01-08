@@ -26,6 +26,7 @@ public class GameAccountData
     {
         get; set;
     }
+    public string? Remark { get; set; }
 }
 public class RedeemCodeItem
 {
@@ -957,6 +958,191 @@ namespace FufuLauncher.Views
                 XamlRoot = this.XamlRoot
             };
             await dialog.ShowAsync();
+        }
+
+        private TextBox? _currentEditBox;
+        private TextBlock? _currentTextBlock;
+        private StackPanel? _currentStackPanel;
+        private GameAccountData? _currentAccount;
+
+        private async void AccountName_DoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
+        {
+            if (sender is not TextBlock textBlock || textBlock.DataContext is not GameAccountData account)
+                return;
+
+            // If already editing, save the current one first
+            if (_currentEditBox != null)
+            {
+                await FinalizeEdit();
+            }
+
+            var grid = FindParent<Grid>(textBlock);
+            if (grid == null) return;
+
+            var stackPanel = grid.Children.OfType<StackPanel>().FirstOrDefault(sp => sp.Children.Contains(textBlock));
+            if (stackPanel == null) return;
+
+            // Hide TextBlock, show TextBox for editing
+            textBlock.Visibility = Visibility.Collapsed;
+
+            var editBox = new TextBox
+            {
+                Text = account.Remark ?? account.Name,
+                FontSize = 13,
+                Margin = new Thickness(0, 0, 0, 2),
+                MaxLength = 50
+            };
+
+            _currentEditBox = editBox;
+            _currentTextBlock = textBlock;
+            _currentStackPanel = stackPanel;
+            _currentAccount = account;
+
+            var index = stackPanel.Children.IndexOf(textBlock);
+            stackPanel.Children.Insert(index, editBox);
+            editBox.Focus(FocusState.Programmatic);
+            editBox.SelectAll();
+
+            // Add global pointer pressed handler
+            this.AddHandler(PointerPressedEvent, new PointerEventHandler(Page_PointerPressed), true);
+
+            // Handle save on Enter key
+            editBox.KeyDown += async (s, args) =>
+            {
+                if (args.Key == Windows.System.VirtualKey.Enter)
+                {
+                    await FinalizeEdit();
+                    args.Handled = true;
+                }
+                else if (args.Key == Windows.System.VirtualKey.Escape)
+                {
+                    CancelEdit();
+                    args.Handled = true;
+                }
+            };
+
+            // Prevent the editBox click from triggering the global handler
+            editBox.AddHandler(PointerPressedEvent, new PointerEventHandler((s, args) =>
+            {
+                args.Handled = true;
+            }), true);
+        }
+
+        private async void Page_PointerPressed(object sender, PointerRoutedEventArgs e)
+        {
+            if (_currentEditBox == null) return;
+
+            // Check if the click is outside the edit box
+            var pointer = e.GetCurrentPoint(this);
+            var clickedElement = e.OriginalSource as DependencyObject;
+            
+            // If clicked on the edit box itself, don't save
+            if (clickedElement != null && IsChildOf(clickedElement, _currentEditBox))
+            {
+                return;
+            }
+
+            // Save the edit
+            await FinalizeEdit();
+        }
+
+        private bool IsChildOf(DependencyObject child, DependencyObject parent)
+        {
+            var current = child;
+            while (current != null)
+            {
+                if (current == parent)
+                    return true;
+                current = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetParent(current);
+            }
+            return false;
+        }
+
+        private async Task FinalizeEdit()
+        {
+            if (_currentEditBox == null || _currentTextBlock == null || _currentStackPanel == null || _currentAccount == null)
+                return;
+
+            try
+            {
+                // Remove global pointer handler
+                this.RemoveHandler(PointerPressedEvent, new PointerEventHandler(Page_PointerPressed));
+
+                var newRemark = _currentEditBox.Text.Trim();
+                
+                // Update the account remark
+                var accounts = await LoadAccountsFromFileAsync();
+                var targetAccount = accounts.FirstOrDefault(a => a.Id == _currentAccount.Id);
+                if (targetAccount != null)
+                {
+                    targetAccount.Remark = string.IsNullOrWhiteSpace(newRemark) ? null : newRemark;
+                    await SaveAccountsToFileAsync(accounts);
+                    
+                    // Update UI
+                    _currentAccount.Remark = targetAccount.Remark;
+                }
+
+                // Remove TextBox and show TextBlock with updated text
+                _currentStackPanel.Children.Remove(_currentEditBox);
+                _currentTextBlock.Visibility = Visibility.Visible;
+                
+                // Refresh to show updated remark
+                await LoadAccountsAsync();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[FinalizeEdit] 保存备注失败: {ex.Message}");
+                // Still cleanup the UI even if save fails
+                if (_currentEditBox != null && _currentStackPanel != null)
+                {
+                    _currentStackPanel.Children.Remove(_currentEditBox);
+                }
+                if (_currentTextBlock != null)
+                {
+                    _currentTextBlock.Visibility = Visibility.Visible;
+                }
+            }
+            finally
+            {
+                _currentEditBox = null;
+                _currentTextBlock = null;
+                _currentStackPanel = null;
+                _currentAccount = null;
+            }
+        }
+
+        private void CancelEdit()
+        {
+            if (_currentEditBox == null || _currentTextBlock == null || _currentStackPanel == null)
+                return;
+
+            try
+            {
+                // Remove global pointer handler
+                this.RemoveHandler(PointerPressedEvent, new PointerEventHandler(Page_PointerPressed));
+
+                _currentStackPanel.Children.Remove(_currentEditBox);
+                _currentTextBlock.Visibility = Visibility.Visible;
+            }
+            finally
+            {
+                _currentEditBox = null;
+                _currentTextBlock = null;
+                _currentStackPanel = null;
+                _currentAccount = null;
+            }
+        }
+
+        private T? FindParent<T>(DependencyObject child) where T : DependencyObject
+        {
+            var current = child;
+            while (current != null)
+            {
+                current = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetParent(current);
+                if (current is T typedParent)
+                    return typedParent;
+            }
+            return null;
         }
     }
 }

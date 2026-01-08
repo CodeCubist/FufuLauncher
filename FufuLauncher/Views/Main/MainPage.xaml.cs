@@ -106,19 +106,8 @@ public sealed partial class MainPage : Page
     public MainPage()
     {
         ViewModel = App.GetService<MainViewModel>();
+        DataContext = ViewModel;
         InitializeComponent();
-
-        ViewModel.PropertyChanged += (s, e) =>
-        {
-            if (e.PropertyName == nameof(ViewModel.BackgroundVideoPlayer))
-            {
-                DispatcherQueue.TryEnqueue(() =>
-                {
-                    BackgroundVideo.SetMediaPlayer(ViewModel.BackgroundVideoPlayer);
-                    Debug.WriteLine($"MainPage: MediaPlayer 已设置");
-                });
-            }
-        };
 
         OpenLinkCommand = new XamlUICommand();
         OpenLinkCommand.ExecuteRequested += (sender, args) =>

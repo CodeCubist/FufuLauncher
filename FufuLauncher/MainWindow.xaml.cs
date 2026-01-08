@@ -24,6 +24,8 @@ using Microsoft.UI.Xaml.Hosting;
 using System.Numerics;
 using System.Net;
 using System.Net.NetworkInformation;
+using Microsoft.UI.Windowing;
+using Windows.Graphics;
 
 namespace FufuLauncher;
 
@@ -473,23 +475,23 @@ public sealed partial class MainWindow : WindowEx
     {
         try
         {
-            var globalBgSetting = await _localSettingsService.ReadSettingAsync("UseGlobalBackground");
-            bool useGlobalBg = globalBgSetting == null ? true : Convert.ToBoolean(globalBgSetting);
-            if (!useGlobalBg) { await ClearGlobalBackgroundAsync(); return; }
-
-            var customPathObj = await _localSettingsService.ReadSettingAsync("CustomBackgroundPath");
-            var customPath = customPathObj?.ToString();
-            
-            if (!string.IsNullOrEmpty(customPath) && File.Exists(customPath))
-            {
-                var customResult = await _backgroundRenderer.GetCustomBackgroundAsync(customPath);
-                await ApplyGlobalBackgroundAsync(customResult);
-                return;
-            }
+            // Global background is always enabled now.
 
             var enabledJson = await _localSettingsService.ReadSettingAsync(LocalSettingsService.IsBackgroundEnabledKey);
-            bool isEnabled = enabledJson == null ? true : Convert.ToBoolean(enabledJson);
-            if (!isEnabled) { await ClearGlobalBackgroundAsync(); return; }
+            bool isCustomEnabled = enabledJson == null ? true : Convert.ToBoolean(enabledJson);
+
+            if (isCustomEnabled)
+            {
+                var customPathObj = await _localSettingsService.ReadSettingAsync("CustomBackgroundPath");
+                var customPath = customPathObj?.ToString();
+
+                if (!string.IsNullOrEmpty(customPath) && File.Exists(customPath))
+                {
+                    var customResult = await _backgroundRenderer.GetCustomBackgroundAsync(customPath);
+                    await ApplyGlobalBackgroundAsync(customResult);
+                    return;
+                }
+            }
 
             var preferVideoSetting = await _localSettingsService.ReadSettingAsync("UserPreferVideoBackground");
             bool preferVideo = preferVideoSetting != null && Convert.ToBoolean(preferVideoSetting);
@@ -501,7 +503,10 @@ public sealed partial class MainWindow : WindowEx
             var result = await _backgroundRenderer.GetBackgroundAsync(server, preferVideo);
             await ApplyGlobalBackgroundAsync(result);
         }
-        catch { await ClearGlobalBackgroundAsync(); }
+        catch
+        {
+            await ClearGlobalBackgroundAsync();
+        }
     }
 
     private Task ApplyGlobalBackgroundAsync(BackgroundRenderResult? result)
@@ -587,32 +592,57 @@ public sealed partial class MainWindow : WindowEx
                     Width = w;
                     Height = h;
                     if (!_isOverlayShown) OverlayTranslate.Y = h + 100;
+                    CenterWindowOnScreen();
                     return;
                 }
-            }
-            Width = 1360;
-            Height = 768;
-            if (!_isOverlayShown) OverlayTranslate.Y = Height + 100;
+             }
+             Width = 1360;
+             Height = 768;
+             if (!_isOverlayShown) OverlayTranslate.Y = Height + 100;
+             CenterWindowOnScreen();
         }
         catch 
         { 
             Width = 1360; 
             Height = 768; 
+            CenterWindowOnScreen();
         }
     }
-
-    private void OnWindowActivated(object sender, WindowActivatedEventArgs args)
+    
+    private void CenterWindowOnScreen()
     {
         try
         {
+            var displayArea = DisplayArea.GetFromWindowId(AppWindow.Id, DisplayAreaFallback.Primary);
+            if (displayArea == null) return;
+
+            var workArea = displayArea.WorkArea;
+            var currentSize = AppWindow.Size;
+            if (currentSize.Width <= 0 || currentSize.Height <= 0)
+            {
+                currentSize = new SizeInt32((int)Math.Round(Width), (int)Math.Round(Height));
+            }
+
+            int targetX = workArea.X + Math.Max(0, (workArea.Width - currentSize.Width) / 2);
+            int targetY = workArea.Y + Math.Max(0, (workArea.Height - currentSize.Height) / 2);
+
+            AppWindow.Move(new PointInt32(targetX, targetY));
+        }
+        catch { }
+    }
+ 
+     private void OnWindowActivated(object sender, WindowActivatedEventArgs args)
+     {
+         try
+         {
             SetTitleBar(AppTitleBar);
             var iconPath = Path.Combine(AppContext.BaseDirectory, "Assets/WindowIcon.ico");
             if (File.Exists(iconPath)) TitleBarIcon.Source = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage(new Uri(iconPath));
             UpdateTitleBarWithAdminStatus();
-        }
-        catch { }
+         }
+         catch { }
         Activated -= OnWindowActivated;
-    }
+     }
 
     private void UpdateTitleBarWithAdminStatus()
     {

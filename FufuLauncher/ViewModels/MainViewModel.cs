@@ -223,6 +223,7 @@ namespace FufuLauncher.ViewModels
         
         partial void OnHasCustomBackgroundChanged(bool value)
         {
+            // Background switching is global-only now; keep button disabled on main page.
             IsBackgroundToggleEnabled = !value;
         }
         
@@ -309,106 +310,8 @@ namespace FufuLauncher.ViewModels
         private async Task LoadBackgroundAsync()
         {
             await UpdateUI(() => IsBackgroundLoading = true);
-            try
-            {
-                var useGlobalBgSetting = await _localSettingsService.ReadSettingAsync("UseGlobalBackground");
-                bool useGlobalBg = useGlobalBgSetting == null ? true : Convert.ToBoolean(useGlobalBgSetting);
-                if (useGlobalBg)
-                {
-                    ClearBackground();
-                    return;
-                }
-
-                if (HasCustomBackground && !string.IsNullOrEmpty(CustomBackgroundPath))
-                {
-                    var customResult = await _backgroundRenderer.GetCustomBackgroundAsync(CustomBackgroundPath);
-                    if (customResult != null)
-                    {
-                        await UpdateUI(() =>
-                        {
-                            if (customResult.IsVideo)
-                            {
-                                BackgroundVideoPlayer = new MediaPlayer
-                                {
-                                    Source = customResult.VideoSource,
-                                    IsMuted = true,
-                                    IsLoopingEnabled = true,
-                                    AutoPlay = true
-                                };
-                                IsVideoBackground = true;
-                                BackgroundImageSource = null;
-                            }
-                            else
-                            {
-                                BackgroundImageSource = customResult.ImageSource;
-                                IsVideoBackground = false;
-                                BackgroundVideoPlayer?.Pause();
-                                BackgroundVideoPlayer = null;
-                            }
-                        });
-                        return;
-                    }
-                }
-
-                var enabledJson = await _localSettingsService.ReadSettingAsync(LocalSettingsService.IsBackgroundEnabledKey);
-                bool isEnabled = enabledJson == null ? true : Convert.ToBoolean(enabledJson);
-
-                if (!isEnabled)
-                {
-                    ClearBackground();
-                    return;
-                }
-
-                var userPreferVideo = await _localSettingsService.ReadSettingAsync("UserPreferVideoBackground");
-                bool useVideo = false;
-
-                if (userPreferVideo != null && Convert.ToBoolean(userPreferVideo))
-                {
-                    useVideo = true;
-                }
-
-                var serverJson = await _localSettingsService.ReadSettingAsync(LocalSettingsService.BackgroundServerKey);
-                int serverValue = serverJson != null ? Convert.ToInt32(serverJson) : 0;
-                var server = (ServerType)serverValue;
-
-                var result = await _backgroundRenderer.GetBackgroundAsync(server, useVideo);
-
-                if (result == null) return;
-
-                await UpdateUI(() =>
-                {
-                    if (result.IsVideo)
-                    {
-                        var player = new MediaPlayer
-                        {
-                            Source = result.VideoSource,
-                            IsMuted = true,
-                            IsLoopingEnabled = true,
-                            AutoPlay = true
-                        };
-
-                        BackgroundVideoPlayer = player;
-                        IsVideoBackground = true;
-                        BackgroundImageSource = null;
-                    }
-                    else
-                    {
-                        BackgroundImageSource = result.ImageSource;
-                        IsVideoBackground = false;
-                        BackgroundVideoPlayer?.Pause();
-                        BackgroundVideoPlayer = null;
-                    }
-                });
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"背景加载失败: {ex.Message}");
-                ClearBackground();
-            }
-            finally
-            {
-                await UpdateUI(() => IsBackgroundLoading = false);
-            }
+            ClearBackground();
+            await UpdateUI(() => IsBackgroundLoading = false);
         }
 
         private void ClearBackground()
@@ -421,19 +324,12 @@ namespace FufuLauncher.ViewModels
 
         private void ToggleBackgroundType()
         {
+            // Global background only; keep preference toggle for global renderer.
             PreferVideoBackground = !PreferVideoBackground;
             OnPropertyChanged(nameof(BackgroundTypeToggleText));
-
             _ = _localSettingsService.SaveSettingAsync("UserPreferVideoBackground", PreferVideoBackground);
-
-            BackgroundVideoPlayer?.Pause();
-            BackgroundVideoPlayer = null;
-            BackgroundImageSource = null;
-            IsVideoBackground = false;
-
             _ = _localSettingsService.SaveSettingAsync("PreferVideoBackground", PreferVideoBackground);
             WeakReferenceMessenger.Default.Send(new BackgroundRefreshMessage());
-            _ = LoadBackgroundAsync();
         }
 
         private async Task LoadContentAsync()
