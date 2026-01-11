@@ -22,12 +22,13 @@
 
             <StackPanel Spacing="20" VerticalAlignment="Top">
                 <Image Source="/Assets/WindowIcon.ico" Width="100" Height="100" HorizontalAlignment="Left"/>
-                
+
                 <StackPanel Spacing="4">
                     <TextBlock Text="FufuLauncher" FontSize="28" FontWeight="Bold"/>
                     <TextBlock Text="Version 1.0.6.0" FontSize="14" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    <HyperlinkButton x:Name="GetBuildFormActionsToggle" Content="从Github Actions获取构建" Padding="0" Margin="0" HorizontalAlignment="Left" Click="GetBuildFormActions"/>
                 </StackPanel>
-
+                
             </StackPanel>
 
             <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Hidden">

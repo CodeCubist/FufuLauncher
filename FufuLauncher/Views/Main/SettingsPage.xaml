@@ -527,14 +527,14 @@
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
-            
+
                                 <StackPanel Spacing="4">
                                     <TextBlock Text="FufuLauncher" Style="{ThemeResource BodyTextBlockStyle}"/>
                                     <TextBlock Text="版本 1.0.6.0" 
                                                Style="{ThemeResource CaptionTextBlockStyle}" 
                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                                 </StackPanel>
-
+                                
                                 <Button Grid.Column="1" 
                                         Content="关于我们" 
                                         Click="OnOpenAboutWindowClick"/>
