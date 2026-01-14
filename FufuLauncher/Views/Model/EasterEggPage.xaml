@@ -1,0 +1,53 @@
+﻿<Page
+    x:Class="FufuLauncher.Views.EasterEggPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Background="Black"
+    Loaded="Page_Loaded">
+
+    <Grid>
+        <MediaPlayerElement x:Name="BgVideoPlayer"
+                            Stretch="UniformToFill"
+                            HorizontalAlignment="Stretch"
+                            VerticalAlignment="Stretch"
+                            AreTransportControlsEnabled="False"
+                            AutoPlay="True"/>
+        
+        <Grid Background="Black" Opacity="0.5"/>
+
+        <Grid x:Name="AppTitleBar" VerticalAlignment="Top" Height="32" Background="Transparent" Canvas.ZIndex="999"/>
+
+        <StackPanel VerticalAlignment="Center" 
+                    HorizontalAlignment="Left" 
+                    Spacing="24" 
+                    Margin="80,0,80,0"> <TextBlock x:Name="WelcomeText"
+                       Foreground="White"
+                       FontSize="32"
+                       FontFamily="Consolas, Microsoft YaHei UI"
+                       FontWeight="Bold"
+                       TextAlignment="Left"
+                       TextWrapping="Wrap"
+                       Opacity="1">
+                <TextBlock.Shadow>
+                    <ThemeShadow/>
+                </TextBlock.Shadow>
+            </TextBlock>
+
+            <TextBlock x:Name="SyaShortText"
+                       Foreground="#FFE4E1" 
+                       FontSize="22"
+                       FontStyle="Normal" 
+                       FontWeight="Normal"
+                       TextAlignment="Left"
+                       TextWrapping="Wrap"
+                       Opacity="0">
+                <TextBlock.Shadow>
+                    <ThemeShadow/>
+                </TextBlock.Shadow>
+            </TextBlock>
+        </StackPanel>
+    </Grid>
+</Page>

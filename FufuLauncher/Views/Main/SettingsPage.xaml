@@ -540,8 +540,20 @@
                                         Click="OnOpenAboutWindowClick"/>
                             </Grid>
                         </Border>
+                        <Button x:Name="EasterEggButton"
+                                HorizontalAlignment="Center"
+                                Margin="0,30,0,30"
+                                Background="Transparent"
+                                BorderThickness="0"
+                                Click="OnEasterEggClick"
+                                ToolTipService.ToolTip="???"> <StackPanel Orientation="Horizontal" Spacing="8">
+                                <FontIcon Glyph="&#xEB52;" FontFamily="Segoe MDL2 Assets" Foreground="#FFB6C1"/>
+                                <TextBlock Text="Remember me" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="12"/>
+                            </StackPanel>
+                        </Button>
                     </StackPanel>
                 </Border>
+
             </StackPanel>
         </ScrollViewer>
     </Grid>

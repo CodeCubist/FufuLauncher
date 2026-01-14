@@ -44,12 +44,10 @@ namespace FufuLauncher.ViewModels
         [ObservableProperty] private ObservableCollection<PostItem> _infoPosts = new();
         [ObservableProperty] private ObservableCollection<SocialMediaItem> _socialMediaList = new();
         [ObservableProperty] private Brush _panelBackgroundBrush;
-        private double _panelOpacityValue = 0.5;
-        
-        [ObservableProperty] private double _infoCardHeight = 310;
+        [ObservableProperty] private double _infoCardHeight = 275;
         [ObservableProperty] private string _infoExpandIcon = "\uE70E";
         private bool _isInfoCardExpanded = true;
-
+        private double _panelOpacityValue = 0.5;
         private BannerItem _currentBanner;
         public BannerItem CurrentBanner
         {
@@ -96,7 +94,6 @@ namespace FufuLauncher.ViewModels
         private const string TargetProcessName = "yuanshen";
         private const string TargetProcessNameAlt = "GenshinImpact";
         private CancellationTokenSource _gameMonitoringCts;
-        private Task _monitoringTask;
 
         public IAsyncRelayCommand LoadBackgroundCommand
         {
@@ -166,7 +163,7 @@ namespace FufuLauncher.ViewModels
             });
 
             _gameMonitoringCts = new CancellationTokenSource();
-            _monitoringTask = StartGameMonitoringLoopAsync(_gameMonitoringCts.Token);
+            StartGameMonitoringLoopAsync(_gameMonitoringCts.Token);
             
             WeakReferenceMessenger.Default.Register<PanelOpacityChangedMessage>(this, (r, m) =>
             {
@@ -183,7 +180,7 @@ namespace FufuLauncher.ViewModels
             _isInfoCardExpanded = !_isInfoCardExpanded;
             if (_isInfoCardExpanded)
             {
-                InfoCardHeight = 310;
+                InfoCardHeight = 275;
                 InfoExpandIcon = "\uE70E";
             }
             else

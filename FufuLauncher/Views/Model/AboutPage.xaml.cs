@@ -1,131 +1,199 @@
 ﻿using System.Diagnostics;
-using System.Net;
-using System.Net.Http;
 using System.Text.Json;
-using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Windows.UI.Input;
-
+using Windows.ApplicationModel.DataTransfer;
 
 namespace FufuLauncher.Views;
 
 public sealed partial class AboutPage : Page
 {
-    private static readonly HttpClient httpClient = new HttpClient();
-    private static readonly string batchFilePath = System.IO.Path.Combine(System.Environment.CurrentDirectory, "..\\download_build.bat");
+    private static readonly HttpClient httpClient = new();
+    private static readonly string batchFilePath = Path.Combine(Environment.CurrentDirectory, "..\\download_build.bat");
 
     public AboutPage()
     {
-        this.InitializeComponent();
+        InitializeComponent();
     }
+    
+    private async void ContactAuthor_Click(object sender, RoutedEventArgs e)
+    {
+        StackPanel contentPanel = new() { Spacing = 10 };
+        
+        TextBlock warningText = new()
+        {
+            Text = "请注意：联系时请直入主题，说明来意。\n请不要发送“在吗”、“你好”等无意义的开场白。",
+            TextWrapping = TextWrapping.Wrap,
+            Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["SystemControlErrorTextForegroundBrush"] // 使用警示色或默认色
+        };
+        
+        ComboBox platformCombo = new()
+        {
+            Header = "选择联系方式",
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            SelectedIndex = 0
+        };
+        platformCombo.Items.Add("Telegram");
+        platformCombo.Items.Add("Discord");
+
+        contentPanel.Children.Add(warningText);
+        contentPanel.Children.Add(platformCombo);
+        
+        ContentDialog contactDialog = new()
+        {
+            Title = "联系作者",
+            Content = contentPanel,
+            PrimaryButtonText = "确认跳转/复制",
+            CloseButtonText = "取消",
+            DefaultButton = ContentDialogButton.Primary,
+            XamlRoot = XamlRoot
+        };
+
+        ContentDialogResult result = await contactDialog.ShowAsync();
+
+        if (result == ContentDialogResult.Primary)
+        {
+            string selectedPlatform = platformCombo.SelectedValue as string;
+
+            if (selectedPlatform == "Telegram")
+            {
+                ProcessStartInfo psi = new()
+                {
+                    FileName = "https://t.me/Adimisra6717",
+                    UseShellExecute = true
+                };
+                Process.Start(psi);
+            }
+            else if (selectedPlatform == "Discord")
+            {
+                DataPackage dataPackage = new();
+                dataPackage.SetText("codecubist");
+                Clipboard.SetContent(dataPackage);
+                
+                var originalContent = (sender as HyperlinkButton).Content;
+                (sender as HyperlinkButton).Content = "Discord ID 已复制!";
+                (sender as HyperlinkButton).IsEnabled = false;
+                await Task.Delay(2000);
+                (sender as HyperlinkButton).Content = originalContent;
+                (sender as HyperlinkButton).IsEnabled = true;
+            }
+        }
+    }
+
     private async void GetBuildFormActions(object sender, RoutedEventArgs e)
     {
         GetBuildFormActionsToggle.IsEnabled = false;
         GetBuildFormActionsToggle.Content = "正在获取...";
         httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0");
-        var jsonString = await GetJsonFromUrl("https://api.github.com/repos/CodeCubist/FufuLauncher/actions/workflows");
-        var workflows = jsonString.RootElement.GetProperty("workflows").EnumerateArray();
-        string workflowBaseUrl = "";
-        foreach (var workflow in workflows)
+        try 
         {
-            if (workflow.GetProperty("name").GetString() == ".NET Core Desktop")
+            var jsonString = await GetJsonFromUrl("https://api.github.com/repos/CodeCubist/FufuLauncher/actions/workflows");
+            var workflows = jsonString.RootElement.GetProperty("workflows").EnumerateArray();
+            string workflowBaseUrl = "";
+            foreach (var workflow in workflows)
             {
-                workflowBaseUrl = workflow.GetProperty("url").GetString();
-                Debug.WriteLine("[GetBuildFromActions] 找到工作流ID: " + workflowBaseUrl);
-                break;
-            }
-        }
-        if (workflowBaseUrl != "")
-        {
-            string workflowRunsUrl = workflowBaseUrl + "/runs";
-            var runsJson = await GetJsonFromUrl(workflowRunsUrl);
-            var runs = runsJson.RootElement.GetProperty("workflow_runs").EnumerateArray();
-            var lastSuccessfulRunUrl = "";
-            foreach (var run in runs)
-            {
-                if (run.GetProperty("conclusion").GetString() == "success")
+                if (workflow.GetProperty("name").GetString() == ".NET Core Desktop")
                 {
-                    lastSuccessfulRunUrl = run.GetProperty("url").GetString();
-                    Debug.WriteLine("[GetBuildFromActions] 找到最近成功的运行: " + lastSuccessfulRunUrl);
+                    workflowBaseUrl = workflow.GetProperty("url").GetString();
+                    Debug.WriteLine("[GetBuildFromActions] 找到工作流ID: " + workflowBaseUrl);
                     break;
                 }
             }
-            if (lastSuccessfulRunUrl != "")
+            if (workflowBaseUrl != "")
             {
-                string artifactsUrl = lastSuccessfulRunUrl + "/artifacts";
-                var artifactsJson = await GetJsonFromUrl(artifactsUrl);
-                var artifacts = artifactsJson.RootElement.GetProperty("artifacts").EnumerateArray();
-                string downloadUrl = "";
-                foreach (var artifact in artifacts)
+                string workflowRunsUrl = workflowBaseUrl + "/runs";
+                var runsJson = await GetJsonFromUrl(workflowRunsUrl);
+                var runs = runsJson.RootElement.GetProperty("workflow_runs").EnumerateArray();
+                var lastSuccessfulRunUrl = "";
+                foreach (var run in runs)
                 {
-                    if (artifact.GetProperty("name").GetString() == "FufuLauncher_Release")
+                    if (run.GetProperty("conclusion").GetString() == "success")
                     {
-                        downloadUrl = artifact.GetProperty("archive_download_url").GetString();
-                        Debug.WriteLine("[GetBuildFromActions] 找到构建工件下载链接: " + downloadUrl);
+                        lastSuccessfulRunUrl = run.GetProperty("url").GetString();
+                        Debug.WriteLine("[GetBuildFromActions] 找到最近成功的运行: " + lastSuccessfulRunUrl);
                         break;
                     }
                 }
-                if (downloadUrl != "")
+                if (lastSuccessfulRunUrl != "")
                 {
-                   var userToken = await PromptForTokenAsync();
-                     if (!string.IsNullOrEmpty(userToken))
+                    string artifactsUrl = lastSuccessfulRunUrl + "/artifacts";
+                    var artifactsJson = await GetJsonFromUrl(artifactsUrl);
+                    var artifacts = artifactsJson.RootElement.GetProperty("artifacts").EnumerateArray();
+                    string downloadUrl = "";
+                    foreach (var artifact in artifacts)
                     {
-                        string DownloadShell = "";
-                        DownloadShell += $"taskkill /F /IM FufuLauncher.exe *> $null\n";
-                        DownloadShell += $"del \"{System.Environment.CurrentDirectory}\\*\" /f /s /q\n";
-                        DownloadShell += $"curl -H \"Authorization: Bearer {userToken}\" -L \"{downloadUrl}\" --ssl-no-revoke -o \"{System.Environment.CurrentDirectory}\\FufuLauncher_Build.zip\"\n";
-                        DownloadShell += $"tar -xf \"{System.Environment.CurrentDirectory}\\FufuLauncher_Build.zip\" -C \"{System.Environment.CurrentDirectory}\"\n";
-                        DownloadShell += $"del \"{System.Environment.CurrentDirectory}\\FufuLauncher_Build.zip\" /f /s /q\n";
-                        DownloadShell += $"start {System.Environment.CurrentDirectory}\\FufuLauncher.exe\n";
-                        DownloadShell += $"del %0";
-                        GetBuildFormActionsToggle.Content = "获取成功! 已生成下载脚本.";
-                        Debug.WriteLine("[GetBuildFromActions] 生成的下载脚本内容: \n" + DownloadShell);
-                        Debug.WriteLine("[GetBuildFromActions] 下载脚本路径: " + batchFilePath);
-                        System.IO.File.WriteAllText(batchFilePath, DownloadShell, System.Text.Encoding.UTF8);
-                        ProcessStartInfo psi = new ProcessStartInfo
+                        if (artifact.GetProperty("name").GetString() == "FufuLauncher_Release")
                         {
-                            FileName = "cmd.exe",
-                            Arguments = $"/c \"{batchFilePath}\"",
-                            UseShellExecute = true,
-                            Verb = "runas"
-                        };
-                        Process.Start(psi);
-                        System.Environment.Exit(0);
+                            downloadUrl = artifact.GetProperty("archive_download_url").GetString();
+                            Debug.WriteLine("[GetBuildFromActions] 找到构建工件下载链接: " + downloadUrl);
+                            break;
+                        }
+                    }
+                    if (downloadUrl != "")
+                    {
+                        var userToken = await PromptForTokenAsync();
+                        if (!string.IsNullOrEmpty(userToken))
+                        {
+                            string DownloadShell = "";
+                            DownloadShell += $"taskkill /F /IM FufuLauncher.exe *> $null\n";
+                            DownloadShell += $"del \"{System.Environment.CurrentDirectory}\\*\" /f /s /q\n";
+                            DownloadShell += $"curl -H \"Authorization: Bearer {userToken}\" -L \"{downloadUrl}\" --ssl-no-revoke -o \"{System.Environment.CurrentDirectory}\\FufuLauncher_Build.zip\"\n";
+                            DownloadShell += $"tar -xf \"{System.Environment.CurrentDirectory}\\FufuLauncher_Build.zip\" -C \"{System.Environment.CurrentDirectory}\"\n";
+                            DownloadShell += $"del \"{System.Environment.CurrentDirectory}\\FufuLauncher_Build.zip\" /f /s /q\n";
+                            DownloadShell += $"start {System.Environment.CurrentDirectory}\\FufuLauncher.exe\n";
+                            DownloadShell += $"del %0";
+                            GetBuildFormActionsToggle.Content = "获取成功! 已生成下载脚本.";
+                            Debug.WriteLine("[GetBuildFromActions] 生成的下载脚本内容: \n" + DownloadShell);
+                            Debug.WriteLine("[GetBuildFromActions] 下载脚本路径: " + batchFilePath);
+                            System.IO.File.WriteAllText(batchFilePath, DownloadShell, System.Text.Encoding.UTF8);
+                            ProcessStartInfo psi = new ProcessStartInfo
+                            {
+                                FileName = "cmd.exe",
+                                Arguments = $"/c \"{batchFilePath}\"",
+                                UseShellExecute = true,
+                                Verb = "runas"
+                            };
+                            Process.Start(psi);
+                            System.Environment.Exit(0);
+                        }
+                        else
+                        {
+                            GetBuildFormActionsToggle.Content = "请输入Token! ";
+                            await Task.Delay(1000);
+                            GetBuildFormActionsToggle.Content = "从Github Actions获取构建";
+                            GetBuildFormActionsToggle.IsEnabled = true;
+                        }
                     }
                     else
                     {
-                        GetBuildFormActionsToggle.Content = "请输入Token! ";
-                        await Task.Delay(1000);
-                        GetBuildFormActionsToggle.Content = "从Github Actions获取构建";
-                        GetBuildFormActionsToggle.IsEnabled = true;
+                        await ReportError("获取失败 (未找到工件)");
                     }
                 }
                 else
                 {
-                    GetBuildFormActionsToggle.Content = "获取失败! ";
-                    await Task.Delay(1000);
-                    GetBuildFormActionsToggle.Content = "从Github Actions获取构建";
-                    GetBuildFormActionsToggle.IsEnabled = true;
+                    await ReportError("获取失败 (未找到成功运行)");
                 }
             }
             else
             {
-                GetBuildFormActionsToggle.Content = "获取失败! ";
-                await Task.Delay(1000);
-                GetBuildFormActionsToggle.Content = "从Github Actions获取构建";
-                GetBuildFormActionsToggle.IsEnabled = true;
+                await ReportError("获取失败 (未找到工作流)");
             }
         }
-        else
+        catch (Exception ex)
         {
-            GetBuildFormActionsToggle.Content = "获取失败! ";
-            await Task.Delay(1000);
-            GetBuildFormActionsToggle.Content = "从Github Actions获取构建";
-            GetBuildFormActionsToggle.IsEnabled = true;
+            Debug.WriteLine(ex);
+            await ReportError("发生异常");
         }
-
     }
+
+    private async Task ReportError(string msg)
+    {
+        GetBuildFormActionsToggle.Content = msg;
+        await Task.Delay(1000);
+        GetBuildFormActionsToggle.Content = "从Github Actions获取构建";
+        GetBuildFormActionsToggle.IsEnabled = true;
+    }
+
     private async Task<JsonDocument> GetJsonFromUrl(string url)
     {
         var responseString = await httpClient.GetAsync(url);

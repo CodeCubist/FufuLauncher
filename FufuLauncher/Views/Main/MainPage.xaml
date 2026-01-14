@@ -222,7 +222,14 @@
           IsHitTestVisible="True"/>
             
             <Grid Grid.Column="1" Margin="32" Background="Transparent">
-                <!-- per-page background toggle removed (global background only) -->
+                <Button VerticalAlignment="Top" HorizontalAlignment="Right" 
+                        Margin="0,0,0,12"
+                        Command="{x:Bind ViewModel.ToggleBackgroundTypeCommand}"
+                        IsEnabled="{x:Bind ViewModel.IsBackgroundToggleEnabled, Mode=OneWay}" 
+                        Content="{x:Bind ViewModel.BackgroundTypeToggleText, Mode=OneWay}"
+                        CornerRadius="6" Padding="12,6"
+                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"/>
             </Grid>
 
             <Button Grid.Row="1" Grid.Column="1"

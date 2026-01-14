@@ -1,4 +1,4 @@
-﻿﻿using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Text.Json;
 using FufuLauncher.Activation;
 using FufuLauncher.Contracts.Services;
@@ -249,6 +249,9 @@ public partial class App : Application
             
             await VerifyResourceFilesAsync();
             await ApplyLanguageSettingAsync();
+            
+            // Initialize default theme to Dark if not set
+            await SetDefaultThemeAsync();
 
             if (MainWindow is MainWindow mainWindow)
             {
@@ -329,6 +332,35 @@ public partial class App : Application
             MainWindow.Activate();
         }
     }
+
+    // New helper method to force default Dark theme
+    private async Task SetDefaultThemeAsync()
+    {
+        try 
+        {
+            var localSettings = GetService<ILocalSettingsService>();
+            // Check if we have already initialized the theme preference
+            var isThemeInitialized = await localSettings.ReadSettingAsync("IsThemeInitialized");
+            
+            // If null, this is the first run (or first run after this update)
+            if (isThemeInitialized == null)
+            {
+                Debug.WriteLine("Initializing default theme to Dark.");
+                var themeService = GetService<IThemeSelectorService>();
+                
+                // Force the theme service to set Dark mode
+                await themeService.SetThemeAsync(ElementTheme.Dark);
+                
+                // Mark as initialized so we don't overwrite user preference later
+                await localSettings.SaveSettingAsync("IsThemeInitialized", true);
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Failed to set default theme: {ex.Message}");
+        }
+    }
+
     private async Task PlayStartupSoundAsync()
     {
         try

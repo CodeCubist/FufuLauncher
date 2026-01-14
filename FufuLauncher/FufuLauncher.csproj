@@ -11,6 +11,7 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <UseWinUI>true</UseWinUI>
+        <EnableMsixTooling>true</EnableMsixTooling>
         <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
 
         <WindowsPackageType>None</WindowsPackageType>

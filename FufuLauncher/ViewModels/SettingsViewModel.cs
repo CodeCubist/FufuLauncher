@@ -62,7 +62,7 @@ namespace FufuLauncher.ViewModels
         [ObservableProperty] private bool _isShortTermSupportEnabled;
         [ObservableProperty] private bool _isBetterGIIntegrationEnabled;
         [ObservableProperty] private bool _isBetterGICloseOnExitEnabled;
-        [ObservableProperty] private double _globalBackgroundOverlayOpacity = 0.3;
+        [ObservableProperty] private double _globalBackgroundOverlayOpacity = 0.0;
         [ObservableProperty] private double _contentFrameBackgroundOpacity = 0.5;
         [ObservableProperty] private bool _isSaveWindowSizeEnabled;
         [ObservableProperty] private double _globalBackgroundImageOpacity = 1.0;
@@ -84,7 +84,7 @@ namespace FufuLauncher.ViewModels
         {
             get;
         }
-        private bool _isInitializing = false;
+        private bool _isInitializing;
 
         [ObservableProperty] private bool _isStartupSoundEnabled;
         [ObservableProperty] private string _startupSoundPath;
@@ -135,7 +135,7 @@ namespace FufuLauncher.ViewModels
                 {
                     try
                     {
-                        int languageCode = System.Convert.ToInt32(param);
+                        int languageCode = Convert.ToInt32(param);
                         var language = (AppLanguage)languageCode;
 
                         if (SelectedLanguage != language)
@@ -587,14 +587,15 @@ namespace FufuLauncher.ViewModels
         partial void OnGlobalBackgroundOverlayOpacityChanged(double value)
         {
             var clamped = Math.Clamp(value, 0.0, 1.0);
+            
             if (Math.Abs(clamped - value) > 0.0001)
             {
                 GlobalBackgroundOverlayOpacity = clamped;
                 return;
- 
-                _ = _localSettingsService.SaveSettingAsync("GlobalBackgroundOverlayOpacity", clamped);
-                WeakReferenceMessenger.Default.Send(new BackgroundOverlayOpacityChangedMessage(clamped));
             }
+            
+            _ = _localSettingsService.SaveSettingAsync("GlobalBackgroundOverlayOpacity", clamped);
+            WeakReferenceMessenger.Default.Send(new BackgroundOverlayOpacityChangedMessage(clamped));
         }
 
         partial void OnContentFrameBackgroundOpacityChanged(double value)

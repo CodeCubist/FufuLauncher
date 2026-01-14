@@ -31,6 +31,49 @@ public sealed partial class SettingsPage : Page
         }
     }
     
+    private void OnEasterEggClick(object sender, RoutedEventArgs e)
+    {
+        var window = new Window();
+        var page = new EasterEggPage();
+        window.Content = page;
+        
+        window.ExtendsContentIntoTitleBar = true;
+        window.SetTitleBar(page.AppTitleBarElement);
+    
+        window.Title = "Philia093";
+        
+        IntPtr hWnd = WindowNative.GetWindowHandle(window);
+        WindowId windowId = Win32Interop.GetWindowIdFromWindow(hWnd);
+        AppWindow appWindow = AppWindow.GetFromWindowId(windowId);
+
+        if (appWindow != null)
+        {
+            string iconPath = Path.Combine(AppContext.BaseDirectory, "Assets/WindowIcon.ico");
+            if (File.Exists(iconPath))
+            {
+                appWindow.SetIcon(iconPath);
+            }
+            
+            var size = new Windows.Graphics.SizeInt32(1300, 850);
+            appWindow.Resize(size);
+            
+            var displayArea = DisplayArea.GetFromWindowId(windowId, DisplayAreaFallback.Primary);
+            if (displayArea != null)
+            {
+                var centeredX = (displayArea.WorkArea.Width - size.Width) / 2;
+                var centeredY = (displayArea.WorkArea.Height - size.Height) / 2;
+                appWindow.Move(new Windows.Graphics.PointInt32(centeredX, centeredY));
+            }
+        }
+        
+        window.Closed += (s, args) => 
+        {
+            page.Cleanup();
+        };
+
+        window.Activate();
+    }
+    
     private void OnOpenAboutWindowClick(object sender, RoutedEventArgs e)
     {
         var window = new Window();
