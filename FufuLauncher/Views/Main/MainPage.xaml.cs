@@ -29,6 +29,35 @@ public sealed partial class MainPage : Page
         AnimateCopyrightOpacity(0.05);
     }
     
+    private void BackgroundButton_PointerEntered(object sender, PointerRoutedEventArgs e)
+    {
+        AnimateBackgroundToggleOpacity(1.0);
+    }
+    
+    private void BackgroundButton_PointerExited(object sender, PointerRoutedEventArgs e)
+    {
+        AnimateBackgroundToggleOpacity(0.0);
+    }
+    
+    private void AnimateBackgroundToggleOpacity(double toOpacity)
+    {
+        if (BackgroundToggleGrid == null) return;
+
+        var storyboard = new Storyboard();
+        var animation = new DoubleAnimation
+        {
+            To = toOpacity,
+            Duration = new Duration(TimeSpan.FromMilliseconds(200)),
+            EnableDependentAnimation = true
+        };
+
+        Storyboard.SetTarget(animation, BackgroundToggleGrid);
+        Storyboard.SetTargetProperty(animation, "Opacity");
+
+        storyboard.Children.Add(animation);
+        storyboard.Begin();
+    }
+    
     private void AnimateCopyrightOpacity(double toOpacity)
     {
         var storyboard = new Storyboard();

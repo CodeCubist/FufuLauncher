@@ -824,7 +824,7 @@ public sealed partial class MainWindow : WindowEx
         if (pageType != null && ContentFrame.CurrentSourcePageType != pageType)
         {
             ContentFrame.Navigate(pageType);
-            bool isMainPage = pageType == typeof(Views.MainPage);
+            var isMainPage = pageType == typeof(Views.MainPage);
             UpdatePageOverlayState(isMainPage);
         }
     }

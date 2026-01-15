@@ -158,7 +158,7 @@ public partial class App : Application
             var startInfo = new ProcessStartInfo
             {
                 FileName = updaterPath,
-                Arguments = "1.0.5",
+                Arguments = "1.0.6",
                 UseShellExecute = true,
                 Verb = "runas",
                 WorkingDirectory = Path.GetDirectoryName(updaterPath)

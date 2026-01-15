@@ -302,6 +302,8 @@ namespace FufuLauncher.ViewModels
             {
                 HasCustomBackground = false;
             }
+            
+            IsBackgroundToggleEnabled = !HasCustomBackground;
         }
 
         private async Task LoadBackgroundAsync()
