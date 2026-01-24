@@ -1,13 +1,12 @@
+using System.Diagnostics;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using FufuLauncher.Services;
 using FufuLauncher.Contracts.Services;
+using FufuLauncher.Services;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using System.Diagnostics;
-
-using DisplayInformation = Microsoft.Graphics.Display.DisplayInformation;
 using DisplayAdvancedColorKind = Microsoft.Graphics.Display.DisplayAdvancedColorKind;
+using DisplayInformation = Microsoft.Graphics.Display.DisplayInformation;
 
 namespace FufuLauncher.Views;
 
@@ -29,18 +28,18 @@ public sealed partial class GenshinHDRLuminanceSettingDialog : ContentDialog
         {
             this.XamlRoot.Changed -= XamlRoot_Changed;
             this.XamlRoot.Changed += XamlRoot_Changed;
-            
+
             var windowHandle = WinRT.Interop.WindowNative.GetWindowHandle(App.MainWindow);
             var windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(windowHandle);
-            
+
             _displayInformation = DisplayInformation.CreateForWindowId(windowId);
-            
+
             if (_displayInformation != null)
             {
                 _displayInformation.AdvancedColorInfoChanged += _displayInformation_AdvancedColorInfoChanged;
                 UpdateDisplayInfomation(_displayInformation);
             }
-            
+
             (MaxLuminance, SceneLuminance, UILuminance) = GameSettingService.GetGenshinHDRLuminance();
             var localSettings = App.GetService<ILocalSettingsService>();
             if (localSettings != null)
@@ -107,15 +106,15 @@ public sealed partial class GenshinHDRLuminanceSettingDialog : ContentDialog
     private void UpdateDisplayInfomation(DisplayInformation display)
     {
         if (display == null) return;
-        try 
+        try
         {
             var info = display.GetAdvancedColorInfo();
             if (info == null) return;
-            
+
             HDRNotSupported = !info.IsAdvancedColorKindAvailable(DisplayAdvancedColorKind.HighDynamicRange);
             HDRNotEnabled = info.CurrentAdvancedColorKind is not DisplayAdvancedColorKind.HighDynamicRange;
             HDREnabled = !HDRNotEnabled;
-            
+
             string kind = info.CurrentAdvancedColorKind switch
             {
                 DisplayAdvancedColorKind.StandardDynamicRange => "标准动态范围 (SDR)",
@@ -131,9 +130,9 @@ public sealed partial class GenshinHDRLuminanceSettingDialog : ContentDialog
                 SDR白色亮度: {(double)info.SdrWhiteLevelInNits:F0} nits
                 """;
         }
-        catch 
-        { 
-            DisplayInfomation = "无法读取显示器信息"; 
+        catch
+        {
+            DisplayInfomation = "无法读取显示器信息";
         }
     }
 
@@ -142,7 +141,7 @@ public sealed partial class GenshinHDRLuminanceSettingDialog : ContentDialog
     {
         GameSettingService.SetGenshinHDRLuminance(MaxLuminance, SceneLuminance, UILuminance);
         GameSettingService.SetGenshinHDRState(IsGenshinHDRForceEnabled);
-        
+
         var localSettings = App.GetService<ILocalSettingsService>();
         if (localSettings != null)
         {
@@ -182,6 +181,6 @@ public sealed partial class GenshinHDRLuminanceSettingDialog : ContentDialog
     [RelayCommand]
     private void Close()
     {
-        
+
     }
 }

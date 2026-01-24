@@ -29,12 +29,12 @@ public sealed partial class AccountPage : Page
 
         await ViewModel.LoadUserInfoAsync();
     }
-    
+
     private void Page_Loaded(object sender, RoutedEventArgs e)
     {
         EntranceStoryboard.Begin();
     }
-    
+
     private void OnSwitchAccountClicked(object sender, RoutedEventArgs e)
     {
         if (sender is Button button && button.DataContext is AccountInfo account)
@@ -42,11 +42,11 @@ public sealed partial class AccountPage : Page
             ViewModel.SwitchAccountCommand.Execute(account);
         }
     }
-    
+
     private async void OnGachaAnalysisClicked(object sender, RoutedEventArgs e)
     {
         var dialog = new GachaDialog();
-        dialog.XamlRoot = this.XamlRoot; 
+        dialog.XamlRoot = this.XamlRoot;
         await dialog.ShowAsync();
     }
 }

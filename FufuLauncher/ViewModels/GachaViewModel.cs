@@ -12,7 +12,10 @@ namespace FufuLauncher.ViewModels;
 
 public class GachaConfig
 {
-    public string? Url { get; set; }
+    public string? Url
+    {
+        get; set;
+    }
 }
 
 public partial class GachaViewModel : ObservableRecipient
@@ -21,19 +24,19 @@ public partial class GachaViewModel : ObservableRecipient
     private Process? _captureProcess;
     private readonly DispatcherQueue _dispatcherQueue;
     private bool _isManualStop;
-    
+
     private List<dynamic> _allGachaLogs = new();
-    
+
     private readonly string _configPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "gacha_config.json");
 
     [ObservableProperty] private string _inputUrl;
     [ObservableProperty] private string _statusMessage = "准备就绪";
-    [ObservableProperty] [NotifyPropertyChangedFor(nameof(CanExport))] private bool _isAnalyzing;
+    [ObservableProperty][NotifyPropertyChangedFor(nameof(CanExport))] private bool _isAnalyzing;
     [ObservableProperty] private bool _isCapturing;
-    [ObservableProperty] [NotifyPropertyChangedFor(nameof(CaptureButtonText))] private ObservableCollection<GachaStatistic> _statistics = new();
+    [ObservableProperty][NotifyPropertyChangedFor(nameof(CaptureButtonText))] private ObservableCollection<GachaStatistic> _statistics = new();
 
     public string CaptureButtonText => IsCapturing ? "停止抓取" : "启动抓包工具";
-    
+
     public bool CanExport => !IsAnalyzing && _statistics.Count > 0;
 
     public GachaViewModel(GachaService gachaService)
@@ -52,7 +55,7 @@ public partial class GachaViewModel : ObservableRecipient
     {
         OnPropertyChanged(nameof(CaptureButtonText));
     }
-    
+
     partial void OnIsAnalyzingChanged(bool value)
     {
         OnPropertyChanged(nameof(CanExport));
@@ -87,7 +90,7 @@ public partial class GachaViewModel : ObservableRecipient
             {
                 StatusMessage = $"正在获取：{GachaService.GachaTypes[typeCode]}...";
                 var items = await _gachaService.FetchGachaLogAsync(cleanUrl, typeCode);
-                
+
                 if (items.Count > 0)
                 {
                     var stat = _gachaService.AnalyzePool(typeCode, items);
@@ -110,7 +113,7 @@ public partial class GachaViewModel : ObservableRecipient
             IsAnalyzing = false;
         }
     }
-    
+
 
     [RelayCommand]
     private async Task ExportUigfAsync()
@@ -138,7 +141,7 @@ public partial class GachaViewModel : ObservableRecipient
             }
 
             var exportTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-            
+
             var infoObj = new
             {
                 uid = uid,
@@ -149,16 +152,16 @@ public partial class GachaViewModel : ObservableRecipient
                 uigf_version = "v2.2",
                 export_timestamp = DateTimeOffset.Now.ToUnixTimeSeconds()
             };
-            
+
             var uigfList = new List<Dictionary<string, object>>();
-            
-            long tempIdCounter = 1000000000000000000; 
+
+            long tempIdCounter = 1000000000000000000;
 
             foreach (var entry in _allGachaLogs)
             {
                 var typeCode = (string)entry.TypeCode;
                 var item = entry.Data;
-                
+
                 var dict = new Dictionary<string, object>();
 
                 dict["uigf_gacha_type"] = typeCode;
@@ -170,10 +173,10 @@ public partial class GachaViewModel : ObservableRecipient
                 dict["item_type"] = GetPropValue(item, "ItemType") ?? "";
                 dict["rank_type"] = GetPropValue(item, "RankType") ?? "";
                 dict["id"] = GetPropValue(item, "Id") ?? "";
-                
+
                 dict["uid"] = uid;
                 dict["lang"] = "zh-cn";
-                
+
                 if (string.IsNullOrEmpty(dict["id"]?.ToString()))
                 {
                     tempIdCounter++;
@@ -183,29 +186,29 @@ public partial class GachaViewModel : ObservableRecipient
                 uigfList.Add(dict);
             }
 
-            uigfList.Sort((a, b) => 
+            uigfList.Sort((a, b) =>
             {
                 var idA = long.Parse(a["id"].ToString() ?? "0");
                 var idB = long.Parse(b["id"].ToString() ?? "0");
                 return idA.CompareTo(idB);
             });
-            
+
             var finalObj = new
             {
                 info = infoObj,
                 list = uigfList
             };
-            
+
             var desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
             var fileName = string.IsNullOrEmpty(uid) ? "uigf_export.json" : $"{uid}_uigf.json";
             var fullPath = Path.Combine(desktopPath, fileName);
 
-            var jsonOptions = new JsonSerializerOptions 
-            { 
+            var jsonOptions = new JsonSerializerOptions
+            {
                 WriteIndented = true,
                 Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
             };
-            
+
             var jsonString = JsonSerializer.Serialize(finalObj, jsonOptions);
             await File.WriteAllTextAsync(fullPath, jsonString);
 
@@ -216,7 +219,7 @@ public partial class GachaViewModel : ObservableRecipient
             StatusMessage = $"导出失败: {ex.Message}";
         }
     }
-    
+
     private object? GetPropValue(object obj, string propName)
     {
         var prop = obj.GetType().GetProperty(propName);
@@ -244,7 +247,7 @@ public partial class GachaViewModel : ObservableRecipient
             return;
         }
 
-        try 
+        try
         {
             _isManualStop = false;
 
@@ -256,14 +259,14 @@ public partial class GachaViewModel : ObservableRecipient
             };
 
             _captureProcess = Process.Start(startInfo);
-            
+
             if (_captureProcess != null)
             {
                 IsCapturing = true;
                 StatusMessage = "抓包工具运行中... 请在游戏内打开记录页";
 
                 await _captureProcess.WaitForExitAsync();
-                
+
                 IsCapturing = false;
 
                 if (!_isManualStop)
@@ -287,17 +290,17 @@ public partial class GachaViewModel : ObservableRecipient
 
     private async Task CheckClipboardAndRunAsync()
     {
-        _dispatcherQueue.TryEnqueue(async () => 
+        _dispatcherQueue.TryEnqueue(async () =>
         {
-            try 
+            try
             {
                 var package = Clipboard.GetContent();
                 if (package.Contains(StandardDataFormats.Text))
                 {
                     var clipboardText = await package.GetTextAsync();
-                    
-                    if (!string.IsNullOrWhiteSpace(clipboardText) && 
-                        clipboardText.Contains("authkey") && 
+
+                    if (!string.IsNullOrWhiteSpace(clipboardText) &&
+                        clipboardText.Contains("authkey") &&
                         clipboardText.StartsWith("http"))
                     {
                         InputUrl = clipboardText;
@@ -310,7 +313,7 @@ public partial class GachaViewModel : ObservableRecipient
                     }
                 }
             }
-            catch 
+            catch
             {
                 StatusMessage = "读取剪贴板失败";
             }
@@ -325,14 +328,14 @@ public partial class GachaViewModel : ObservableRecipient
             {
                 var json = await File.ReadAllTextAsync(_configPath);
                 var config = JsonSerializer.Deserialize<GachaConfig>(json);
-                
+
                 if (config != null && !string.IsNullOrWhiteSpace(config.Url))
                 {
-                    _dispatcherQueue.TryEnqueue(async () => 
+                    _dispatcherQueue.TryEnqueue(async () =>
                     {
                         InputUrl = config.Url;
                         StatusMessage = "已加载历史配置，准备自动分析...";
-                        await Task.Delay(500); 
+                        await Task.Delay(500);
                         await StartAnalysisAsync();
                     });
                 }

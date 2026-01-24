@@ -27,7 +27,7 @@ public class IntInverseToGridLengthConverter : IValueConverter
 
         var remain = 100.0 - val;
         if (remain < 0) remain = 0;
-        
+
         return new GridLength(remain, GridUnitType.Star);
     }
 

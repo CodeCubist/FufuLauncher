@@ -3,8 +3,8 @@ using FufuLauncher.ViewModels;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
-using Microsoft.UI.Xaml.Navigation;
 using Microsoft.UI.Xaml.Media.Animation;
+using Microsoft.UI.Xaml.Navigation;
 
 namespace FufuLauncher.Views;
 
@@ -18,27 +18,27 @@ public sealed partial class MainPage : Page
     {
         get;
     }
-    
+
     private void Copyright_PointerEntered(object sender, PointerRoutedEventArgs e)
     {
         AnimateCopyrightOpacity(0.8);
     }
-    
+
     private void Copyright_PointerExited(object sender, PointerRoutedEventArgs e)
     {
         AnimateCopyrightOpacity(0.05);
     }
-    
+
     private void BackgroundButton_PointerEntered(object sender, PointerRoutedEventArgs e)
     {
         AnimateBackgroundToggleOpacity(1.0);
     }
-    
+
     private void BackgroundButton_PointerExited(object sender, PointerRoutedEventArgs e)
     {
         AnimateBackgroundToggleOpacity(0.0);
     }
-    
+
     private void AnimateBackgroundToggleOpacity(double toOpacity)
     {
         if (BackgroundToggleGrid == null) return;
@@ -57,7 +57,7 @@ public sealed partial class MainPage : Page
         storyboard.Children.Add(animation);
         storyboard.Begin();
     }
-    
+
     private void AnimateCopyrightOpacity(double toOpacity)
     {
         var storyboard = new Storyboard();
@@ -100,7 +100,7 @@ public sealed partial class MainPage : Page
         storyboard.Children.Add(animation);
         storyboard.Begin();
     }
-    
+
     private void InfoCard_PointerEntered(object sender, PointerRoutedEventArgs e)
     {
         AnimateInfoButtonOpacity(1.0);

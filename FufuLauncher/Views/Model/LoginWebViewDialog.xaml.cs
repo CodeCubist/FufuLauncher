@@ -1,12 +1,12 @@
 ﻿using System.Diagnostics;
 using System.Text.Json;
+using Microsoft.UI;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.Web.WebView2.Core;
+using MihoyoBBS;
 using Windows.Graphics;
-using Microsoft.UI;
-using MihoyoBBS; 
 
 namespace FufuLauncher.Views;
 
@@ -24,9 +24,9 @@ public sealed partial class LoginWebViewDialog : Window
         var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
         var windowId = Win32Interop.GetWindowIdFromWindow(hwnd);
         _appWindow = AppWindow.GetFromWindowId(windowId);
-        
+
         InitializeWindowConfiguration(windowId);
-        
+
         _autoCheckTimer = new DispatcherTimer();
         _autoCheckTimer.Interval = TimeSpan.FromSeconds(3);
         _autoCheckTimer.Tick += AutoCheckTimer_Tick;
@@ -40,15 +40,15 @@ public sealed partial class LoginWebViewDialog : Window
         if (_appWindow != null)
         {
             _appWindow.SetPresenter(AppWindowPresenterKind.Default);
-            
+
             var displayArea = DisplayArea.GetFromWindowId(windowId, DisplayAreaFallback.Primary);
-            
+
             int width = (int)(displayArea.WorkArea.Width * 0.6);
             int height = (int)(displayArea.WorkArea.Height * 0.75);
-            
+
             width = Math.Max(width, 1024);
             height = Math.Max(height, 768);
-            
+
             int x = (displayArea.WorkArea.Width - width) / 2;
             int y = (displayArea.WorkArea.Height - height) / 2;
 
@@ -152,14 +152,14 @@ public sealed partial class LoginWebViewDialog : Window
         }
         try
         {
-            
+
             var cookies = await LoginWebView.CoreWebView2.CookieManager.GetCookiesAsync("https://www.miyoushe.com");
 
             Debug.WriteLine($"检测到 {cookies.Count} 个Cookie");
-            
+
             var loginCookieNames = new[] { "account_id", "ltuid", "ltoken", "cookie_token", "login_ticket", "stuid", "stoken" };
             var hasKeyCookies = cookies.Any(c => loginCookieNames.Contains(c.Name));
-            
+
             if (cookies.Count >= 3 && hasKeyCookies)
             {
                 var latestCookieString = string.Join("; ", cookies.Select(c => $"{c.Name}={c.Value}"));
@@ -172,11 +172,11 @@ public sealed partial class LoginWebViewDialog : Window
 
                     await SaveCookiesAsync(latestCookieString);
                     await ClearMiyousheCookiesAsync();
-                    
+
                     _loginCompleted = true;
                     StatusText.Text = "登录成功";
                     _autoCheckTimer.Stop();
-                    
+
                     await Task.Delay(2000);
                     await ClearMiyousheCookiesAsync();
                     Close();
@@ -219,7 +219,7 @@ public sealed partial class LoginWebViewDialog : Window
 
             if (config.Account == null) config.Account = new AccountConfig();
             config.Account.Cookie = cookieString;
-            
+
             if (cookieString.Contains("account_id="))
             {
                 var match = System.Text.RegularExpressions.Regex.Match(cookieString, @"account_id=(\d+)");

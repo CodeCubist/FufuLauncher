@@ -9,10 +9,10 @@ public partial class AccountInfo : ObservableObject
     [ObservableProperty] private string _server = "";
     [ObservableProperty] private string _avatarUrl = "ms-appx:///Assets/DefaultAvatar.png";
     [ObservableProperty] private string _level = "";
-    [ObservableProperty] private string _sign = "这个人很懒，什么都没有写..."; 
+    [ObservableProperty] private string _sign = "这个人很懒，什么都没有写...";
     [ObservableProperty] private string _ipRegion = "未知";
-    [ObservableProperty] 
-    [NotifyPropertyChangedFor(nameof(GenderIcon))] 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(GenderIcon))]
     [NotifyPropertyChangedFor(nameof(GenderText))]
     private int _gender = 0;
     public string GenderIcon => _gender switch
@@ -21,7 +21,7 @@ public partial class AccountInfo : ObservableObject
         2 => "\uE13C",
         _ => "\uE77B"
     };
-    
+
     public string GenderText => _gender switch
     {
         1 => "男",

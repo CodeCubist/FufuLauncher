@@ -97,8 +97,8 @@ namespace FufuLauncher.ViewModels
         {
             get;
         }
-        
-        
+
+
 
         public BlankViewModel(IGameConfigService gameConfigService, ILocalSettingsService localSettingsService)
         {

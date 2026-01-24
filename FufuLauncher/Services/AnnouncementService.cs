@@ -31,13 +31,13 @@ public class AnnouncementService : IAnnouncementService
             }
 
             var remoteUrl = data.Info;
-            
+
             string localUrl = string.Empty;
             if (File.Exists(_cacheFilePath))
             {
                 localUrl = await File.ReadAllTextAsync(_cacheFilePath);
             }
-            
+
             if (!string.Equals(remoteUrl, localUrl, StringComparison.OrdinalIgnoreCase))
             {
                 await File.WriteAllTextAsync(_cacheFilePath, remoteUrl);

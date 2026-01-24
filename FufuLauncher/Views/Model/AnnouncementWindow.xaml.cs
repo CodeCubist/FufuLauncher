@@ -1,7 +1,7 @@
-﻿using Microsoft.UI.Xaml;
-using Microsoft.UI.Windowing;
+﻿using System.Net;
 using Microsoft.UI;
-using System.Net;
+using Microsoft.UI.Windowing;
+using Microsoft.UI.Xaml;
 using Windows.ApplicationModel;
 
 namespace FufuLauncher.Views
@@ -14,22 +14,22 @@ namespace FufuLauncher.Views
         public AnnouncementWindow()
         {
             this.InitializeComponent();
-            
+
             InitializeAppWindow();
-            
+
             this.ExtendsContentIntoTitleBar = true;
             this.SetTitleBar(AppTitleBar);
             this.Title = "游戏公告";
-            
+
             StartFontServer();
-            
-            this.Closed += (s, e) => 
+
+            this.Closed += (s, e) =>
             {
                 _fontServer?.Stop();
             };
-            
+
             ContentFrame.Navigated += ContentFrame_Navigated;
-            
+
             ContentFrame.Navigate(typeof(AnnouncementPage));
         }
 
@@ -45,7 +45,7 @@ namespace FufuLauncher.Views
             if (e.Content is AnnouncementPage page)
             {
                 page.ResizeRequested += OnResizeRequested;
-                
+
                 page.CloseRequested += () => { this.Close(); };
             }
         }
@@ -53,20 +53,20 @@ namespace FufuLauncher.Views
         private void OnResizeRequested(double contentWidth, double contentHeight)
         {
             if (_appWindow == null) return;
-            
+
             double scale = this.Content.XamlRoot.RasterizationScale;
-            
+
             int targetWidth = (int)(Math.Max(contentWidth, 800) * scale);
-            
+
             int targetHeight = (int)((contentHeight + 32) * scale);
-            
+
             var displayArea = DisplayArea.GetFromWindowId(_appWindow.Id, DisplayAreaFallback.Primary);
             if (displayArea != null)
             {
                 int maxHeight = (int)(displayArea.WorkArea.Height * 0.9);
                 if (targetHeight > maxHeight) targetHeight = maxHeight;
             }
-            
+
             _appWindow.Resize(new Windows.Graphics.SizeInt32(targetWidth, targetHeight));
 
             CenterAppWindow(displayArea);
@@ -96,7 +96,7 @@ namespace FufuLauncher.Views
                 }
                 catch
                 {
-                    
+
                 }
 
                 if (!File.Exists(fontPath))
@@ -104,7 +104,7 @@ namespace FufuLauncher.Views
                     System.Diagnostics.Debug.WriteLine($"[错误] 未找到字体文件: {fontPath}");
                     return;
                 }
-                
+
                 _fontServer = new LocalFontServer(fontPath);
                 _fontServer.Start();
             }
@@ -114,13 +114,13 @@ namespace FufuLauncher.Views
             }
         }
     }
-    
+
     public class LocalFontServer
     {
         private HttpListener _listener;
         private readonly string _fontFilePath;
         private bool _isRunning;
-        
+
         private const string ServerUrl = "http://127.0.0.1:1221/";
 
         public LocalFontServer(string fontFilePath)
@@ -176,7 +176,7 @@ namespace FufuLauncher.Views
                 }
                 catch
                 {
-                    
+
                 }
                 finally
                 {
@@ -191,10 +191,10 @@ namespace FufuLauncher.Views
             {
                 var response = context.Response;
                 var requestPath = context.Request.Url.AbsolutePath.ToLower();
-                
+
                 response.AppendHeader("Access-Control-Allow-Origin", "*");
                 response.AppendHeader("Access-Control-Allow-Methods", "GET");
-                
+
                 if (requestPath.Contains("zh-cn.ttf"))
                 {
                     byte[] buffer = await File.ReadAllBytesAsync(_fontFilePath);
@@ -206,10 +206,10 @@ namespace FufuLauncher.Views
                 {
                     response.StatusCode = 404;
                 }
-                
+
                 response.OutputStream.Close();
             }
-            catch 
+            catch
             {
                 try { context.Response.Abort(); } catch { }
             }

@@ -7,7 +7,7 @@ namespace FufuLauncher.Services;
 public class GachaService
 {
     private readonly HttpClient _httpClient;
-    
+
     public static readonly Dictionary<string, string> GachaTypes = new()
     {
         { "301", "角色活动祈愿" },
@@ -21,7 +21,7 @@ public class GachaService
     {
         _httpClient = new HttpClient();
     }
-    
+
     public string ExtractBaseUrl(string fullUrl)
     {
         if (string.IsNullOrEmpty(fullUrl)) return null;
@@ -35,21 +35,21 @@ public class GachaService
         }
         return null;
     }
-    
+
     public async Task<List<GachaLogItem>> FetchGachaLogAsync(string baseUrl, string gachaType)
     {
         var allItems = new List<GachaLogItem>();
         string endId = "0";
         int page = 1;
-        
+
         var uri = new Uri(baseUrl);
         var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
-        
+
         var authParams = new[] { "authkey", "authkey_ver", "sign_type" };
         var cleanQuery = System.Web.HttpUtility.ParseQueryString(string.Empty);
-        foreach(var key in query.AllKeys)
+        foreach (var key in query.AllKeys)
         {
-            if(authParams.Contains(key) || key == "region" || key == "lang")
+            if (authParams.Contains(key) || key == "region" || key == "lang")
                 cleanQuery[key] = query[key];
         }
 
@@ -62,7 +62,7 @@ public class GachaService
 
             var requestUrl = $"{uri.Scheme}://{uri.Host}{uri.AbsolutePath}?{cleanQuery}";
 
-            try 
+            try
             {
                 var json = await _httpClient.GetStringAsync(requestUrl);
                 var response = JsonSerializer.Deserialize<GachaLogResponse>(json);
@@ -73,18 +73,18 @@ public class GachaService
                 allItems.AddRange(response.Data.List);
                 endId = response.Data.List.Last().Id;
                 page++;
-                await Task.Delay(200); 
+                await Task.Delay(200);
             }
             catch (Exception)
             {
                 break;
             }
         }
-        
+
         allItems.Reverse();
         return allItems;
     }
-    
+
     public GachaStatistic AnalyzePool(string gachaTypeId, List<GachaLogItem> items)
     {
         var stat = new GachaStatistic
@@ -113,7 +113,7 @@ public class GachaService
                     Rank = 5
                 });
                 stat.FiveStarCount++;
-                pityCounter5 = 0; 
+                pityCounter5 = 0;
             }
             else if (item.RankType == "4")
             {
@@ -131,9 +131,9 @@ public class GachaService
 
         stat.CurrentPity = pityCounter5;
         stat.CurrentPity4 = pityCounter4;
-        
-        stat.FiveStarRecords.Reverse(); 
-        stat.FourStarRecords.Reverse(); 
+
+        stat.FiveStarRecords.Reverse();
+        stat.FourStarRecords.Reverse();
 
         return stat;
     }

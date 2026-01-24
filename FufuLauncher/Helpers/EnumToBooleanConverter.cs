@@ -1,6 +1,6 @@
-﻿using Microsoft.UI.Xaml;
+﻿using FufuLauncher.ViewModels;
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Data;
-using FufuLauncher.ViewModels;
 
 namespace FufuLauncher.Helpers;
 
@@ -12,7 +12,7 @@ public class EnumToBooleanConverter : IValueConverter
         {
             if (value.GetType().IsEnum)
             {
-                try 
+                try
                 {
                     var parsedValue = Enum.Parse(value.GetType(), enumString);
                     return parsedValue.Equals(value);

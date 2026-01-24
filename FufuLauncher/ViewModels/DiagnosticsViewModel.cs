@@ -12,7 +12,7 @@ public partial class DiagnosticsViewModel : ObservableObject
 
     [ObservableProperty]
     private bool _isLoading = true;
-    
+
     public async void InitializeAsync()
     {
         IsLoading = true;

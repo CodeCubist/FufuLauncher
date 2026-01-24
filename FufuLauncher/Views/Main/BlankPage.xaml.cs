@@ -5,13 +5,13 @@ using CommunityToolkit.Mvvm.Messaging;
 using FufuLauncher.Contracts.Services;
 using FufuLauncher.Helpers;
 using FufuLauncher.Messages;
-using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Input;
-using Windows.Storage.Pickers;
 using Microsoft.UI;
 using Microsoft.UI.Windowing;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Data;
+using Microsoft.UI.Xaml.Input;
+using Windows.Storage.Pickers;
 using WinRT.Interop;
 
 public class GameAccountData
@@ -26,7 +26,10 @@ public class GameAccountData
     {
         get; set;
     }
-    public string? Remark { get; set; }
+    public string? Remark
+    {
+        get; set;
+    }
 }
 public class RedeemCodeItem
 {
@@ -55,7 +58,7 @@ public class GameConfigData
 
 namespace FufuLauncher.Views
 {
-    
+
     public class StringToInitialConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, string language)
@@ -108,11 +111,11 @@ namespace FufuLauncher.Views
 
                 using var client = new HttpClient();
                 client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
-        
+
                 var json = await client.GetStringAsync("https://cnb.cool/bettergi/genshin-redeem-code/-/git/raw/main/codes.json");
-                
-                var options = new JsonSerializerOptions 
-                { 
+
+                var options = new JsonSerializerOptions
+                {
                     PropertyNameCaseInsensitive = true,
                     AllowTrailingCommas = true,
                     ReadCommentHandling = JsonCommentHandling.Skip
@@ -143,7 +146,7 @@ namespace FufuLauncher.Views
                 CodesLoadingRing.Visibility = Visibility.Collapsed;
             }
         }
-        
+
         private void ToggleCodes_Click(object sender, RoutedEventArgs e)
         {
             if (RedeemContentPanel.Visibility == Visibility.Visible)
@@ -165,14 +168,14 @@ namespace FufuLauncher.Views
                 var package = new Windows.ApplicationModel.DataTransfer.DataPackage();
                 package.SetText(code);
                 Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(package);
-                
+
                 var originalContent = btn.Content;
                 btn.Content = "已复制";
                 btn.IsEnabled = false;
-                
-                Task.Delay(1000).ContinueWith(_ => 
+
+                Task.Delay(1000).ContinueWith(_ =>
                 {
-                    DispatcherQueue.TryEnqueue(() => 
+                    DispatcherQueue.TryEnqueue(() =>
                     {
                         btn.Content = originalContent;
                         btn.IsEnabled = true;
@@ -185,7 +188,7 @@ namespace FufuLauncher.Views
         {
             await ProcessPathInput(PathTextBox.Text.Trim());
         }
-        
+
         private void DownloadGame_Click(object sender, RoutedEventArgs e)
         {
 
@@ -200,7 +203,7 @@ namespace FufuLauncher.Views
 
             if (!Directory.Exists(targetPath))
             {
-                try 
+                try
                 {
                     Directory.CreateDirectory(targetPath);
                 }
@@ -229,21 +232,21 @@ namespace FufuLauncher.Views
                 await ShowError("未找到游戏路径，请先在设置中指定游戏位置。");
                 return;
             }
-            
+
             string gameDir = _currentConfig.GamePath;
-            
+
             if (File.Exists(gameDir))
             {
                 gameDir = Path.GetDirectoryName(gameDir) ?? gameDir;
             }
-            
+
             string configPath = Path.Combine(gameDir, "config.ini");
-            
+
             if (!File.Exists(configPath))
             {
                 string parentDir = Directory.GetParent(gameDir)?.FullName ?? "";
                 string parentConfig = Path.Combine(parentDir, "config.ini");
-        
+
                 if (File.Exists(parentConfig))
                 {
                     gameDir = parentDir;
@@ -255,7 +258,7 @@ namespace FufuLauncher.Views
                     return;
                 }
             }
-            
+
             var dialog = new ContentDialog
             {
                 Title = "切换服务器",
@@ -301,15 +304,15 @@ namespace FufuLauncher.Views
                 {
                     dataDirName = "GenshinImpact_Data";
                 }
-                
+
                 string pluginsDir = Path.Combine(gameDir, dataDirName, "Plugins");
                 string targetSdkPath = Path.Combine(pluginsDir, "PCGameSDK.dll");
-                
+
                 if (!Directory.Exists(pluginsDir)) Directory.CreateDirectory(pluginsDir);
 
                 if (toBilibili)
                 {
-                    string appBaseDir = AppContext.BaseDirectory; 
+                    string appBaseDir = AppContext.BaseDirectory;
                     string sourceSdkPath = Path.Combine(appBaseDir, "Assets", "PCGameSDK.dll");
 
                     if (File.Exists(sourceSdkPath))
@@ -329,9 +332,9 @@ namespace FufuLauncher.Views
                         File.Delete(targetSdkPath);
                     }
                 }
-                
+
                 await LoadGameConfig(_currentConfig.GamePath);
-                
+
                 var successDialog = new ContentDialog
                 {
                     Title = "切换成功",
@@ -347,7 +350,7 @@ namespace FufuLauncher.Views
                 await ShowError($"切换失败: {ex.Message}");
             }
         }
-        
+
         private async Task LoadGameConfig(string gameExePath)
         {
             if (string.IsNullOrEmpty(gameExePath) || !File.Exists(gameExePath)) return;
@@ -355,14 +358,14 @@ namespace FufuLauncher.Views
             string gameDir = Path.GetDirectoryName(gameExePath);
             string configPath = Path.Combine(gameDir, "config.ini");
             string serverType = "未知服务器";
-            
+
             if (File.Exists(configPath))
             {
-                try 
+                try
                 {
                     string[] lines = await File.ReadAllLinesAsync(configPath);
                     string channel = "1";
-            
+
                     foreach (var line in lines)
                     {
                         if (line.StartsWith("channel="))
@@ -371,24 +374,24 @@ namespace FufuLauncher.Views
                             break;
                         }
                     }
-                    
+
                     if (channel == "14") serverType = "Bilibili 服";
                     else if (channel == "1") serverType = "官方服务器";
                     else serverType = $"自定义/其他 (Channel: {channel})";
                 }
-                catch 
-                { 
-                    serverType = "读取配置文件失败"; 
+                catch
+                {
+                    serverType = "读取配置文件失败";
                 }
             }
-            
+
             if (_currentConfig != null)
             {
                 _currentConfig.ServerType = serverType;
             }
         }
-        
-        
+
+
         private void OpenMap_Click(object sender, RoutedEventArgs e)
         {
             var newWindow = new Window();
@@ -397,10 +400,10 @@ namespace FufuLauncher.Views
             var winId = Win32Interop.GetWindowIdFromWindow(hWnd);
             var appWindow = AppWindow.GetFromWindowId(winId);
             appWindow.Resize(new Windows.Graphics.SizeInt32(1280, 800));
-            
+
             var rootFrame = new Frame();
             rootFrame.Navigate(typeof(Views.MapPage), newWindow);
-            
+
             newWindow.Content = rootFrame;
             newWindow.Activate();
         }
@@ -409,7 +412,7 @@ namespace FufuLauncher.Views
         {
             string cnExe = Path.Combine(path, "YuanShen.exe");
             string globalExe = Path.Combine(path, "GenshinImpact.exe");
-            
+
             if (File.Exists(cnExe))
             {
                 return true;
@@ -481,7 +484,7 @@ namespace FufuLauncher.Views
                         XamlRoot = this.XamlRoot
                     };
                     await dialog.ShowAsync();
-                    
+
                     if (await _localSettingsService.ReadSettingAsync("GameInstallationPath") is string savedPath)
                     {
                         PathTextBox.Text = savedPath.Trim('"').Trim();
@@ -496,7 +499,7 @@ namespace FufuLauncher.Views
             {
                 Debug.WriteLine($"[ProcessPathInput] 处理失败: {ex.Message}");
                 await ShowError($"路径处理失败: {ex.Message}");
-                
+
                 PathTextBox.Text = string.Empty;
                 ShowEmptyState();
             }
@@ -593,7 +596,7 @@ namespace FufuLauncher.Views
                 var path = folder.Path;
                 PathTextBox.Text = path;
                 await ProcessPathInput(path);
-        
+
                 return path;
             }
             return null;
@@ -709,7 +712,7 @@ namespace FufuLauncher.Views
                 });
             }
         }
-        
+
 
         private void OpenAnnouncement_Click(object sender, RoutedEventArgs e)
         {
@@ -809,72 +812,72 @@ namespace FufuLauncher.Views
             }
         }
 
-private async void AddAccount_Click(object sender, RoutedEventArgs e)
-{
-    try
-    {
-        using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\miHoYo\原神");
-        if (key == null) { await ShowError("无法访问注册表"); return; }
+        private async void AddAccount_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\miHoYo\原神");
+                if (key == null) { await ShowError("无法访问注册表"); return; }
 
-        var sdkData = key.GetValue("MIHOYOSDK_ADL_PROD_CN_h3123967166") as byte[];
-        if (sdkData == null) { await ShowError("当前没有登录的账号信息（注册表数据为空）"); return; }
-        
-        int nullIndex = Array.IndexOf(sdkData, (byte)0);
-        int length = nullIndex >= 0 ? nullIndex : sdkData.Length;
-        var sdkString = Encoding.UTF8.GetString(sdkData, 0, length);
-        
-        var accounts = await LoadAccountsFromFileAsync();
-        if (accounts.Any(a => a.SdkData == sdkString)) 
-        { 
-            await ShowError("该账号已经保存过了，无需重复保存。"); 
-            return; 
+                var sdkData = key.GetValue("MIHOYOSDK_ADL_PROD_CN_h3123967166") as byte[];
+                if (sdkData == null) { await ShowError("当前没有登录的账号信息（注册表数据为空）"); return; }
+
+                int nullIndex = Array.IndexOf(sdkData, (byte)0);
+                int length = nullIndex >= 0 ? nullIndex : sdkData.Length;
+                var sdkString = Encoding.UTF8.GetString(sdkData, 0, length);
+
+                var accounts = await LoadAccountsFromFileAsync();
+                if (accounts.Any(a => a.SdkData == sdkString))
+                {
+                    await ShowError("该账号已经保存过了，无需重复保存。");
+                    return;
+                }
+
+                var inputTextBox = new TextBox
+                {
+                    PlaceholderText = "请输入账号名称 (例如: 大号 / 小号)",
+                    MaxLength = 20,
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+
+                var dialog = new ContentDialog
+                {
+                    Title = "保存新账号",
+                    Content = inputTextBox,
+                    PrimaryButtonText = "保存",
+                    CloseButtonText = "取消",
+                    XamlRoot = this.XamlRoot,
+                    DefaultButton = ContentDialogButton.Primary
+                };
+
+                var result = await dialog.ShowAsync();
+
+                if (result != ContentDialogResult.Primary) return;
+
+                string accountName = inputTextBox.Text.Trim();
+                if (string.IsNullOrEmpty(accountName))
+                {
+                    accountName = $"账号_{DateTime.Now:MMdd_HHmmss}";
+                }
+
+                accounts.Add(new GameAccountData
+                {
+                    Id = Guid.NewGuid(),
+                    Name = accountName,
+                    SdkData = sdkString,
+                    LastUsed = DateTime.Now
+                });
+
+                await SaveAccountsToFileAsync(accounts);
+                await LoadAccountsAsync();
+
+                Debug.WriteLine($"[AddAccount_Click] 成功保存账号: {accountName}");
+            }
+            catch (Exception ex)
+            {
+                await ShowError($"保存失败: {ex.Message}");
+            }
         }
-        
-        var inputTextBox = new TextBox
-        {
-            PlaceholderText = "请输入账号名称 (例如: 大号 / 小号)",
-            MaxLength = 20,
-            VerticalAlignment = VerticalAlignment.Center
-        };
-
-        var dialog = new ContentDialog
-        {
-            Title = "保存新账号",
-            Content = inputTextBox,
-            PrimaryButtonText = "保存",
-            CloseButtonText = "取消",
-            XamlRoot = this.XamlRoot,
-            DefaultButton = ContentDialogButton.Primary
-        };
-        
-        var result = await dialog.ShowAsync();
-        
-        if (result != ContentDialogResult.Primary) return;
-        
-        string accountName = inputTextBox.Text.Trim();
-        if (string.IsNullOrEmpty(accountName))
-        {
-            accountName = $"账号_{DateTime.Now:MMdd_HHmmss}";
-        }
-        
-        accounts.Add(new GameAccountData
-        {
-            Id = Guid.NewGuid(),
-            Name = accountName,
-            SdkData = sdkString,
-            LastUsed = DateTime.Now
-        });
-
-        await SaveAccountsToFileAsync(accounts);
-        await LoadAccountsAsync();
-
-        Debug.WriteLine($"[AddAccount_Click] 成功保存账号: {accountName}");
-    }
-    catch (Exception ex)
-    {
-        await ShowError($"保存失败: {ex.Message}");
-    }
-}
 
         private async void RefreshAccounts_Click(object sender, RoutedEventArgs e) => await LoadAccountsAsync();
 
@@ -913,8 +916,8 @@ private async void AddAccount_Click(object sender, RoutedEventArgs e)
                 await ShowError($"切换失败: {ex.Message}");
             }
         }
-        
-        
+
+
 
         private async void DeleteAccount_Click(object sender, RoutedEventArgs e)
         {
@@ -1006,16 +1009,16 @@ private async void AddAccount_Click(object sender, RoutedEventArgs e)
                 CancelEdit();
             }
 
-            if (sender is TextBlock textBlock && 
-                FindParent<StackPanel>(textBlock) is StackPanel stackPanel && 
+            if (sender is TextBlock textBlock &&
+                FindParent<StackPanel>(textBlock) is StackPanel stackPanel &&
                 textBlock.DataContext is GameAccountData account)
             {
                 _currentTextBlock = textBlock;
                 _currentStackPanel = stackPanel;
                 _currentAccount = account;
-                
+
                 _currentTextBlock.Visibility = Visibility.Collapsed;
-                
+
                 _currentEditBox = new TextBox
                 {
                     Text = account.Remark ?? account.Name,
@@ -1023,17 +1026,17 @@ private async void AddAccount_Click(object sender, RoutedEventArgs e)
                     MaxLength = 20,
                     VerticalAlignment = VerticalAlignment.Center
                 };
-                
+
                 _currentEditBox.KeyDown += EditBox_KeyDown;
-                
-                _currentEditBox.LostFocus += (_, _) => CancelEdit(); 
-                
+
+                _currentEditBox.LostFocus += (_, _) => CancelEdit();
+
                 int index = stackPanel.Children.IndexOf(textBlock);
                 stackPanel.Children.Insert(index, _currentEditBox);
-                
+
                 _currentEditBox.Focus(FocusState.Programmatic);
                 _currentEditBox.SelectAll();
-                
+
                 AddHandler(PointerPressedEvent, new PointerEventHandler(Page_PointerPressed), true);
             }
         }
@@ -1055,7 +1058,7 @@ private async void AddAccount_Click(object sender, RoutedEventArgs e)
             if (_currentEditBox == null || _currentAccount == null) return;
 
             string newRemark = _currentEditBox.Text.Trim();
-            
+
             if (string.IsNullOrEmpty(newRemark) || newRemark == _currentAccount.Name)
             {
                 _currentAccount.Remark = null;
@@ -1064,21 +1067,21 @@ private async void AddAccount_Click(object sender, RoutedEventArgs e)
             {
                 _currentAccount.Remark = newRemark;
             }
-            
+
             CleanupEditUI();
-            
+
             try
             {
                 var accounts = await LoadAccountsFromFileAsync();
-                
+
                 var accountToUpdate = accounts.FirstOrDefault(a => a.SdkData == _currentAccount.SdkData);
                 if (accountToUpdate != null)
                 {
                     accountToUpdate.Remark = _currentAccount.Remark;
                     await SaveAccountsToFileAsync(accounts);
                 }
-                
-                await LoadAccountsAsync(); 
+
+                await LoadAccountsAsync();
             }
             catch (Exception ex)
             {
@@ -1105,84 +1108,17 @@ private async void AddAccount_Click(object sender, RoutedEventArgs e)
         }
         private void Page_PointerPressed(object sender, PointerRoutedEventArgs e)
         {
-            // 如果点击的不是 TextBox 内部，则取消编辑
             if (_currentEditBox != null)
             {
                 var ptr = e.GetCurrentPoint(_currentEditBox);
                 if (ptr.Properties.IsLeftButtonPressed)
                 {
-                    // 简单的判定：如果点击位置不在 TextBox 范围内
-                    if (ptr.Position.X < 0 || ptr.Position.Y < 0 || 
+                    if (ptr.Position.X < 0 || ptr.Position.Y < 0 ||
                         ptr.Position.X > _currentEditBox.ActualWidth || ptr.Position.Y > _currentEditBox.ActualHeight)
                     {
                         CancelEdit();
                     }
                 }
-            }
-        }
-
-        private bool IsChildOf(DependencyObject child, DependencyObject parent)
-        {
-            var current = child;
-            while (current != null)
-            {
-                if (current == parent)
-                    return true;
-                current = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetParent(current);
-            }
-            return false;
-        }
-
-        private async Task FinalizeEdit()
-        {
-            if (_currentEditBox == null || _currentTextBlock == null || _currentStackPanel == null || _currentAccount == null)
-                return;
-
-            try
-            {
-                // Remove global pointer handler
-                this.RemoveHandler(PointerPressedEvent, new PointerEventHandler(Page_PointerPressed));
-
-                var newRemark = _currentEditBox.Text.Trim();
-                
-                // Update the account remark
-                var accounts = await LoadAccountsFromFileAsync();
-                var targetAccount = accounts.FirstOrDefault(a => a.Id == _currentAccount.Id);
-                if (targetAccount != null)
-                {
-                    targetAccount.Remark = string.IsNullOrWhiteSpace(newRemark) ? null : newRemark;
-                    await SaveAccountsToFileAsync(accounts);
-                    
-                    // Update UI
-                    _currentAccount.Remark = targetAccount.Remark;
-                }
-
-                // Remove TextBox and show TextBlock with updated text
-                _currentStackPanel.Children.Remove(_currentEditBox);
-                _currentTextBlock.Visibility = Visibility.Visible;
-                
-                // Refresh to show updated remark
-                await LoadAccountsAsync();
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[FinalizeEdit] 保存备注失败: {ex.Message}");
-                // Still cleanup the UI even if save fails
-                if (_currentEditBox != null && _currentStackPanel != null)
-                {
-                    _currentStackPanel.Children.Remove(_currentEditBox);
-                }
-                if (_currentTextBlock != null)
-                {
-                    _currentTextBlock.Visibility = Visibility.Visible;
-                }
-            }
-            finally
-            {
-                _currentEditBox = null;
-                _currentTextBlock = null;
-                _currentStackPanel = null;
-                _currentAccount = null;
             }
         }
 

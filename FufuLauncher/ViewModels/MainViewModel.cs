@@ -61,7 +61,7 @@ namespace FufuLauncher.ViewModels
         partial void OnIsGameLaunchingChanged(bool value) => IsGameNotLaunching = !value;
 
         [ObservableProperty] private bool _isPanelExpanded = true;
-        
+
         private DispatcherQueueTimer _bannerTimer;
 
         public Visibility ImageVisibility => IsVideoBackground ? Visibility.Collapsed : Visibility.Visible;
@@ -103,7 +103,7 @@ namespace FufuLauncher.ViewModels
         {
             get;
         }
-        
+
         public IRelayCommand ToggleInfoCardCommand
         {
             get;
@@ -164,7 +164,7 @@ namespace FufuLauncher.ViewModels
 
             _gameMonitoringCts = new CancellationTokenSource();
             StartGameMonitoringLoopAsync(_gameMonitoringCts.Token);
-            
+
             WeakReferenceMessenger.Default.Register<PanelOpacityChangedMessage>(this, (r, m) =>
             {
                 _dispatcherQueue.TryEnqueue(() =>
@@ -174,7 +174,7 @@ namespace FufuLauncher.ViewModels
                 });
             });
         }
-        
+
         private void ToggleInfoCard()
         {
             _isInfoCardExpanded = !_isInfoCardExpanded;
@@ -198,8 +198,8 @@ namespace FufuLauncher.ViewModels
             await LoadContentAsync();
             await LoadCheckinStatusAsync();
             UseInjection = await _gameLauncherService.GetUseInjectionAsync();
-            
-            try 
+
+            try
             {
                 var savedOpacity = await _localSettingsService.ReadSettingAsync("PanelBackgroundOpacity");
                 if (savedOpacity != null)
@@ -209,7 +209,7 @@ namespace FufuLauncher.ViewModels
             }
             catch { /* 忽略转换错误，使用默认值 */ }
 
-            UpdatePanelBackgroundBrush(); 
+            UpdatePanelBackgroundBrush();
             UpdateLaunchButtonState();
         }
         public void SetPanelOpacity(double opacity)
@@ -217,13 +217,13 @@ namespace FufuLauncher.ViewModels
             _panelOpacityValue = opacity;
             _dispatcherQueue.TryEnqueue(UpdatePanelBackgroundBrush);
         }
-        
+
         partial void OnHasCustomBackgroundChanged(bool value)
         {
             // Background switching is global-only now; keep button disabled on main page.
             IsBackgroundToggleEnabled = !value;
         }
-        
+
         private void UpdatePanelBackgroundBrush()
         {
             try
@@ -233,11 +233,11 @@ namespace FufuLauncher.ViewModels
 
                 if (currentTheme == ElementTheme.Default)
                 {
-                    currentTheme = Application.Current.RequestedTheme == ApplicationTheme.Light 
-                        ? ElementTheme.Light 
+                    currentTheme = Application.Current.RequestedTheme == ApplicationTheme.Light
+                        ? ElementTheme.Light
                         : ElementTheme.Dark;
                 }
-                
+
                 Color baseColor;
                 if (currentTheme == ElementTheme.Light)
                 {
@@ -247,7 +247,7 @@ namespace FufuLauncher.ViewModels
                 {
                     baseColor = Color.FromArgb(255, 32, 32, 32);
                 }
-                
+
                 PanelBackgroundBrush = new SolidColorBrush(baseColor) { Opacity = _panelOpacityValue };
                 Debug.WriteLine($"[MainViewModel] 背景已更新 - 主题: {currentTheme}, 透明度: {_panelOpacityValue}");
             }
@@ -281,7 +281,7 @@ namespace FufuLauncher.ViewModels
                 _panelOpacityValue = 0.5;
             }
         }
-        
+
         public async Task SetPanelOpacityAsync(double opacity)
         {
             _panelOpacityValue = Math.Clamp(opacity, 0.0, 1.0);
@@ -302,7 +302,7 @@ namespace FufuLauncher.ViewModels
             {
                 HasCustomBackground = false;
             }
-            
+
             IsBackgroundToggleEnabled = !HasCustomBackground;
         }
 
@@ -339,10 +339,10 @@ namespace FufuLauncher.ViewModels
                 {
                     CurrentBanner = Banners[0];
                 }
-                
+
                 _bannerTimer?.Start();
-                
-                return; 
+
+                return;
             }
 
             try
@@ -350,7 +350,7 @@ namespace FufuLauncher.ViewModels
                 var serverJson = await _localSettingsService.ReadSettingAsync(LocalSettingsService.BackgroundServerKey);
                 int serverValue = serverJson != null ? Convert.ToInt32(serverJson) : 0;
                 var server = (ServerType)serverValue;
-                
+
                 var content = await _contentService.GetGameContentAsync(server);
 
                 if (content != null)
@@ -359,33 +359,33 @@ namespace FufuLauncher.ViewModels
                     {
                         _bannerTimer?.Stop();
                         CurrentBanner = null;
-                        
+
                         Banners.Clear();
                         foreach (var banner in content.Banners ?? Array.Empty<BannerItem>())
                         {
                             Banners.Add(banner);
                         }
-                        
+
                         var posts = content.Posts ?? Array.Empty<PostItem>();
 
                         ActivityPosts.Clear();
-                        foreach (var post in posts.Where(p => p.Type == "POST_TYPE_ACTIVITY")) 
+                        foreach (var post in posts.Where(p => p.Type == "POST_TYPE_ACTIVITY"))
                             ActivityPosts.Add(post);
 
                         AnnouncementPosts.Clear();
-                        foreach (var post in posts.Where(p => p.Type == "POST_TYPE_ANNOUNCE")) 
+                        foreach (var post in posts.Where(p => p.Type == "POST_TYPE_ANNOUNCE"))
                             AnnouncementPosts.Add(post);
 
                         InfoPosts.Clear();
-                        foreach (var post in posts.Where(p => p.Type == "POST_TYPE_INFO")) 
+                        foreach (var post in posts.Where(p => p.Type == "POST_TYPE_INFO"))
                             InfoPosts.Add(post);
-                        
+
                         SocialMediaList.Clear();
                         foreach (var item in content.SocialMediaList ?? Array.Empty<SocialMediaItem>())
                         {
                             SocialMediaList.Add(item);
                         }
-                        
+
                         if (Banners.Count > 0)
                         {
                             _dispatcherQueue.TryEnqueue(async () =>
@@ -393,7 +393,7 @@ namespace FufuLauncher.ViewModels
                                 try
                                 {
                                     await Task.Delay(50);
-                                    
+
                                     if (Banners.Count > 0)
                                     {
                                         CurrentBanner = Banners[0];

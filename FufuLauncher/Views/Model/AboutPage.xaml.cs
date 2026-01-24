@@ -15,18 +15,18 @@ public sealed partial class AboutPage : Page
     {
         InitializeComponent();
     }
-    
+
     private async void ContactAuthor_Click(object sender, RoutedEventArgs e)
     {
         StackPanel contentPanel = new() { Spacing = 10 };
-        
+
         TextBlock warningText = new()
         {
             Text = "请注意：联系时请直入主题，说明来意。\n请不要发送“在吗”、“你好”等无意义的开场白。",
             TextWrapping = TextWrapping.Wrap,
             Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["SystemControlErrorTextForegroundBrush"] // 使用警示色或默认色
         };
-        
+
         ComboBox platformCombo = new()
         {
             Header = "选择联系方式",
@@ -38,7 +38,7 @@ public sealed partial class AboutPage : Page
 
         contentPanel.Children.Add(warningText);
         contentPanel.Children.Add(platformCombo);
-        
+
         ContentDialog contactDialog = new()
         {
             Title = "联系作者",
@@ -69,7 +69,7 @@ public sealed partial class AboutPage : Page
                 DataPackage dataPackage = new();
                 dataPackage.SetText("codecubist");
                 Clipboard.SetContent(dataPackage);
-                
+
                 var originalContent = (sender as HyperlinkButton).Content;
                 (sender as HyperlinkButton).Content = "Discord ID 已复制!";
                 (sender as HyperlinkButton).IsEnabled = false;
@@ -85,7 +85,7 @@ public sealed partial class AboutPage : Page
         GetBuildFormActionsToggle.IsEnabled = false;
         GetBuildFormActionsToggle.Content = "正在获取...";
         httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0");
-        try 
+        try
         {
             var jsonString = await GetJsonFromUrl("https://api.github.com/repos/CodeCubist/FufuLauncher/actions/workflows");
             var workflows = jsonString.RootElement.GetProperty("workflows").EnumerateArray();
@@ -198,7 +198,7 @@ public sealed partial class AboutPage : Page
     {
         var responseString = await httpClient.GetAsync(url);
         var responseContent = await responseString.Content.ReadAsStringAsync();
-        Debug.WriteLine("[GetBuildFromActions] 从<"+url+">获取到: " + responseContent);
+        Debug.WriteLine("[GetBuildFromActions] 从<" + url + ">获取到: " + responseContent);
         return JsonDocument.Parse(responseContent);
     }
     private async Task<string> PromptForTokenAsync()

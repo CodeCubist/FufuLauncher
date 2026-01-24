@@ -5,5 +5,8 @@ namespace FufuLauncher.Models;
 public class AnnouncementData
 {
     [JsonPropertyName("Info")]
-    public string Info { get; set; }
+    public string Info
+    {
+        get; set;
+    }
 }

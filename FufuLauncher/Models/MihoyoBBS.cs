@@ -1,5 +1,4 @@
-﻿using System.Diagnostics;
-using System.Net;
+﻿using System.Net;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -478,9 +477,9 @@ namespace MihoyoBBS
                         return result.Data.List;
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                
+
             }
 
             return new List<AccountItem>();
@@ -505,7 +504,7 @@ namespace MihoyoBBS
                             return result.Data.Awards;
                     }
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
                 }
 
@@ -545,7 +544,7 @@ namespace MihoyoBBS
                     }
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return null;
             }
@@ -607,7 +606,7 @@ namespace MihoyoBBS
                         }
                     }
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
                     return null;
                 }
@@ -622,7 +621,7 @@ namespace MihoyoBBS
 
             if (AccountList == null || AccountList.Count == 0)
             {
-                
+
                 returnData += $"\n并没有绑定任何{GameName}账号";
                 return returnData;
             }
@@ -631,23 +630,23 @@ namespace MihoyoBBS
             {
                 if (config.Games.Cn.Genshin.BlackList.Contains(account.GameUid))
                 {
-                    
+
                     continue;
                 }
-                
+
                 await Task.Delay(new Random().Next(2000, 8000));
 
                 var isData = await IsSignAsync(account.Region, account.GameUid);
                 if (isData == null)
                 {
-                    
+
                     returnData += $"\n{account.Nickname}，获取签到信息失败";
                     continue;
                 }
 
                 if (isData.FirstBind)
                 {
-                    
+
                     returnData += $"\n{account.Nickname}是第一次绑定米游社，请先手动签到一次";
                     continue;
                 }
@@ -658,28 +657,28 @@ namespace MihoyoBBS
                 {
                     if (CheckinRewards != null && CheckinRewards.Count > signDays)
                     {
-                        
-                        
+
+
                         returnData += $"\n{account.Nickname}今天已经签到过了";
                         returnData += $"\n今天获得的奖励是{Tools.GetItem(CheckinRewards[signDays])}";
                         signDays += 1;
                     }
                     else
                     {
-                        
+
                         returnData += $"\n{account.Nickname}今天已经签到过了";
                         signDays += 1;
                     }
                 }
                 else
                 {
-                    
+
                     await Task.Delay(new Random().Next(2000, 8000));
 
                     var req = await CheckIn(account);
                     if (req == null)
                     {
-                        
+
                         returnData += $"\n{account.Nickname}，本次签到失败";
                         continue;
                     }
@@ -693,29 +692,29 @@ namespace MihoyoBBS
                         {
                             if (data.RetCode == 0 && data.Data != null && data.Data.Success == 0)
                             {
-                                
+
 
                                 var rewardIndex = (signDays == 0) ? 0 : signDays + 1;
                                 if (CheckinRewards != null && CheckinRewards.Count > rewardIndex)
                                 {
-                                    
+
                                     returnData += $"\n{account.Nickname}签到成功";
                                     returnData += $"\n今天获得的奖励是{Tools.GetItem(CheckinRewards[rewardIndex])}";
                                     signDays += 2;
                                 }
                                 else
                                 {
-                                    
+
                                     returnData += $"\n{account.Nickname}签到成功";
                                     signDays += 2;
                                 }
                             }
                             else if (data.RetCode == -5003)
                             {
-                                
+
                                 if (CheckinRewards != null && CheckinRewards.Count > signDays)
                                 {
-                                    
+
                                     returnData += $"\n{account.Nickname}今天已经签到过了";
                                     returnData += $"\n今天获得的奖励是{Tools.GetItem(CheckinRewards[signDays])}";
                                 }
@@ -728,7 +727,7 @@ namespace MihoyoBBS
                                     s += "原因：验证码\njson 信息：" + responseText;
                                 }
 
-                                
+
                                 returnData += $"\n{account.Nickname}，触发验证码，本次签到失败";
                                 continue;
                             }
@@ -736,7 +735,7 @@ namespace MihoyoBBS
                     }
                     else
                     {
-                        
+
                         returnData += $"\n{account.Nickname}，本次签到失败";
                         continue;
                     }
@@ -812,60 +811,60 @@ namespace MihoyoBBS
         {
             static async Task Main(string[] args)
             {
-                
-                
+
+
 
                 var config = LoadConfig();
 
                 if (config == null)
                 {
-                    
+
                     return;
                 }
 
                 if (string.IsNullOrEmpty(config.Account.Cookie))
                 {
-                    
-                    
-                    
-                    
-                    
+
+
+
+
+
                     return;
                 }
 
                 if (string.IsNullOrEmpty(config.Device.Id))
                 {
                     config.Device.Id = Tools.GetDeviceId(config.Account.Cookie);
-                    
+
                 }
 
                 if (config.Games.Cn.Enable && config.Games.Cn.Genshin.Checkin)
                 {
-                    
+
 
                     try
                     {
                         var genshin = new Genshin();
 
                         var result = await genshin.SignAccountAsync(config);
-                        
-                        
+
+
                     }
-                    catch (Exception ex)
+                    catch (Exception)
                     {
-                        
-                        
+
+
                     }
                 }
                 else
                 {
-                    
+
                 }
 
-                
-                
 
-                
+
+
+
                 Console.ReadKey();
             }
 
@@ -885,22 +884,22 @@ namespace MihoyoBBS
                         };
                         var json = JsonSerializer.Serialize(defaultConfig, options);
                         File.WriteAllText(configPath, json);
-                        
+
 
                         var fullPath = Path.GetFullPath(configPath);
-                        
 
-                        
-                        
+
+
+
                         return null;
                     }
 
                     var jsonText = File.ReadAllText(configPath);
                     return JsonSerializer.Deserialize<Config>(jsonText);
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
-                    
+
                     return null;
                 }
             }

@@ -1,31 +1,31 @@
 ﻿using System.Diagnostics;
+using System.Net;
+using System.Net.NetworkInformation;
+using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Security.Principal;
+using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
+using CommunityToolkit.Mvvm.Messaging.Messages;
 using FufuLauncher.Contracts.Services;
 using FufuLauncher.Helpers;
 using FufuLauncher.Messages;
+using FufuLauncher.Models;
+using FufuLauncher.Services;
+using FufuLauncher.Services.Background;
+using FufuLauncher.ViewModels;
 using Microsoft.UI;
 using Microsoft.UI.Text;
+using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Hosting;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Animation;
-using Windows.UI.ViewManagement;
-using CommunityToolkit.Mvvm.Messaging.Messages;
-using FufuLauncher.ViewModels;
-using FufuLauncher.Services.Background;
+using Windows.Graphics;
 using Windows.Media.Playback;
 using Windows.UI;
-using FufuLauncher.Services;
-using FufuLauncher.Models;
-using CommunityToolkit.Mvvm.Input;
-using Microsoft.UI.Xaml.Hosting; 
-using System.Numerics;
-using System.Net;
-using System.Net.NetworkInformation;
-using Microsoft.UI.Windowing;
-using Windows.Graphics;
+using Windows.UI.ViewManagement;
 
 namespace FufuLauncher;
 
@@ -40,15 +40,15 @@ public sealed partial class MainWindow : WindowEx
     private bool _minimizeToTray;
     private bool _isExit;
     private bool _isOverlayShown;
-    
+
     private bool _isVideoBackground;
-    
+
     private DispatcherTimer _networkCheckTimer;
     private DispatcherTimer _messageDismissTimer;
     private bool? _lastNetworkAvailable;
     private bool? _lastProxyEnabled;
     private bool _isSystemMessageVisible;
-    
+
     private bool _isMainUiLoaded;
 
     [DllImport("advapi32.dll", SetLastError = true)]
@@ -63,15 +63,24 @@ public sealed partial class MainWindow : WindowEx
     [DllImport("kernel32.dll", SetLastError = true)]
     private static extern bool CloseHandle(IntPtr hObject);
 
-    private enum TOKEN_INFORMATION_CLASS { TokenElevationType = 18 }
-    
+    private enum TOKEN_INFORMATION_CLASS
+    {
+        TokenElevationType = 18
+    }
+
     private enum TOKEN_ELEVATION_TYPE
     {
         TokenElevationTypeFull = 2
     }
 
-    public IRelayCommand ShowWindowCommand { get; }
-    public IRelayCommand ExitApplicationCommand { get; }
+    public IRelayCommand ShowWindowCommand
+    {
+        get;
+    }
+    public IRelayCommand ExitApplicationCommand
+    {
+        get;
+    }
 
     private Task RunOnUIThreadAsync(Action action)
     {
@@ -94,7 +103,7 @@ public sealed partial class MainWindow : WindowEx
     public MainWindow()
     {
         InitializeComponent();
-        
+
         ShowWindowCommand = new RelayCommand(ShowWindow);
         ExitApplicationCommand = new RelayCommand(ExitApplication);
 
@@ -122,7 +131,7 @@ public sealed partial class MainWindow : WindowEx
         {
             rootElement.ActualThemeChanged += (s, e) => UpdateBackgroundOverlayTheme();
         }
-        
+
         WeakReferenceMessenger.Default.Register<ValueChangedMessage<WindowBackdropType>>(this, (r, m) =>
         {
             dispatcherQueue.TryEnqueue(() => ApplyBackdrop(m.Value));
@@ -142,11 +151,11 @@ public sealed partial class MainWindow : WindowEx
         {
             dispatcherQueue.TryEnqueue(() => ApplyOverlayOpacity(m.Value));
         });
- 
-         WeakReferenceMessenger.Default.Register<FrameBackgroundOpacityChangedMessage>(this, (r, m) =>
-         {
-             dispatcherQueue.TryEnqueue(() => ApplyFrameBackgroundOpacity(m.Value));
-         });
+
+        WeakReferenceMessenger.Default.Register<FrameBackgroundOpacityChangedMessage>(this, (r, m) =>
+        {
+            dispatcherQueue.TryEnqueue(() => ApplyFrameBackgroundOpacity(m.Value));
+        });
 
         WeakReferenceMessenger.Default.Register<MinimizeToTrayChangedMessage>(this, (r, m) =>
         {
@@ -156,28 +165,28 @@ public sealed partial class MainWindow : WindowEx
         {
             dispatcherQueue.TryEnqueue(() => ApplyBackgroundImageOpacity(m.Value));
         });
-        
+
         dispatcherQueue.TryEnqueue(async () => await LoadBackgroundImageOpacityAsync());
         Activated += OnWindowActivated;
-        
+
         dispatcherQueue.TryEnqueue(() => CheckAndWarnUacElevation());
 
         SizeChanged += MainWindow_SizeChanged;
-        
+
         UpdateBackgroundOverlayTheme();
-        
+
         _messageDismissTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(4) };
         _messageDismissTimer.Tick += (s, e) => HideSystemMessage();
         _networkCheckTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
         _networkCheckTimer.Tick += (s, e) => CheckNetworkAndProxyStatus();
-        
+
     }
-    
+
     private async void CheckNetworkAndProxyStatus()
     {
         if (!_isMainUiLoaded) return;
-        
-        var (currentNetwork, currentProxy) = await Task.Run(() => 
+
+        var (currentNetwork, currentProxy) = await Task.Run(() =>
         {
             bool isNet = NetworkInterface.GetIsNetworkAvailable();
             bool isProxy = false;
@@ -198,7 +207,7 @@ public sealed partial class MainWindow : WindowEx
         string msg = "";
         string icon = "";
         Color color = Colors.White;
-        
+
         if (!currentNetwork && (_lastNetworkAvailable == null || _lastNetworkAvailable == true))
         {
             shouldNotify = true;
@@ -210,37 +219,37 @@ public sealed partial class MainWindow : WindowEx
         {
             shouldNotify = true;
             msg = "正在使用代理网络连接，请注意你的流量消耗";
-            icon = "\uE12B"; 
+            icon = "\uE12B";
             color = Colors.DodgerBlue;
         }
-        
+
         _lastNetworkAvailable = currentNetwork;
         _lastProxyEnabled = currentProxy;
-        
+
         if (shouldNotify)
         {
             ShowAutoDismissMessage(msg, icon, color);
         }
     }
-    
+
     private void ShowAutoDismissMessage(string message, string iconGlyph, Color iconColor)
     {
         if (!_isMainUiLoaded) return;
-        
+
         if (SystemMessageBar.Visibility == Visibility.Collapsed)
             SystemMessageBar.Visibility = Visibility.Visible;
-        
+
         SystemMessageText.Text = message;
         SystemMessageIcon.Glyph = iconGlyph;
         SystemMessageIcon.Foreground = new SolidColorBrush(iconColor);
-        
+
         _messageDismissTimer.Stop();
         _messageDismissTimer.Start();
-        
+
         if (_isSystemMessageVisible) return;
 
         _isSystemMessageVisible = true;
-        
+
         var anim = new DoubleAnimation
         {
             From = 100,
@@ -254,14 +263,14 @@ public sealed partial class MainWindow : WindowEx
         sb.Children.Add(anim);
         sb.Begin();
     }
-    
+
     private void HideSystemMessage()
     {
         _messageDismissTimer.Stop();
-        
+
         if (!_isSystemMessageVisible) return;
         _isSystemMessageVisible = false;
-        
+
         var anim = new DoubleAnimation
         {
             From = 0,
@@ -283,7 +292,7 @@ public sealed partial class MainWindow : WindowEx
             OverlayTranslate.Y = this.Bounds.Height + 100;
         }
     }
-    
+
     private async void CheckAndWarnUacElevation()
     {
         if (IsUacElevatedWithConsent())
@@ -301,7 +310,7 @@ public sealed partial class MainWindow : WindowEx
                     rootElement.Loaded += OnLoaded;
                     if (rootElement.XamlRoot == null) await tcs.Task;
                 }
-                
+
                 ContentDialog dialog = new ContentDialog
                 {
                     XamlRoot = rootElement.XamlRoot,
@@ -358,7 +367,7 @@ public sealed partial class MainWindow : WindowEx
         if (GlobalBackgroundImage != null) GlobalBackgroundImage.Opacity = clamped;
         if (GlobalBackgroundVideo != null) GlobalBackgroundVideo.Opacity = clamped;
     }
-    
+
     private void ShowWindow()
     {
         this.Show();
@@ -408,38 +417,38 @@ public sealed partial class MainWindow : WindowEx
             var currentTheme = rootElement.ActualTheme;
             if (currentTheme == ElementTheme.Default)
                 currentTheme = Application.Current.RequestedTheme == ApplicationTheme.Dark ? ElementTheme.Dark : ElementTheme.Light;
-            
+
             if (currentTheme == ElementTheme.Dark)
                 GlobalBackgroundOverlay.Fill = new SolidColorBrush(Colors.Black);
             else
                 GlobalBackgroundOverlay.Fill = new SolidColorBrush(Colors.White);
-            
+
             if (_isVideoBackground)
             {
                 var solidColor = currentTheme == ElementTheme.Dark ? Colors.Black : Colors.White;
-                solidColor.A = (byte)(currentTheme == ElementTheme.Dark ? 120 : 150); 
+                solidColor.A = (byte)(currentTheme == ElementTheme.Dark ? 120 : 150);
                 PageBackgroundOverlay.Background = new SolidColorBrush(solidColor);
             }
             else
             {
                 var acrylic = new AcrylicBrush();
-                
+
                 if (currentTheme == ElementTheme.Dark)
                 {
                     acrylic.TintColor = Colors.Black;
-                    acrylic.TintOpacity = 0.3; 
+                    acrylic.TintOpacity = 0.3;
                     acrylic.FallbackColor = Color.FromArgb(20, 0, 0, 0);
                 }
                 else
                 {
                     acrylic.TintColor = Colors.White;
-                    acrylic.TintOpacity = 0.2; 
+                    acrylic.TintOpacity = 0.2;
                     acrylic.FallbackColor = Color.FromArgb(20, 255, 255, 255);
                 }
-                
+
                 PageBackgroundOverlay.Background = acrylic;
             }
-            
+
             if (SystemMessageBar.Children.Count > 0 && SystemMessageBar.Children[0] is Border msgBorder && msgBorder.Background is AcrylicBrush msgAcrylic)
             {
                 msgAcrylic.TintColor = currentTheme == ElementTheme.Dark ? Colors.Black : Colors.White;
@@ -447,9 +456,9 @@ public sealed partial class MainWindow : WindowEx
             }
 
             ApplyFrameBackgroundOpacity(_frameBackgroundOpacity);
-         }
-     }
-    
+        }
+    }
+
     private async Task LoadAndApplyAcrylicSettingAsync()
     {
         try
@@ -579,14 +588,14 @@ public sealed partial class MainWindow : WindowEx
         {
             var localSettings = App.GetService<ILocalSettingsService>();
             var saveEnabledObj = await localSettings.ReadSettingAsync("IsSaveWindowSizeEnabled");
-            
+
             if (saveEnabledObj != null && Convert.ToBoolean(saveEnabledObj))
             {
                 var widthObj = await localSettings.ReadSettingAsync("SavedWindowWidth");
                 var heightObj = await localSettings.ReadSettingAsync("SavedWindowHeight");
 
-                if (widthObj != null && heightObj != null && 
-                    double.TryParse(widthObj.ToString(), out double w) && 
+                if (widthObj != null && heightObj != null &&
+                    double.TryParse(widthObj.ToString(), out double w) &&
                     double.TryParse(heightObj.ToString(), out double h))
                 {
                     Width = w;
@@ -595,20 +604,20 @@ public sealed partial class MainWindow : WindowEx
                     CenterWindowOnScreen();
                     return;
                 }
-             }
-             Width = 1360;
-             Height = 768;
-             if (!_isOverlayShown) OverlayTranslate.Y = Height + 100;
-             CenterWindowOnScreen();
+            }
+            Width = 1360;
+            Height = 768;
+            if (!_isOverlayShown) OverlayTranslate.Y = Height + 100;
+            CenterWindowOnScreen();
         }
-        catch 
-        { 
-            Width = 1360; 
-            Height = 768; 
+        catch
+        {
+            Width = 1360;
+            Height = 768;
             CenterWindowOnScreen();
         }
     }
-    
+
     private void CenterWindowOnScreen()
     {
         try
@@ -630,19 +639,19 @@ public sealed partial class MainWindow : WindowEx
         }
         catch { }
     }
- 
-     private void OnWindowActivated(object sender, WindowActivatedEventArgs args)
-     {
-         try
-         {
+
+    private void OnWindowActivated(object sender, WindowActivatedEventArgs args)
+    {
+        try
+        {
             SetTitleBar(AppTitleBar);
             var iconPath = Path.Combine(AppContext.BaseDirectory, "Assets/WindowIcon.ico");
             if (File.Exists(iconPath)) TitleBarIcon.Source = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage(new Uri(iconPath));
             UpdateTitleBarWithAdminStatus();
-         }
-         catch { }
+        }
+        catch { }
         Activated -= OnWindowActivated;
-     }
+    }
 
     private void UpdateTitleBarWithAdminStatus()
     {
@@ -679,13 +688,13 @@ public sealed partial class MainWindow : WindowEx
             {
                 if (item is FrameworkElement uiItem) SetupSpringAnimation(uiItem);
             }
-            
+
             await LoadFrameBackgroundOpacityAsync();
-             await LoadOverlayOpacityAsync();
-             await LoadAndApplyAcrylicSettingAsync();
-             await LoadGlobalBackgroundAsync();
-             await LoadMinimizeToTraySettingAsync();
-             await CheckUserAgreementAsync();
+            await LoadOverlayOpacityAsync();
+            await LoadAndApplyAcrylicSettingAsync();
+            await LoadGlobalBackgroundAsync();
+            await LoadMinimizeToTraySettingAsync();
+            await CheckUserAgreementAsync();
         }
         catch { ShowMainContent(); }
     }
@@ -705,10 +714,10 @@ public sealed partial class MainWindow : WindowEx
             var anim = compositor.CreateSpringVector3Animation();
             anim.Target = "Scale";
             anim.FinalValue = new Vector3(0.92f, 0.92f, 1f);
-            
-            anim.Period = TimeSpan.FromMilliseconds(20); 
-            anim.DampingRatio = 0.6f; 
-            
+
+            anim.Period = TimeSpan.FromMilliseconds(20);
+            anim.DampingRatio = 0.6f;
+
             visual.StartAnimation("Scale", anim);
         };
 
@@ -717,10 +726,10 @@ public sealed partial class MainWindow : WindowEx
             var anim = compositor.CreateSpringVector3Animation();
             anim.Target = "Scale";
             anim.FinalValue = new Vector3(1f, 1f, 1f);
-            
-            anim.Period = TimeSpan.FromMilliseconds(60); 
-            anim.DampingRatio = 0.5f; 
-            
+
+            anim.Period = TimeSpan.FromMilliseconds(60);
+            anim.DampingRatio = 0.5f;
+
             visual.StartAnimation("Scale", anim);
         }
 
@@ -769,9 +778,9 @@ public sealed partial class MainWindow : WindowEx
 
         if (ContentFrame.CurrentSourcePageType != typeof(Views.MainPage))
             ContentFrame.Navigate(typeof(Views.MainPage));
-            
+
         UpdatePageOverlayState(true);
-        
+
         _isMainUiLoaded = true;
         SystemMessageBar.Visibility = Visibility.Visible;
         _networkCheckTimer.Start();
@@ -783,15 +792,15 @@ public sealed partial class MainWindow : WindowEx
         if (args.SelectedItem is NavigationViewItem selectedItem)
         {
             var viewModelTag = selectedItem.Tag?.ToString();
-            
+
             if (viewModelTag == "FufuLauncher.ViewModels.SettingsViewModel")
             {
                 var anim = new DoubleAnimation
                 {
                     From = 0,
-                    To = 360, 
+                    To = 360,
                     Duration = new Duration(TimeSpan.FromSeconds(0.7)),
-                    EasingFunction = new CircleEase { EasingMode = EasingMode.EaseOut } 
+                    EasingFunction = new CircleEase { EasingMode = EasingMode.EaseOut }
                 };
 
                 Storyboard.SetTarget(anim, SettingsIconRotation);
@@ -828,13 +837,13 @@ public sealed partial class MainWindow : WindowEx
             UpdatePageOverlayState(isMainPage);
         }
     }
-    
+
     private void UpdatePageOverlayState(bool isMainPage)
     {
         try
         {
             double screenHeight = this.Bounds.Height > 0 ? this.Bounds.Height : 1000;
-            
+
             if (isMainPage && _isOverlayShown)
             {
                 var anim = new DoubleAnimation
@@ -844,19 +853,19 @@ public sealed partial class MainWindow : WindowEx
                     Duration = TimeSpan.FromMilliseconds(400),
                     EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn }
                 };
-                
+
                 var sb = new Storyboard();
                 Storyboard.SetTarget(anim, OverlayTranslate);
                 Storyboard.SetTargetProperty(anim, "Y");
                 sb.Children.Add(anim);
                 sb.Begin();
-                
+
                 _isOverlayShown = false;
             }
             else if (!isMainPage && !_isOverlayShown)
             {
-                OverlayTranslate.Y = screenHeight; 
-                
+                OverlayTranslate.Y = screenHeight;
+
                 var anim = new DoubleAnimation
                 {
                     From = screenHeight,
@@ -864,21 +873,21 @@ public sealed partial class MainWindow : WindowEx
                     Duration = TimeSpan.FromMilliseconds(500),
                     EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
                 };
-                
+
                 var sb = new Storyboard();
                 Storyboard.SetTarget(anim, OverlayTranslate);
                 Storyboard.SetTargetProperty(anim, "Y");
                 sb.Children.Add(anim);
                 sb.Begin();
-                
+
                 _isOverlayShown = true;
             }
             else if (!isMainPage && _isOverlayShown)
             {
-                 OverlayTranslate.Y = 0;
+                OverlayTranslate.Y = 0;
             }
         }
-        catch(Exception ex)
+        catch (Exception ex)
         {
             Debug.WriteLine($"[MainWindow] 遮罩动画异常: {ex.Message}");
         }
@@ -908,17 +917,19 @@ public sealed partial class MainWindow : WindowEx
             Background = GetNotificationBrush(message.Type),
             CornerRadius = new CornerRadius(8),
             Padding = new Thickness(16, 12, 16, 12),
-            Height = 80, Width = 360, Margin = new Thickness(0, 0, 0, 8),
+            Height = 80,
+            Width = 360,
+            Margin = new Thickness(0, 0, 0, 8),
             RenderTransform = new TranslateTransform { X = 380 }
         };
         var icon = new FontIcon { FontFamily = new FontFamily("Segoe Fluent Icons"), FontSize = 16, Glyph = GetNotificationIcon(message.Type), VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 2, 0, 0), Foreground = new SolidColorBrush(Colors.White) };
         var contentPanel = new StackPanel { Spacing = 4, Margin = new Thickness(12, 0, 0, 0) };
         contentPanel.Children.Add(new TextBlock { Text = message.Title, FontSize = 14, FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.WrapWholeWords, Foreground = new SolidColorBrush(Colors.White) });
         contentPanel.Children.Add(new TextBlock { Text = message.Message, FontSize = 12, Opacity = 0.9, TextWrapping = TextWrapping.WrapWholeWords, Foreground = new SolidColorBrush(Colors.White) });
-        
+
         var closeButton = new Button { Content = new FontIcon { Glyph = "\uE711", FontSize = 12 }, Background = new SolidColorBrush(Colors.Transparent), BorderBrush = new SolidColorBrush(Colors.Transparent), Width = 32, Height = 32, Margin = new Thickness(0, -4, -4, 0), HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top, Foreground = new SolidColorBrush(Colors.White) };
         closeButton.Click += (s, e) => { try { NotificationPanel.Children.Remove(card); } catch { } };
-        
+
         card.Children.Add(icon); card.Children.Add(contentPanel); card.Children.Add(closeButton);
         return card;
     }
@@ -956,7 +967,10 @@ public sealed partial class MainWindow : WindowEx
     {
         return type switch
         {
-            NotificationType.Success => "\uE930", NotificationType.Warning => "\uE7BA", NotificationType.Error => "\uE711", _ => "\uE946"
+            NotificationType.Success => "\uE930",
+            NotificationType.Warning => "\uE7BA",
+            NotificationType.Error => "\uE711",
+            _ => "\uE946"
         };
     }
 
@@ -993,7 +1007,7 @@ public sealed partial class MainWindow : WindowEx
     {
         _frameBackgroundOpacity = Math.Clamp(value, 0.0, 1.0);
         if (ContentFrame == null) return;
-        
+
         if (_frameBackgroundOpacity < 0.05)
         {
             ContentFrame.Background = new SolidColorBrush(Colors.Transparent);

@@ -1,21 +1,44 @@
-﻿using FufuLauncher.Models;
+﻿using System.Collections.ObjectModel;
+using System.Text;
+using FufuLauncher.Models;
 using FufuLauncher.ViewModels;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Navigation;
-using System.Collections.ObjectModel;
-using System.Text;
 
 namespace FufuLauncher.Views;
 
 public class ConfigOption
 {
-    public string SectionHeader { get; set; }
-    public string Name { get; set; }
-    public string Type { get; set; }
-    public string Value { get; set; }
-    public Control EditControl { get; set; }
-    public string NameDisplay => !string.IsNullOrEmpty(Name) ? Name : SectionHeader;
+    public string SectionHeader
+    {
+        get; set;
+    }
+    public string Name
+    {
+        get; set;
+    }
+    public string Type
+    {
+        get; set;
+    }
+    public string Value
+    {
+        get; set;
+    }
+    public Control EditControl
+    {
+        get; set;
+    }
+    
+    public string NameDisplay
+    {
+        get
+        {
+            if (!string.IsNullOrEmpty(Name)) return Name;
+            return SectionHeader?.Trim('[', ']', ' ') ?? "Unknown Option";
+        }
+    }
 }
 
 public class GeneralInfo
@@ -27,13 +50,13 @@ public sealed partial class PluginConfigPage : Page
 {
     private PluginItem _pluginItem;
     private PluginViewModel _viewModel;
-    
+
     public ObservableCollection<ConfigOption> Options { get; private set; } = new();
     public ObservableCollection<string> InfoList { get; private set; } = new();
-    
+
     private GeneralInfo _currentGeneralInfo;
     private List<ConfigOption> _currentOptionsList;
-    
+
     private bool _isInitialized = false;
 
     public PluginConfigPage()
@@ -68,7 +91,7 @@ public sealed partial class PluginConfigPage : Page
 
             var lines = await File.ReadAllLinesAsync(_pluginItem.ConfigFilePath);
             var (general, opts) = ParseIniConfig(lines);
-            
+
             _currentGeneralInfo = general;
             _currentOptionsList = opts;
             
@@ -88,12 +111,12 @@ public sealed partial class PluginConfigPage : Page
                 CreateControlForOption(opt);
                 Options.Add(opt);
             }
-            
+
             ConfigGridView.ItemsSource = Options;
         }
         catch (Exception ex)
         {
-            
+            System.Diagnostics.Debug.WriteLine($"Error loading config: {ex.Message}");
         }
     }
 
@@ -106,18 +129,21 @@ public sealed partial class PluginConfigPage : Page
         {
             case "bool":
             case "boolean":
-                bool.TryParse(opt.Value, out var boolVal);
+                var valStr = opt.Value?.Trim().ToLowerInvariant();
+                bool boolVal = valStr == "1" || valStr == "true" || valStr == "yes" || valStr == "on";
+
                 var ts = new ToggleSwitch
                 {
                     IsOn = boolVal,
-                    OnContent = "开",
-                    OffContent = "关",
-                    HorizontalAlignment = HorizontalAlignment.Left
+                    OnContent = "已开启",
+                    OffContent = "已关闭",
+                    HorizontalAlignment = HorizontalAlignment.Left,
+                    VerticalAlignment = VerticalAlignment.Center
                 };
-                ts.Toggled += (s, e) => 
+                ts.Toggled += (_, _) =>
                 {
                     if (!_isInitialized) return;
-                    opt.Value = ts.IsOn.ToString();
+                    opt.Value = ts.IsOn ? "1" : "0";
                     TriggerAutoSave();
                 };
                 inputControl = ts;
@@ -133,8 +159,8 @@ public sealed partial class PluginConfigPage : Page
                     SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Inline,
                     SmallChange = 1,
                     LargeChange = 10,
-                    Width = 200,
-                    HorizontalAlignment = HorizontalAlignment.Stretch
+                    HorizontalAlignment = HorizontalAlignment.Stretch,
+                    VerticalAlignment = VerticalAlignment.Center
                 };
                 nb.ValueChanged += (s, e) =>
                 {
@@ -152,8 +178,9 @@ public sealed partial class PluginConfigPage : Page
                 var tb = new TextBox
                 {
                     Text = opt.Value ?? "",
-                    PlaceholderText = "请输入...",
-                    HorizontalAlignment = HorizontalAlignment.Stretch
+                    PlaceholderText = "请输入配置值...",
+                    HorizontalAlignment = HorizontalAlignment.Stretch,
+                    VerticalAlignment = VerticalAlignment.Center
                 };
                 tb.LostFocus += (s, e) =>
                 {
@@ -164,7 +191,7 @@ public sealed partial class PluginConfigPage : Page
                         TriggerAutoSave();
                     }
                 };
-                tb.KeyDown += (s, e) => 
+                tb.KeyDown += (s, e) =>
                 {
                     if (e.Key == Windows.System.VirtualKey.Enter)
                     {
@@ -182,18 +209,17 @@ public sealed partial class PluginConfigPage : Page
 
         opt.EditControl = inputControl;
     }
+
     private async void TriggerAutoSave()
     {
         try
         {
-            
             var content = BuildIniContent(_currentGeneralInfo, _currentOptionsList);
             await File.WriteAllTextAsync(_pluginItem.ConfigFilePath, content);
-            
         }
         catch (Exception ex)
         {
-
+            System.Diagnostics.Debug.WriteLine($"AutoSave Failed: {ex.Message}");
         }
     }
 
@@ -202,7 +228,7 @@ public sealed partial class PluginConfigPage : Page
         ConfigGridView.Focus(FocusState.Programmatic);
         if (Frame.CanGoBack) Frame.GoBack();
     }
-    
+
     private (GeneralInfo, List<ConfigOption>) ParseIniConfig(string[] lines)
     {
         var general = new GeneralInfo();
@@ -214,22 +240,28 @@ public sealed partial class PluginConfigPage : Page
         {
             var trimmed = line.Trim();
             if (string.IsNullOrWhiteSpace(trimmed) || trimmed.StartsWith("#") || trimmed.StartsWith(";")) continue;
-            
+
             if (trimmed.StartsWith("[") && trimmed.EndsWith("]"))
             {
                 if (currentOption != null) options.Add(currentOption);
                 currentSection = trimmed;
+                
                 if (!currentSection.Equals("[General]", StringComparison.OrdinalIgnoreCase))
+                {
                     currentOption = new ConfigOption { SectionHeader = currentSection };
+                }
                 continue;
             }
-            
+
             var parts = trimmed.Split(new[] { '=' }, 2);
             if (parts.Length == 2)
             {
                 var key = parts[0].Trim();
                 var value = parts[1].Trim();
-                if (currentSection.Equals("[General]", StringComparison.OrdinalIgnoreCase)) general.Items[key] = value;
+                if (currentSection.Equals("[General]", StringComparison.OrdinalIgnoreCase))
+                {
+                    general.Items[key] = value;
+                }
                 else if (currentOption != null)
                 {
                     if (key.Equals("Name", StringComparison.OrdinalIgnoreCase)) currentOption.Name = value;

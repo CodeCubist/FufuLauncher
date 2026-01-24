@@ -3,9 +3,8 @@ using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Navigation;
-using WinRT.Interop;
 using Windows.Graphics;
-using System.Threading.Tasks;
+using WinRT.Interop;
 
 namespace FufuLauncher.Views
 {
@@ -32,7 +31,7 @@ namespace FufuLauncher.Views
             MapWebView.NavigationCompleted += MapWebView_NavigationCompleted;
             MapWebView.Source = new Uri("https://act.mihoyo.com/ys/app/interactive-map/index.html");
         }
-        
+
         private async void MapWebView_NavigationStarting(WebView2 sender, Microsoft.Web.WebView2.Core.CoreWebView2NavigationStartingEventArgs args)
         {
             if (args.Uri.Contains("act.mihoyo.com"))
@@ -118,16 +117,16 @@ namespace FufuLauncher.Views
         protected override void OnNavigatedTo(NavigationEventArgs e)
         {
             base.OnNavigatedTo(e);
-            
+
             if (e.Parameter is Window window)
             {
                 _hostWindow = window;
-                
-                
+
+
                 _hostWindow.ExtendsContentIntoTitleBar = true;
-                
+
                 _hostWindow.SetTitleBar(AppTitleBar);
-                
+
                 ResizeWindowBasedOnResolution(0.85);
 
                 _hostWindow.Closed += (s, args) => MapWebView.Close();
@@ -137,7 +136,7 @@ namespace FufuLauncher.Views
         private void ResizeWindowBasedOnResolution(double scaleFactor)
         {
             if (_hostWindow == null) return;
-            
+
             var hWnd = WindowNative.GetWindowHandle(_hostWindow);
             var winId = Win32Interop.GetWindowIdFromWindow(hWnd);
             var appWindow = AppWindow.GetFromWindowId(winId);
@@ -145,19 +144,19 @@ namespace FufuLauncher.Views
             if (appWindow != null)
             {
                 var displayArea = DisplayArea.GetFromWindowId(winId, DisplayAreaFallback.Primary);
-                
+
                 var screenWidth = displayArea.WorkArea.Width;
                 var screenHeight = displayArea.WorkArea.Height;
-                
+
                 int newWidth = (int)(screenWidth * scaleFactor);
                 int newHeight = (int)(screenHeight * scaleFactor);
-                
+
                 newWidth = Math.Max(newWidth, 800);
                 newHeight = Math.Max(newHeight, 600);
-                
+
                 int posX = (screenWidth - newWidth) / 2 + displayArea.WorkArea.X;
                 int posY = (screenHeight - newHeight) / 2 + displayArea.WorkArea.Y;
-                
+
                 appWindow.MoveAndResize(new RectInt32(posX, posY, newWidth, newHeight));
             }
         }
@@ -197,9 +196,9 @@ namespace FufuLauncher.Views
         private void LockMapToggle_Click(object sender, RoutedEventArgs e)
         {
             bool isLocked = LockMapToggle.IsChecked == true;
-            
+
             MapWebView.IsHitTestVisible = !isLocked;
-            
+
             LockMapToggle.Content = isLocked ? "锁定地图 (开)" : "锁定地图 (关)";
         }
     }

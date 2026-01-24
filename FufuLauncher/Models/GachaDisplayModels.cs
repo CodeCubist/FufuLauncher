@@ -6,19 +6,37 @@ namespace FufuLauncher.Models;
 
 public partial class GachaDisplayItem : ObservableObject
 {
-    public string Name { get; set; }
-    public string Type { get; set; }
-    public int Rank { get; set; }
-    
-    public int Count { get; set; }   
-    
-    public string Time { get; set; }
-    
-    public string LastGetTime { get; set; }
+    public string Name
+    {
+        get; set;
+    }
+    public string Type
+    {
+        get; set;
+    }
+    public int Rank
+    {
+        get; set;
+    }
+
+    public int Count
+    {
+        get; set;
+    }
+
+    public string Time
+    {
+        get; set;
+    }
+
+    public string LastGetTime
+    {
+        get; set;
+    }
 
     [ObservableProperty] private string _imageUrl;
-    [ObservableProperty] [NotifyPropertyChangedFor(nameof(ElementImageSource))] private string _elementUrl;
-    
+    [ObservableProperty][NotifyPropertyChangedFor(nameof(ElementImageSource))] private string _elementUrl;
+
     public ImageSource ElementImageSource
     {
         get
@@ -34,14 +52,14 @@ public partial class GachaDisplayItem : ObservableObject
             }
         }
     }
-    
+
     public SolidColorBrush RarityBackground => Rank switch
     {
         5 => new SolidColorBrush(Windows.UI.Color.FromArgb(255, 198, 160, 96)),
         4 => new SolidColorBrush(Windows.UI.Color.FromArgb(255, 149, 118, 193)),
         _ => new SolidColorBrush(Windows.UI.Color.FromArgb(255, 102, 168, 209))
     };
-    
+
     public SolidColorBrush RarityColorHex => Rank switch
     {
         5 => new SolidColorBrush(Windows.UI.Color.FromArgb(255, 198, 160, 96)),
@@ -52,8 +70,20 @@ public partial class GachaDisplayItem : ObservableObject
 
 public class ScrapedMetadata
 {
-    public string Name { get; set; }
-    public string ImgSrc { get; set; }
-    public string ElementSrc { get; set; }
-    public string Type { get; set; } 
+    public string Name
+    {
+        get; set;
+    }
+    public string ImgSrc
+    {
+        get; set;
+    }
+    public string ElementSrc
+    {
+        get; set;
+    }
+    public string Type
+    {
+        get; set;
+    }
 }

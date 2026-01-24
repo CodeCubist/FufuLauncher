@@ -20,33 +20,63 @@ public class PluginViewModel : INotifyPropertyChanged
     public ObservableCollection<PluginItem> Plugins
     {
         get => _plugins;
-        set { _plugins = value; OnPropertyChanged(); }
+        set
+        {
+            _plugins = value; OnPropertyChanged();
+        }
     }
 
     public string StatusMessage
     {
         get => _statusMessage;
-        set { _statusMessage = value; OnPropertyChanged(); }
+        set
+        {
+            _statusMessage = value; OnPropertyChanged();
+        }
     }
 
     public bool IsLoading
     {
         get => _isLoading;
-        set { _isLoading = value; OnPropertyChanged(); }
+        set
+        {
+            _isLoading = value; OnPropertyChanged();
+        }
     }
 
     public bool IsEmpty
     {
         get => _isEmpty;
-        set { _isEmpty = value; OnPropertyChanged(); }
+        set
+        {
+            _isEmpty = value; OnPropertyChanged();
+        }
     }
 
-    public ICommand RefreshCommand { get; }
-    public ICommand AddPluginCommand { get; }
-    public ICommand TogglePluginCommand { get; }
-    public ICommand DeletePluginCommand { get; }
-    public ICommand SortCommand { get; }
-    public ICommand OpenFolderCommand { get; }
+    public ICommand RefreshCommand
+    {
+        get;
+    }
+    public ICommand AddPluginCommand
+    {
+        get;
+    }
+    public ICommand TogglePluginCommand
+    {
+        get;
+    }
+    public ICommand DeletePluginCommand
+    {
+        get;
+    }
+    public ICommand SortCommand
+    {
+        get;
+    }
+    public ICommand OpenFolderCommand
+    {
+        get;
+    }
 
     public PluginViewModel()
     {
@@ -75,7 +105,7 @@ public class PluginViewModel : INotifyPropertyChanged
     {
         IsEmpty = Plugins == null || Plugins.Count == 0;
     }
-    
+
     private (string? Name, string? Developer, string? Description) GetPluginInfoFromConfig(string? configPath)
     {
         if (string.IsNullOrEmpty(configPath) || !File.Exists(configPath)) return (null, null, null);
@@ -139,10 +169,10 @@ public class PluginViewModel : INotifyPropertyChanged
                 if (targetFile == null) continue;
 
                 bool isEnabled = dllFile != null;
-                
-                var iniFile = dir.GetFiles("config.ini").FirstOrDefault() 
+
+                var iniFile = dir.GetFiles("config.ini").FirstOrDefault()
                               ?? dir.GetFiles("*.ini").FirstOrDefault();
-                
+
                 string displayName = targetFile.Name;
                 string developer = "";
                 string description = "";
@@ -189,10 +219,10 @@ public class PluginViewModel : INotifyPropertyChanged
         try
         {
             await File.WriteAllTextAsync(item.ConfigFilePath, content);
-            
+
             var info = GetPluginInfoFromConfig(item.ConfigFilePath);
             if (!string.IsNullOrEmpty(info.Name)) item.DisplayName = info.Name;
-            
+
             item.Developer = info.Developer ?? "";
             item.Description = info.Description ?? "";
 
@@ -220,10 +250,10 @@ public class PluginViewModel : INotifyPropertyChanged
             if (file != null)
             {
                 EnsureDirectoryExists();
-                
+
                 var folderName = Path.GetFileNameWithoutExtension(file.Name);
                 var destFolderPath = Path.Combine(_pluginsPath, folderName);
-                
+
                 if (!Directory.Exists(destFolderPath))
                 {
                     Directory.CreateDirectory(destFolderPath);
@@ -231,7 +261,7 @@ public class PluginViewModel : INotifyPropertyChanged
 
                 var destPath = Path.Combine(destFolderPath, file.Name);
                 File.Copy(file.Path, destPath, true);
-                
+
                 StatusMessage = $"已添加插件: {folderName}";
                 LoadPlugins();
             }
@@ -241,7 +271,7 @@ public class PluginViewModel : INotifyPropertyChanged
             StatusMessage = $"添加失败: {ex.Message}";
         }
     }
-    
+
     private void TogglePlugin(PluginItem? item)
     {
         if (item == null || !File.Exists(item.FullPath)) return;
@@ -250,7 +280,7 @@ public class PluginViewModel : INotifyPropertyChanged
         {
             string newPath;
             bool targetState;
-            
+
             if (item.FullPath.EndsWith(".disabled", StringComparison.OrdinalIgnoreCase))
             {
                 newPath = item.FullPath.Substring(0, item.FullPath.Length - ".disabled".Length);
@@ -270,10 +300,10 @@ public class PluginViewModel : INotifyPropertyChanged
             if (File.Exists(newPath))
             {
                 StatusMessage = "操作失败：目标文件名已存在";
-                item.RefreshState(); 
+                item.RefreshState();
                 return;
             }
-            
+
             File.Move(item.FullPath, newPath);
             item.FullPath = newPath;
             item.FileName = Path.GetFileName(newPath);
@@ -306,7 +336,7 @@ public class PluginViewModel : INotifyPropertyChanged
             StatusMessage = $"删除失败: {ex.Message}";
         }
     }
-    
+
     public void PerformRename(PluginItem item, string newName)
     {
         try
@@ -324,9 +354,9 @@ public class PluginViewModel : INotifyPropertyChanged
                 StatusMessage = "重命名失败：文件夹名已存在";
                 return;
             }
-            
+
             Directory.Move(oldDir, newDir);
-            
+
             item.DirectoryPath = newDir;
             var fileName = Path.GetFileName(item.FullPath);
             item.FullPath = Path.Combine(newDir, fileName);
@@ -336,7 +366,7 @@ public class PluginViewModel : INotifyPropertyChanged
                 var configName = Path.GetFileName(item.ConfigFilePath);
                 item.ConfigFilePath = Path.Combine(newDir, configName);
             }
-            
+
             StatusMessage = $"重命名成功";
         }
         catch (Exception ex)

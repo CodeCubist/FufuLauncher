@@ -47,7 +47,7 @@ namespace FufuLauncher.Views
                 _ = ViewModel.ApplyProgramPathCommand.ExecuteAsync(null);
             }
         }
-        
+
         private void Page_Loaded(object sender, RoutedEventArgs e)
         {
             EntranceStoryboard.Begin();

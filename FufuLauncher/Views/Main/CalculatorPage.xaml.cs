@@ -11,7 +11,10 @@ namespace FufuLauncher.Views
 {
     public sealed partial class CalculatorPage : Page
     {
-        public CalculatorViewModel ViewModel { get; }
+        public CalculatorViewModel ViewModel
+        {
+            get;
+        }
 
         private Timer _loadingTimeoutTimer;
         private Timer _minDisplayTimer;
@@ -69,7 +72,7 @@ namespace FufuLauncher.Views
                     CalculatorWebView.CoreWebView2.FrameNavigationStarting += OnWebViewFrameNavigationStarting;
                     CalculatorWebView.CoreWebView2.NewWindowRequested += OnNewWindowRequested;
                     CalculatorWebView.CoreWebView2.DOMContentLoaded += OnDOMContentLoaded;
-                    
+
                     _isNavigationEventsSubscribed = true;
                 }
 
@@ -190,7 +193,7 @@ namespace FufuLauncher.Views
 
         private void OnNewWindowRequested(CoreWebView2 sender, CoreWebView2NewWindowRequestedEventArgs args)
         {
-            args.Handled = true; 
+            args.Handled = true;
         }
 
         private void CheckAndBlockNavigation(CoreWebView2NavigationStartingEventArgs args)
@@ -206,7 +209,7 @@ namespace FufuLauncher.Views
                     args.Cancel = true;
                     DispatcherQueue.TryEnqueue(() =>
                     {
-                        if(!ViewModel.IsLoading) ViewModel.StatusMessage = "已拦截外部链接";
+                        if (!ViewModel.IsLoading) ViewModel.StatusMessage = "已拦截外部链接";
                     });
                 }
             }

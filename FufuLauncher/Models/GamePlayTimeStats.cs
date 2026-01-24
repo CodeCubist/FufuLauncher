@@ -1,5 +1,21 @@
-﻿namespace FufuLauncher.Models
+﻿using System.Collections.ObjectModel;
+
+namespace FufuLauncher.Models
 {
+    public class WeeklyPlayTimeStats
+    {
+        public double TotalHours
+        {
+            get; set;
+        }
+        public double AverageHours
+        {
+            get; set;
+        }
+        public string TotalHoursFormatted => $"{TotalHours:F1}h";
+        public string AverageHoursFormatted => $"{AverageHours:F1}h";
+        public ObservableCollection<GamePlayTimeRecord> DailyRecords { get; set; } = new();
+    }
     public class GamePlayTimeRecord
     {
         public DateTime Date
@@ -32,21 +48,5 @@
                 _ => ""
             };
         }
-    }
-
-    public class WeeklyPlayTimeStats
-    {
-        public List<GamePlayTimeRecord> DailyRecords { get; set; } = new();
-
-        public long TotalPlayTimeSeconds => DailyRecords.Sum(r => r.PlayTimeSeconds);
-        public TimeSpan TotalPlayTime => TimeSpan.FromSeconds(TotalPlayTimeSeconds);
-        public TimeSpan AverageDailyPlayTime => DailyRecords.Count > 0 ?
-            TimeSpan.FromSeconds(TotalPlayTimeSeconds / DailyRecords.Count) : TimeSpan.Zero;
-
-        public string DisplayTotalTime => TotalPlayTime.Days > 0 ?
-            $"{TotalPlayTime.Days}d {TotalPlayTime.Hours}h {TotalPlayTime.Minutes}m" :
-            $"{TotalPlayTime.Hours}h {TotalPlayTime.Minutes}m";
-
-        public string DisplayAverageTime => $"{AverageDailyPlayTime.Hours}h {AverageDailyPlayTime.Minutes}m";
     }
 }

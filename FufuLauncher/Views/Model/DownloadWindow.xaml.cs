@@ -19,10 +19,10 @@ namespace FufuLauncher.Views
             this.InitializeComponent();
             _installPath = installPath;
             PathBox.Text = _installPath;
-            
+
             ExtendsContentIntoTitleBar = true;
             SetTitleBar(AppTitleBar);
-            
+
             var hWnd = WindowNative.GetWindowHandle(this);
             var windowId = Win32Interop.GetWindowIdFromWindow(hWnd);
             var appWindow = AppWindow.GetFromWindowId(windowId);
@@ -38,16 +38,16 @@ namespace FufuLauncher.Views
         {
             _isDownloading = true;
             SetUIState(false);
-            
+
             LogBlock.Text = ">>> 初始化任务...\n";
             MainProgressBar.Value = 0;
             StatusText.Foreground = (SolidColorBrush)Application.Current.Resources["TextFillColorPrimaryBrush"];
 
             _cts = new CancellationTokenSource();
-            
+
             var downloader = new GenshinDownloader();
 
-            downloader.Log += (msg) => DispatcherQueue.TryEnqueue(() => 
+            downloader.Log += (msg) => DispatcherQueue.TryEnqueue(() =>
             {
                 if (LogBorder.Visibility == Visibility.Visible)
                 {
@@ -63,7 +63,7 @@ namespace FufuLauncher.Views
                     if (total <= 0) return;
                     double percent = (double)downloaded / total * 100;
                     MainProgressBar.Value = percent;
-                    
+
                     StatusText.Text = $"正在处理: {doneFiles}/{totalFiles} 文件";
                     double dMB = downloaded / 1024.0 / 1024.0;
                     double tMB = total / 1024.0 / 1024.0;
@@ -75,7 +75,7 @@ namespace FufuLauncher.Views
             {
                 string lang = ((ComboBoxItem)LanguageCombo.SelectedItem).Tag.ToString();
                 bool downloadBase = BaseGameCheck.IsChecked == true;
-                
+
                 await Task.Run(() => downloader.StartDownloadAsync(_installPath, lang, downloadBase, 16, _cts.Token));
 
                 DispatcherQueue.TryEnqueue(async () =>
@@ -84,7 +84,7 @@ namespace FufuLauncher.Views
                     StatusText.Text = "下载成功";
                     StatusText.Foreground = new SolidColorBrush(Colors.Green);
                     CancelButton.Content = "关闭";
-                    
+
                     var dialog = new ContentDialog
                     {
                         Title = "完成",

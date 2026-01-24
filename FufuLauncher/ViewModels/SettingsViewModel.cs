@@ -4,19 +4,19 @@ using System.Windows.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
+using CommunityToolkit.Mvvm.Messaging.Messages;
 using FufuLauncher.Contracts.Services;
+using FufuLauncher.Messages;
 using FufuLauncher.Models;
 using FufuLauncher.Services;
 using FufuLauncher.Services.Background;
-using FufuLauncher.Messages;
+using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using CommunityToolkit.Mvvm.Messaging.Messages;
-using Microsoft.UI.Windowing;
 
 namespace FufuLauncher.ViewModels
 {
-    
+
     public enum WindowBackdropType
     {
         None = 0,
@@ -112,7 +112,7 @@ namespace FufuLauncher.ViewModels
             _navigationService = navigationService;
             _gameLauncherService = gameLauncherService;
             _filePickerService = filePickerService;
-            
+
             InitializeDefaultResolution();
 
             SelectStartupSoundCommand = new AsyncRelayCommand(SelectStartupSoundAsync);
@@ -163,13 +163,13 @@ namespace FufuLauncher.ViewModels
 
             SelectCustomBackgroundCommand = new AsyncRelayCommand(SelectCustomBackgroundAsync);
         }
-        
+
         private void InitializeDefaultResolution()
         {
             try
             {
                 var displayArea = DisplayArea.Primary;
-                
+
                 if (displayArea != null)
                 {
                     _launchArgsWidth = displayArea.OuterBounds.Width.ToString();
@@ -196,7 +196,7 @@ namespace FufuLauncher.ViewModels
             await LoadUserPreferencesAsync();
             await LoadCustomBackgroundSettingsAsync();
             UpdateLaunchArgsPreview();
-            
+
             OnPropertyChanged(nameof(IsStartupSoundEnabled));
             OnPropertyChanged(nameof(StartupSoundPath));
             OnPropertyChanged(nameof(HasCustomStartupSound));
@@ -301,7 +301,7 @@ namespace FufuLauncher.ViewModels
 
             var saveWindowSizeJson = await _localSettingsService.ReadSettingAsync("IsSaveWindowSizeEnabled");
             IsSaveWindowSizeEnabled = saveWindowSizeJson != null && Convert.ToBoolean(saveWindowSizeJson);
-            
+
             var panelOpacityJson = await _localSettingsService.ReadSettingAsync("PanelBackgroundOpacity");
             try
             {
@@ -320,7 +320,7 @@ namespace FufuLauncher.ViewModels
             {
                 GlobalBackgroundImageOpacity = 1.0;
             }
-            
+
         }
         partial void OnGlobalBackgroundImageOpacityChanged(double value)
         {
@@ -330,7 +330,7 @@ namespace FufuLauncher.ViewModels
                 GlobalBackgroundImageOpacity = clamped;
                 return;
             }
-            
+
             _ = _localSettingsService.SaveSettingAsync("GlobalBackgroundImageOpacity", clamped);
             WeakReferenceMessenger.Default.Send(new BackgroundImageOpacityChangedMessage(clamped));
         }
@@ -338,19 +338,19 @@ namespace FufuLauncher.ViewModels
         partial void OnPanelBackgroundOpacityChanged(double value)
         {
             var clamped = Math.Clamp(value, 0.0, 1.0);
-            
+
             if (Math.Abs(clamped - value) > 0.001)
             {
                 PanelBackgroundOpacity = clamped;
                 return;
             }
-            
+
             _localSettingsService.SaveSettingAsync("PanelBackgroundOpacity", clamped);
-            
+
             WeakReferenceMessenger.Default.Send(new PanelOpacityChangedMessage(clamped));
         }
-        
-        
+
+
         partial void OnCurrentWindowBackdropChanged(WindowBackdropType value)
         {
             Debug.WriteLine($"[ViewModel] 属性已更新为: {value}");
@@ -358,7 +358,7 @@ namespace FufuLauncher.ViewModels
             if (!_isInitializing)
             {
                 _localSettingsService.SaveSettingAsync("WindowBackdrop", (int)value);
-                
+
                 WeakReferenceMessenger.Default.Send(new ValueChangedMessage<WindowBackdropType>(value));
             }
         }
@@ -561,7 +561,7 @@ namespace FufuLauncher.ViewModels
                 _backgroundRenderer.ClearCustomBackground();
             }
         }
-        
+
         partial void OnIsShortTermSupportEnabledChanged(bool value)
         {
             Debug.WriteLine($"SettingsViewModel: 短期支持版本设置变更为 {value}");
@@ -587,13 +587,13 @@ namespace FufuLauncher.ViewModels
         partial void OnGlobalBackgroundOverlayOpacityChanged(double value)
         {
             var clamped = Math.Clamp(value, 0.0, 1.0);
-            
+
             if (Math.Abs(clamped - value) > 0.0001)
             {
                 GlobalBackgroundOverlayOpacity = clamped;
                 return;
             }
-            
+
             _ = _localSettingsService.SaveSettingAsync("GlobalBackgroundOverlayOpacity", clamped);
             WeakReferenceMessenger.Default.Send(new BackgroundOverlayOpacityChangedMessage(clamped));
         }
@@ -616,9 +616,9 @@ namespace FufuLauncher.ViewModels
             Debug.WriteLine($"SettingsViewModel: 保存窗口大小记忆设置 {value}");
             _ = _localSettingsService.SaveSettingAsync("IsSaveWindowSizeEnabled", value);
         }
- 
-         private async Task SwitchInjectionModuleAsync(bool enableShortTerm)
-         {
+
+        private async Task SwitchInjectionModuleAsync(bool enableShortTerm)
+        {
             try
             {
 
@@ -706,7 +706,7 @@ namespace FufuLauncher.ViewModels
 
                     WeakReferenceMessenger.Default.Send(new BackgroundRefreshMessage());
                     await RefreshMainPageBackground();
-                    
+
                 }
             }
             catch (Exception ex)

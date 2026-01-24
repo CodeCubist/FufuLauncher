@@ -1,8 +1,6 @@
-﻿using System;
+﻿using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
-using System.ComponentModel;
-using System.Diagnostics;
 using System.Text;
 using FufuLauncher.Contracts.Services;
 using FufuLauncher.ViewModels;
@@ -29,7 +27,7 @@ namespace FufuLauncher.Services
         private const string UseInjectionKey = "UseInjection";
         private const string CustomLaunchParametersKey = "CustomLaunchParameters";
         public const string GenshinHDRConfigKey = "IsGenshinHDRForcedEnabled";
-        
+
         private bool _lastUseInjection;
 
         public GameLauncherService(
@@ -119,7 +117,7 @@ namespace FufuLauncher.Services
             await _localSettingsService.SaveSettingAsync(CustomLaunchParametersKey, parameters);
             Trace.WriteLine($"[启动服务] 保存自定义参数: '{parameters}'");
         }
-        
+
         private async Task ApplyGenshinHDRConfigAsync(StringBuilder logBuilder)
         {
             try
@@ -199,7 +197,7 @@ namespace FufuLauncher.Services
                     result.DetailLog = logBuilder.ToString();
                     return result;
                 }
-                
+
                 await ApplyGenshinHDRConfigAsync(logBuilder);
 
                 string arguments = BuildLaunchArguments(config).ToString();
@@ -213,12 +211,12 @@ namespace FufuLauncher.Services
                 if (useInjection)
                 {
                     int configMask = 0;
-                    
+
                     logBuilder.AppendLine($"[启动流程] 配置掩码: {configMask}");
-                    
+
                     string targetDllPath = null;
                     string defaultDllPath = _launcherService.GetDefaultDllPath();
-                    
+
                     if (!string.IsNullOrEmpty(defaultDllPath) && File.Exists(defaultDllPath))
                     {
                         targetDllPath = defaultDllPath;
@@ -232,7 +230,7 @@ namespace FufuLauncher.Services
                             if (Directory.Exists(pluginsDir))
                             {
                                 logBuilder.AppendLine($"[启动流程] 在扫描插件目录: {pluginsDir}");
-                                
+
                                 var pluginDll = Directory.GetFiles(pluginsDir, "*.dll", SearchOption.AllDirectories)
                                     .FirstOrDefault(f => !f.EndsWith(".disabled", StringComparison.OrdinalIgnoreCase));
 
@@ -256,7 +254,7 @@ namespace FufuLauncher.Services
                             logBuilder.AppendLine($"[启动流程] 扫描插件目录时发生异常: {ex.Message}");
                         }
                     }
-                    
+
                     if (!string.IsNullOrEmpty(targetDllPath) && File.Exists(targetDllPath))
                     {
                         logBuilder.AppendLine($"[启动流程] 准备注入 DLL: {targetDllPath}");
@@ -299,7 +297,7 @@ namespace FufuLauncher.Services
                 return result;
             }
         }
-        
+
         private StringBuilder BuildLaunchArguments(GameConfig config)
         {
             var args = new StringBuilder();
@@ -331,7 +329,7 @@ namespace FufuLauncher.Services
 
             return args;
         }
-        
+
         private bool StartGameNormally(string exePath, string args, string workingDir, StringBuilder log)
         {
             try

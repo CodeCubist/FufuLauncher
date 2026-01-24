@@ -139,14 +139,14 @@ public partial class App : Application
             MainWindow.Activate();
         });
     }
-    
+
     private void LaunchLocalUpdater()
     {
         try
         {
             var baseDir = AppContext.BaseDirectory;
             var updaterPath = Path.Combine(baseDir, "update", "update.exe");
-            
+
             if (!File.Exists(updaterPath))
             {
                 Debug.WriteLine($"[Updater] 未找到更新程序: {updaterPath}");
@@ -158,7 +158,7 @@ public partial class App : Application
             var startInfo = new ProcessStartInfo
             {
                 FileName = updaterPath,
-                Arguments = "1.0.6",
+                Arguments = "1.0.7",
                 UseShellExecute = true,
                 Verb = "runas",
                 WorkingDirectory = Path.GetDirectoryName(updaterPath)
@@ -244,12 +244,12 @@ public partial class App : Application
             Debug.WriteLine("=== App 启动开始 ===");
 
             _mainDispatcherQueue = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
-            
+
             _ = Task.Run(() => LaunchLocalUpdater());
-            
+
             await VerifyResourceFilesAsync();
             await ApplyLanguageSettingAsync();
-            
+
             // Initialize default theme to Dark if not set
             await SetDefaultThemeAsync();
 
@@ -274,7 +274,7 @@ public partial class App : Application
                     Debug.WriteLine($"启动语音播放失败: {ex.Message}");
                 }
             });
-            
+
             _ = Task.Run(async () =>
             {
                 try
@@ -334,21 +334,21 @@ public partial class App : Application
     // New helper method to force default Dark theme
     private async Task SetDefaultThemeAsync()
     {
-        try 
+        try
         {
             var localSettings = GetService<ILocalSettingsService>();
             // Check if we have already initialized the theme preference
             var isThemeInitialized = await localSettings.ReadSettingAsync("IsThemeInitialized");
-            
+
             // If null, this is the first run (or first run after this update)
             if (isThemeInitialized == null)
             {
                 Debug.WriteLine("Initializing default theme to Dark.");
                 var themeService = GetService<IThemeSelectorService>();
-                
+
                 // Force the theme service to set Dark mode
                 await themeService.SetThemeAsync(ElementTheme.Dark);
-                
+
                 // Mark as initialized so we don't overwrite user preference later
                 await localSettings.SaveSettingAsync("IsThemeInitialized", true);
             }
@@ -449,14 +449,14 @@ public partial class App : Application
     }
     private async Task VerifyResourceFilesAsync()
     {
-        try 
+        try
         {
             var resourceManager = new Microsoft.Windows.ApplicationModel.Resources.ResourceManager();
 
             var resourceMap = resourceManager.MainResourceMap;
 
             var resourceCandidate = resourceMap.GetValue("AppDisplayName");
-    
+
             if (resourceCandidate != null)
             {
                 var test = resourceCandidate.ValueAsString;

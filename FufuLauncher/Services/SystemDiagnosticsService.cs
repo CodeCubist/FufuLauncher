@@ -66,7 +66,7 @@ public class SystemDiagnosticsService
                         break;
                     }
                 }
-                
+
                 using (var searcher = new ManagementObjectSearcher("select Capacity from Win32_PhysicalMemory"))
                 {
                     long totalCapacity = 0;
@@ -79,7 +79,7 @@ public class SystemDiagnosticsService
                     }
                     info.TotalMemory = $"{totalCapacity / (1024 * 1024 * 1024)} GB";
                 }
-                
+
                 using (var searcher = new ManagementObjectSearcher("select Name from Win32_VideoController"))
                 {
                     foreach (var item in searcher.Get())
@@ -88,7 +88,7 @@ public class SystemDiagnosticsService
                         if (info.GpuName.Contains("NVIDIA") || info.GpuName.Contains("AMD")) break;
                     }
                 }
-                
+
                 DEVMODE dm = new DEVMODE();
                 dm.dmSize = (short)Marshal.SizeOf(typeof(DEVMODE));
 
@@ -97,7 +97,7 @@ public class SystemDiagnosticsService
                     info.ScreenResolution = $"{dm.dmPelsWidth} x {dm.dmPelsHeight}";
                     info.CurrentRefreshRate = $"{dm.dmDisplayFrequency} Hz";
                 }
-                
+
                 int maxHz = 0;
                 int i = 0;
                 while (EnumDisplaySettings(null, i, ref dm))
@@ -109,7 +109,7 @@ public class SystemDiagnosticsService
                     i++;
                 }
                 info.MaxRefreshRate = maxHz > 0 ? $"{maxHz} Hz" : "无法检测";
-                
+
                 info.Suggestion = GenerateSuggestion(info);
             }
             catch (Exception ex)
@@ -125,7 +125,7 @@ public class SystemDiagnosticsService
     private string GenerateSuggestion(SystemDiagnosticsInfo info)
     {
         var suggestions = new List<string>();
-        
+
         if (int.TryParse(info.CurrentRefreshRate.Replace(" Hz", ""), out int currentHz) &&
             int.TryParse(info.MaxRefreshRate.Replace(" Hz", ""), out int maxHz))
         {
@@ -140,7 +140,7 @@ public class SystemDiagnosticsService
         }
 
         if (suggestions.Count == 0) return "正常";
-        
+
         return string.Join("\n", suggestions);
     }
 }

@@ -5,7 +5,10 @@ namespace FufuLauncher.Views;
 
 public sealed partial class GenshinDataWindow : WindowEx
 {
-    public GenshinViewModel ViewModel { get; }
+    public GenshinViewModel ViewModel
+    {
+        get;
+    }
     private bool _isFirstActivation = true;
 
     public GenshinDataWindow()
@@ -18,10 +21,10 @@ public sealed partial class GenshinDataWindow : WindowEx
         ExtendsContentIntoTitleBar = true;
         AppWindow.Resize(new Windows.Graphics.SizeInt32(1100, 720));
         this.CenterOnScreen();
-        
+
         this.Activated += GenshinDataWindow_Activated;
     }
-    
+
     private async void GenshinDataWindow_Activated(object sender, WindowActivatedEventArgs args)
     {
         if (_isFirstActivation && args.WindowActivationState != WindowActivationState.Deactivated)
@@ -30,7 +33,7 @@ public sealed partial class GenshinDataWindow : WindowEx
             await TryLoadDataAsync();
         }
     }
-    
+
     private async void RootGrid_Loaded(object sender, RoutedEventArgs e)
     {
         if (_isFirstActivation)

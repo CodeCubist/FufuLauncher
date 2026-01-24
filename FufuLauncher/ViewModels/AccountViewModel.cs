@@ -14,13 +14,13 @@ public partial class AccountViewModel : ObservableRecipient
 {
     private readonly IUserInfoService _userInfoService;
     private readonly IUserConfigService _userConfigService;
-    private const int MaxAccounts = 4; 
-    
-    [ObservableProperty] 
+    private const int MaxAccounts = 4;
+
+    [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsLoggedIn))]
     [NotifyPropertyChangedFor(nameof(IsNotLoggedIn))]
     private AccountInfo? _currentAccount;
-    
+
     public bool IsLoggedIn => CurrentAccount != null;
     public bool IsNotLoggedIn => CurrentAccount == null;
 
@@ -33,12 +33,30 @@ public partial class AccountViewModel : ObservableRecipient
 
     [ObservableProperty] private ObservableCollection<AccountInfo> _savedAccounts = new();
 
-    public IRelayCommand LoginCommand { get; }
-    public IRelayCommand LogoutCommand { get; }
-    public IRelayCommand LoadUserInfoCommand { get; }
-    public IRelayCommand OpenGenshinDataCommand { get; }
-    public IRelayCommand AddAccountCommand { get; }
-    public IRelayCommand<AccountInfo> SwitchAccountCommand { get; }
+    public IRelayCommand LoginCommand
+    {
+        get;
+    }
+    public IRelayCommand LogoutCommand
+    {
+        get;
+    }
+    public IRelayCommand LoadUserInfoCommand
+    {
+        get;
+    }
+    public IRelayCommand OpenGenshinDataCommand
+    {
+        get;
+    }
+    public IRelayCommand AddAccountCommand
+    {
+        get;
+    }
+    public IRelayCommand<AccountInfo> SwitchAccountCommand
+    {
+        get;
+    }
     private readonly INavigationService _navigationService;
 
     public AccountViewModel(
@@ -67,7 +85,7 @@ public partial class AccountViewModel : ObservableRecipient
 
         _navigationService.NavigateTo(typeof(GachaViewModel).FullName!);
     }
-    
+
 
     private async Task OpenGenshinDataAsync()
     {
@@ -200,7 +218,7 @@ public partial class AccountViewModel : ObservableRecipient
         await ArchiveCurrentAccountAsync();
         var configPath = Path.Combine(AppContext.BaseDirectory, "config.json");
         if (File.Exists(configPath)) File.Delete(configPath);
-        
+
         CurrentAccount = null;
         GameRolesInfo = null;
         UserFullInfo = null;
@@ -375,8 +393,8 @@ public partial class AccountViewModel : ObservableRecipient
                 var baseDir = AppContext.BaseDirectory;
                 var backupPath = Path.Combine(baseDir, $"config_{CurrentAccount.GameUid}.json");
                 var displayPath = Path.Combine(baseDir, $"display_{CurrentAccount.GameUid}.json");
-                if(File.Exists(backupPath)) File.Delete(backupPath);
-                if(File.Exists(displayPath)) File.Delete(displayPath);
+                if (File.Exists(backupPath)) File.Delete(backupPath);
+                if (File.Exists(displayPath)) File.Delete(displayPath);
             }
 
             await _userConfigService.SaveDisplayConfigAsync(new UserDisplayConfig());
@@ -407,7 +425,7 @@ public partial class AccountViewModel : ObservableRecipient
             UserFullInfo = null;
             LoginButtonText = "登录米游社";
             StatusMessage = "已退出登录";
-            
+
             await LoadSavedAccountsListAsync();
         }
         catch (Exception ex)

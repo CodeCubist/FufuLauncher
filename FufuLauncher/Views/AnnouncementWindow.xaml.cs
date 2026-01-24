@@ -1,8 +1,8 @@
 ﻿using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.Web.WebView2.Core;
 using Windows.Graphics;
-using Microsoft.Web.WebView2.Core; 
 
 namespace FufuLauncher.Views;
 
@@ -11,14 +11,14 @@ public sealed partial class AnnouncementWindowL : Window
     public AnnouncementWindowL(string url)
     {
         InitializeComponent();
-        
+
         Title = "公告";
-        
+
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);
-        
+
         SetWindowSizeAndCenter();
-        
+
         if (Uri.TryCreate(url, UriKind.Absolute, out var uri))
         {
             AnnouncementWebView.Source = uri;
@@ -34,11 +34,11 @@ public sealed partial class AnnouncementWindowL : Window
         if (appWindow != null)
         {
             var displayArea = DisplayArea.GetFromWindowId(windowId, DisplayAreaFallback.Primary);
-            
+
             int newWidth = (int)(displayArea.WorkArea.Width * 0.6);
             int newHeight = (int)(displayArea.WorkArea.Height * 0.75);
 
-            newWidth = Math.Max(newWidth, 800); 
+            newWidth = Math.Max(newWidth, 800);
             newHeight = Math.Max(newHeight, 600);
 
             int x = (displayArea.WorkArea.Width - newWidth) / 2;

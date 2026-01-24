@@ -7,20 +7,29 @@ namespace FufuLauncher.Views;
 
 public sealed partial class PluginPage : Page
 {
-    public PluginViewModel ViewModel { get; }
-    
-    public MainViewModel MainViewModel { get; }
-    public ControlPanelModel ControlPanelViewModel { get; }
+    public PluginViewModel ViewModel
+    {
+        get;
+    }
+
+    public MainViewModel MainViewModel
+    {
+        get;
+    }
+    public ControlPanelModel ControlPanelViewModel
+    {
+        get;
+    }
 
     public PluginPage()
     {
         ViewModel = App.GetService<PluginViewModel>();
         MainViewModel = App.GetService<MainViewModel>();
         ControlPanelViewModel = App.GetService<ControlPanelModel>();
-        
+
         InitializeComponent();
     }
-    
+
     private void Page_Loaded(object sender, RoutedEventArgs e)
     {
         EntranceStoryboard.Begin();
@@ -43,7 +52,7 @@ public sealed partial class PluginPage : Page
             }
         }
     }
-    
+
     private void OnConfigClick(object sender, RoutedEventArgs e)
     {
         if (sender is Button btn && btn.Tag is PluginItem item && item.HasConfig)
@@ -57,7 +66,7 @@ public sealed partial class PluginPage : Page
         if (sender is MenuFlyoutItem item && item.Tag is PluginItem pluginItem)
         {
             var currentFolderName = new DirectoryInfo(pluginItem.DirectoryPath).Name;
-            
+
             var dialog = new ContentDialog
             {
                 Title = "重命名插件文件夹",

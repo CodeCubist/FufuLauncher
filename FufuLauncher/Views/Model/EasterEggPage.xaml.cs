@@ -10,7 +10,7 @@ public sealed partial class EasterEggPage : Page
 {
     private const string VideoFileName = "BgVideo.mp4";
     private const string MusicFileName = "BgMusic.wav";
-    private const string HardcodedName = "■■■■■"; 
+    private const string HardcodedName = "■■■■■";
 
     private readonly List<string> _welcomeLines = new()
     {
@@ -37,7 +37,7 @@ public sealed partial class EasterEggPage : Page
         "就像永不褪色的麦浪，就像触手可及的黎明。",
         $"{HardcodedName}，我回来啦♪"
     };
-    
+
     private DispatcherTimer _typewriterTimer;
     private MediaPlayer _musicPlayer;
     private int _currentWelcomeIndex = 0;
@@ -51,7 +51,7 @@ public sealed partial class EasterEggPage : Page
     public EasterEggPage()
     {
         this.InitializeComponent();
-        
+
         InitializeMedia();
         StartTypewriter();
         ShowRandomSyaLine();
@@ -65,7 +65,7 @@ public sealed partial class EasterEggPage : Page
             BgVideoPlayer.MediaPlayer.Play();
         }
     }
-    
+
     private void Page_Unloaded(object sender, RoutedEventArgs e)
     {
         Cleanup();
@@ -73,20 +73,20 @@ public sealed partial class EasterEggPage : Page
 
     private void InitializeMedia()
     {
-        try 
+        try
         {
             string baseDir = AppContext.BaseDirectory;
             string assetsDir = Path.Combine(baseDir, "Assets");
-            
+
             string videoPath = Path.Combine(assetsDir, VideoFileName);
             if (File.Exists(videoPath))
             {
                 var source = MediaSource.CreateFromUri(new Uri(videoPath));
                 BgVideoPlayer.Source = source;
-                
+
                 BgVideoPlayer.MediaPlayer.MediaOpened += (_, _) =>
                 {
-                    DispatcherQueue.TryEnqueue(() => 
+                    DispatcherQueue.TryEnqueue(() =>
                     {
                         if (BgVideoPlayer.MediaPlayer != null)
                         {
@@ -95,10 +95,10 @@ public sealed partial class EasterEggPage : Page
                         }
                     });
                 };
-                
-                BgVideoPlayer.AutoPlay = true; 
+
+                BgVideoPlayer.AutoPlay = true;
             }
-            
+
             string musicPath = Path.Combine(assetsDir, MusicFileName);
             if (File.Exists(musicPath))
             {
@@ -129,7 +129,7 @@ public sealed partial class EasterEggPage : Page
         if (_isPaused)
         {
             _pauseTicks++;
-            if (_pauseTicks > 25) 
+            if (_pauseTicks > 25)
             {
                 _isPaused = false;
                 _isDeleting = true;
@@ -172,11 +172,11 @@ public sealed partial class EasterEggPage : Page
     {
         var random = new Random();
         var line = _syaLines[random.Next(_syaLines.Count)];
-        
+
         if (string.IsNullOrWhiteSpace(line)) line = _syaLines[0];
 
         SyaShortText.Text = line;
-        
+
         var anim = new DoubleAnimation
         {
             From = 0,
@@ -184,14 +184,14 @@ public sealed partial class EasterEggPage : Page
             Duration = new Duration(TimeSpan.FromSeconds(3)),
             EasingFunction = new SineEase()
         };
-        
+
         var storyboard = new Storyboard();
         Storyboard.SetTarget(anim, SyaShortText);
         Storyboard.SetTargetProperty(anim, "Opacity");
         storyboard.Children.Add(anim);
         storyboard.Begin();
     }
-    
+
     public void Cleanup()
     {
         try
@@ -211,7 +211,7 @@ public sealed partial class EasterEggPage : Page
                 BgVideoPlayer.MediaPlayer.Pause();
                 BgVideoPlayer.MediaPlayer.Dispose();
 
-                BgVideoPlayer.Source = null; 
+                BgVideoPlayer.Source = null;
             }
         }
         catch (Exception ex)

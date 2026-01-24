@@ -1,6 +1,6 @@
-﻿using Microsoft.UI.Xaml.Controls;
+﻿using System.Text.Json;
 using Microsoft.UI.Xaml;
-using System.Text.Json;
+using Microsoft.UI.Xaml.Controls;
 using Microsoft.Web.WebView2.Core;
 
 namespace FufuLauncher.Views
@@ -25,26 +25,26 @@ namespace FufuLauncher.Views
                 AnnouncementWebView.DefaultBackgroundColor = Windows.UI.Color.FromArgb(0, 0, 0, 0);
 
                 var core = AnnouncementWebView.CoreWebView2;
-                
-                core.FrameNavigationStarting += (s, args) => 
+
+                core.FrameNavigationStarting += (s, args) =>
                 {
-                    if (HandleUniWebView(args.Uri)) 
+                    if (HandleUniWebView(args.Uri))
                     {
                         args.Cancel = true;
                     }
                 };
-                
-                core.NavigationStarting += (s, args) => 
+
+                core.NavigationStarting += (s, args) =>
                 {
-                    if (HandleUniWebView(args.Uri)) 
+                    if (HandleUniWebView(args.Uri))
                     {
                         args.Cancel = true;
                     }
                 };
-                
+
                 core.NewWindowRequested += (s, args) =>
                 {
-                    if (HandleUniWebView(args.Uri)) 
+                    if (HandleUniWebView(args.Uri))
                     {
                         args.Handled = true;
                     }
@@ -59,11 +59,11 @@ namespace FufuLauncher.Views
                 LoadingBar.Visibility = Visibility.Collapsed;
             }
         }
-        
+
         private bool HandleUniWebView(string uriString)
         {
             if (string.IsNullOrEmpty(uriString)) return false;
-            
+
             if (uriString.StartsWith("uniwebview://", StringComparison.OrdinalIgnoreCase))
             {
                 if (uriString.Equals("uniwebview://close", StringComparison.OrdinalIgnoreCase) ||
@@ -71,8 +71,8 @@ namespace FufuLauncher.Views
                     uriString.StartsWith("uniwebview://close?", StringComparison.OrdinalIgnoreCase))
                 {
                     System.Diagnostics.Debug.WriteLine("【捕获关闭指令】正在关闭窗口...");
-                    
-                    this.DispatcherQueue.TryEnqueue(() => 
+
+                    this.DispatcherQueue.TryEnqueue(() =>
                     {
                         CloseRequested?.Invoke();
                     });
@@ -127,8 +127,14 @@ namespace FufuLauncher.Views
 
         private class WebDimensions
         {
-            public double width { get; set; }
-            public double height { get; set; }
+            public double width
+            {
+                get; set;
+            }
+            public double height
+            {
+                get; set;
+            }
         }
     }
 }

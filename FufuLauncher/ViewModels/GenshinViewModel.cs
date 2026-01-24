@@ -20,14 +20,20 @@ public class GenshinViewModel : INotifyPropertyChanged
     public string Uid
     {
         get => _uid;
-        set { _uid = value; OnPropertyChanged(); }
+        set
+        {
+            _uid = value; OnPropertyChanged();
+        }
     }
 
     private string _nickname = string.Empty;
     public string Nickname
     {
         get => _nickname;
-        set { _nickname = value; OnPropertyChanged(); }
+        set
+        {
+            _nickname = value; OnPropertyChanged();
+        }
     }
 
     private TravelersDiarySummary? _travelersDiary;
@@ -44,7 +50,7 @@ public class GenshinViewModel : INotifyPropertyChanged
             OnPropertyChanged(nameof(IncomeSources));
         }
     }
-    
+
     public string FormattedDate => _travelersDiary?.Data?.Date ?? "--";
     public string FormattedMonthPrimogems => _travelersDiary?.Data?.MonthData?.CurrentPrimogems.ToString("N0") ?? "0";
     public string FormattedMonthMora => _travelersDiary?.Data?.MonthData?.CurrentMora.ToString("N0") ?? "0";
@@ -54,14 +60,20 @@ public class GenshinViewModel : INotifyPropertyChanged
     public bool IsLoading
     {
         get => _isLoading;
-        set { _isLoading = value; OnPropertyChanged(); }
+        set
+        {
+            _isLoading = value; OnPropertyChanged();
+        }
     }
 
     private string _statusMessage = "等待加载数据...";
     public string StatusMessage
     {
         get => _statusMessage;
-        set { _statusMessage = value; OnPropertyChanged(); }
+        set
+        {
+            _statusMessage = value; OnPropertyChanged();
+        }
     }
 
     public List<IncomeSourceViewModel> IncomeSources
@@ -84,7 +96,10 @@ public class GenshinViewModel : INotifyPropertyChanged
         }
     }
 
-    public IAsyncRelayCommand LoadDataCommand { get; }
+    public IAsyncRelayCommand LoadDataCommand
+    {
+        get;
+    }
 
     public event PropertyChangedEventHandler? PropertyChanged;
     protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
@@ -181,8 +196,14 @@ public class GenshinViewModel : INotifyPropertyChanged
 public class IncomeSourceViewModel
 {
     public string Action { get; set; } = "";
-    public int Num { get; set; }
-    public int Percent { get; set; }
+    public int Num
+    {
+        get; set;
+    }
+    public int Percent
+    {
+        get; set;
+    }
     public string FormattedPercent => $"{Percent}%";
     public string Color { get; set; } = "#000000";
 }
