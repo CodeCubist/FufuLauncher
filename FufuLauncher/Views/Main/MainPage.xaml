@@ -315,6 +315,13 @@
                     CornerRadius="24"
                     Translation="0,0,32">
                 
+                <Button.ContextFlyout>
+                    <MenuFlyout>
+                        <MenuFlyoutItem Text="切换到 Bilibili 服" Click="SwitchToBilibili_Click" Icon="Switch" />
+                        <MenuFlyoutItem Text="切换到 官方服务器" Click="SwitchToOfficial_Click" Icon="Switch" />
+                    </MenuFlyout>
+                </Button.ContextFlyout>
+                
                 <Button.Shadow>
                     <ThemeShadow /> 
                 </Button.Shadow>

@@ -1,105 +1,155 @@
-﻿using System.Globalization;
-using System.Runtime.InteropServices.WindowsRuntime;
+﻿using System.Runtime.InteropServices.WindowsRuntime;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
+using Windows.ApplicationModel.DataTransfer;
 using Microsoft.UI;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using Microsoft.Web.WebView2.Core;
 using Windows.Graphics;
+using Windows.Storage;
+using Windows.Storage.Pickers;
+using Windows.Storage.Streams;
+using Microsoft.UI.Xaml.Media.Imaging;
 
 namespace FufuLauncher.Views
 {
     public sealed partial class BBSWindow : Window
     {
         private AppWindow m_AppWindow;
-
         private string ConfigPath => Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "config.json");
-        private const string AppVersion = "2.90.1";
-        private const string ClientType = "5";
-        private const string ApiSalt = "t0qEgfub6cvueAPgR5m9aQWWVciEer7v";
-        private const string ApiSalt2 = "xV8v4Qu54lUKrEYFZkJhB8cuOh9Asafs";
-        private const string TargetUrl = "https://webstatic.mihoyo.com/app/community-game-records/index.html?bbs_presentation_style=fullscreen&game_id=2#/ys";
-        private Dictionary<string, string> cookieDic = new();
-        private string _deviceId;
+        
+        private byte[] _screenshotBytes;
+        private class ClientConfig
+        {
+            public string ClientType { get; set; }     // x-rpc-client_type
+            public string AppVersion { get; set; }     // x-rpc-app_version
+            public string Salt { get; set; }           // Salt
+            public string UserAgent { get; set; }      // UA
+            public string DeviceModel { get; set; }    
+            public string SysVersion { get; set; }     
+            public bool UseDS2 { get; set; }           // 是否使用DS2
+        }
+        
+        private readonly Dictionary<string, ClientConfig> _clientConfigs = new()
+        {
+            ["2"] = new ClientConfig 
+            {
+                ClientType = "2",
+                AppVersion = "2.71.1", 
+                Salt = "rtvTthKxEyreVXQCnhluFgLXPOFKPHlA", 
+                UserAgent = "Mozilla/5.0 (Linux; Android 12; Unspecified Device) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/103.0.5060.129 Mobile Safari/537.36 miHoYoBBS/2.71.1",
+                DeviceModel = "Mi 6",
+                SysVersion = "12",
+                UseDS2 = false
+            },
+            ["4"] = new ClientConfig 
+            {
+                ClientType = "4",
+                AppVersion = "2.71.1", 
+                Salt = "EJncUPGnOHajenjLhBOsdpwEMZmiCmQX", 
+                UserAgent = "Mozilla/5.0 (Linux; Android 12; Unspecified Device) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/103.0.5060.129 Mobile Safari/537.36 miHoYoBBS/2.71.1",
+                DeviceModel = "Mi 6",
+                SysVersion = "12",
+                UseDS2 = false
+            },
+            ["5"] = new ClientConfig 
+            {
+                ClientType = "5",
+                AppVersion = "2.71.1",
+                Salt = "xV8v4Qu54lUKrEYFZkJhB8cuOh9Asafs", 
+                UserAgent = "Mozilla/5.0 (Linux; Android 12; Unspecified Device) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/103.0.5060.129 Mobile Safari/537.36 miHoYoBBS/2.71.1",
+                DeviceModel = "Mi 6",
+                SysVersion = "12",
+                UseDS2 = true
+            }
+        };
 
+        private ClientConfig _currentConfig;
+        private string _deviceId;
+        private Dictionary<string, string> cookieDic = new();
+
+        private const string DefaultUrl = "https://webstatic.mihoyo.com/app/community-game-records/index.html?bbs_presentation_style=fullscreen&game_id=2";
+
+        private const string HideScrollBarScript = """
+                                                   (function() {
+                                                       const injectStyles = () => {
+                                                           if (document.getElementById('fufu-no-scroll')) return;
+                                                           const style = document.createElement('style');
+                                                           style.id = 'fufu-no-scroll';
+                                                           style.innerHTML = `
+                                                               .container {
+                                                                   overflow: auto !important;
+                                                                   -ms-overflow-style: none !important;
+                                                                   scrollbar-width: none !important;
+                                                               }
+                                                               .container::-webkit-scrollbar, 
+                                                               *::-webkit-scrollbar {
+                                                                   display: none !important;
+                                                                   width: 0 !important;
+                                                                   height: 0 !important;
+                                                               }
+                                                           `;
+                                                           document.documentElement.appendChild(style);
+                                                       };
+                                                       injectStyles();
+                                                       const observer = new MutationObserver(() => { injectStyles(); });
+                                                       observer.observe(document.documentElement, { childList: true, subtree: true });
+                                                       setTimeout(injectStyles, 3000);
+                                                   })();
+                                                   """;
+        
         private const string miHoYoJSInterface = """
             if (window.MiHoYoJSInterface === undefined) {
                 window.MiHoYoJSInterface = {
-                    postMessage: function(arg) { window.chrome.webview.postMessage(arg) },
+                    postMessage: function(arg) { chrome.webview.postMessage(arg) },
                     closePage: function() { this.postMessage('{"method":"closePage"}') },
                 };
             }
-            """;
-
-        private const string HideScrollBarScript = """
-            (function() {
-                const injectStyles = () => {
-                    if (document.getElementById('fufu-no-scroll')) return;
-                    const style = document.createElement('style');
-                    style.id = 'fufu-no-scroll';
-                    style.innerHTML = `
-                        .container {
-                            overflow: auto !important;
-                            -ms-overflow-style: none !important;
-                            scrollbar-width: none !important;
-                        }
-                        .container::-webkit-scrollbar, 
-                        *::-webkit-scrollbar {
-                            display: none !important;
-                            width: 0 !important;
-                            height: 0 !important;
-                        }
-                    `;
-                    document.documentElement.appendChild(style);
-                };
-            
-                injectStyles();
-            
-                const observer = new MutationObserver(() => {
-                    injectStyles();
-                });
-                observer.observe(document.documentElement, { childList: true, subtree: true });
-            
-                setTimeout(injectStyles, 3000);
-            })();
             """;
 
         public BBSWindow()
         {
             InitializeComponent();
             _deviceId = GetMachineGuid();
+            _currentConfig = _clientConfigs["2"]; 
+            
             InitializeWindowStyle();
+            UrlTextBox.Text = DefaultUrl;
             _ = InitializeWebViewAsync();
         }
 
         private void InitializeWindowStyle()
         {
             m_AppWindow = AppWindow;
-            
             var displayArea = DisplayArea.GetFromWindowId(m_AppWindow.Id, DisplayAreaFallback.Primary);
-            var screenHeight = displayArea.WorkArea.Height;
-            var screenWidth = displayArea.WorkArea.Width;
-
-            var targetHeight = (int)(screenHeight * 0.8);
-            var targetWidth = (int)(targetHeight * 9.0 / 16.0);
-            
-            if (targetWidth > screenWidth)
+            if (displayArea != null)
             {
-                targetWidth = (int)(screenWidth * 0.9);
-                targetHeight = (int)(targetWidth * 16.0 / 9.0);
+                var screenHeight = displayArea.WorkArea.Height;
+                var screenWidth = displayArea.WorkArea.Width;
+                
+                var targetHeight = (int)(screenHeight * 0.8);
+                var targetWidth = (int)(targetHeight * 9.0 / 16.0);
+                
+                if (targetWidth > screenWidth)
+                {
+                    targetWidth = (int)(screenWidth * 0.9);
+                    targetHeight = (int)(targetWidth * 16.0 / 9.0);
+                }
+                
+                m_AppWindow.Resize(new SizeInt32(targetWidth, targetHeight));
+                
+                var centeredPosition = new PointInt32(
+                    (displayArea.WorkArea.Width - targetWidth) / 2 + displayArea.WorkArea.X,
+                    (displayArea.WorkArea.Height - targetHeight) / 2 + displayArea.WorkArea.Y
+                );
+                m_AppWindow.Move(centeredPosition);
             }
-            
-            m_AppWindow.Resize(new SizeInt32(targetWidth, targetHeight));
-            
-            var centeredPosition = new PointInt32(
-                (displayArea.WorkArea.Width - targetWidth) / 2 + displayArea.WorkArea.X,
-                (displayArea.WorkArea.Height - targetHeight) / 2 + displayArea.WorkArea.Y
-            );
-            m_AppWindow.Move(centeredPosition);
             
             if (AppTitleBar != null)
             {
@@ -115,45 +165,23 @@ namespace FufuLauncher.Views
             try
             {
                 await BBSWebView.EnsureCoreWebView2Async();
-
-                var settings = BBSWebView.CoreWebView2.Settings;
-                settings.UserAgent = $"Mozilla/5.0 (Linux; Android 13; Pixel 5) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/118.0.0.0 Mobile Safari/537.36 miHoYoBBS/{AppVersion}";
-                settings.IsStatusBarEnabled = false;
-                settings.IsZoomControlEnabled = false;
-
-                var cookieToLoad = "";
-                try
-                {
-                    if (File.Exists(ConfigPath))
-                    {
-                        var jsonString = File.ReadAllText(ConfigPath);
-                        var config = JsonSerializer.Deserialize<AppConfig>(jsonString);
-                        cookieToLoad = config?.Account.Cookie ?? "";
-                    }
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"Read Config Failed: {ex.Message}");
-                }
-
-                if (!string.IsNullOrEmpty(cookieToLoad))
-                {
-                    ParseCookie(cookieToLoad);
-                    InjectCookieToWebView();
-                }
-                InjectCookieToWebView();
                 
-                await BBSWebView.CoreWebView2.AddScriptToExecuteOnDocumentCreatedAsync(miHoYoJSInterface);
-                await BBSWebView.CoreWebView2.AddScriptToExecuteOnDocumentCreatedAsync(HideScrollBarScript);
+                UpdateWebViewSettings();
+                
+                BBSWebView.CoreWebView2.AddWebResourceRequestedFilter("*://*.mihoyo.com/*", CoreWebView2WebResourceContext.All);
+                BBSWebView.CoreWebView2.AddWebResourceRequestedFilter("*://*.miyoushe.com/*", CoreWebView2WebResourceContext.All);
+                
+                BBSWebView.CoreWebView2.WebResourceRequested += CoreWebView2_WebResourceRequested;
+                BBSWebView.CoreWebView2.NavigationStarting += CoreWebView2_NavigationStarting;
+                BBSWebView.CoreWebView2.WebMessageReceived += CoreWebView2_WebMessageReceived;
+                BBSWebView.CoreWebView2.SourceChanged += CoreWebView2_SourceChanged;
 
+                await BBSWebView.CoreWebView2.AddScriptToExecuteOnDocumentCreatedAsync(HideScrollBarScript);
                 BBSWebView.NavigationCompleted += async (_, _) =>
                 {
                     await BBSWebView.CoreWebView2.ExecuteScriptAsync(HideScrollBarScript);
                 };
-
-                BBSWebView.CoreWebView2.WebMessageReceived += CoreWebView2_WebMessageReceived;
-
-                BBSWebView.CoreWebView2.Navigate(TargetUrl);
+                await LoadPageAsync(DefaultUrl);
             }
             catch (Exception ex)
             {
@@ -161,65 +189,93 @@ namespace FufuLauncher.Views
             }
         }
 
-        private void ParseCookie(string cookieStr)
+        private void UpdateWebViewSettings()
         {
-            cookieDic.Clear();
-            if (string.IsNullOrWhiteSpace(cookieStr)) return;
-            var parts = cookieStr.Split(';', StringSplitOptions.RemoveEmptyEntries);
-            foreach (var item in parts)
+            if (BBSWebView != null && BBSWebView.CoreWebView2 != null)
             {
-                var kv = item.Split('=', 2);
-                if (kv.Length == 2)
-                {
-                    var key = kv[0].Trim();
-                    var value = kv[1].Trim();
-                    if (!string.IsNullOrEmpty(key)) cookieDic[key] = value;
-                }
+                BBSWebView.CoreWebView2.Settings.UserAgent = _currentConfig.UserAgent;
             }
         }
-
-        private void InjectCookieToWebView()
+        
+        private async void CoreWebView2_WebResourceRequested(CoreWebView2 sender, CoreWebView2WebResourceRequestedEventArgs args)
         {
-            var manager = BBSWebView.CoreWebView2.CookieManager;
-            foreach (var kv in cookieDic)
-            {
-                var cookie = manager.CreateCookie(kv.Key, kv.Value, ".mihoyo.com", "/");
-                manager.AddOrUpdateCookie(cookie);
-                var cookieStatic = manager.CreateCookie(kv.Key, kv.Value, "webstatic.mihoyo.com", "/");
-                manager.AddOrUpdateCookie(cookieStatic);
-            }
-        }
-
-        private async void CoreWebView2_WebMessageReceived(CoreWebView2 sender, CoreWebView2WebMessageReceivedEventArgs args)
-        {
+            var deferral = args.GetDeferral();
             try
             {
-                string message = args.TryGetWebMessageAsString();
-                if (string.IsNullOrEmpty(message)) return;
-
-                var param = JsonSerializer.Deserialize<JsParam>(message);
-                if (param == null) return;
-
-                JsResult? result = await HandleJsMessageAsync(param);
-
-                if (!string.IsNullOrEmpty(param.Callback))
+                var uri = args.Request.Uri;
+                if (uri.Contains("mihoyo.com") || uri.Contains("miyoushe.com"))
                 {
-                    await ExecuteCallback(param.Callback, result);
+                    var headers = args.Request.Headers;
+                    headers.RemoveHeader("x-rpc-client_type");
+                    headers.RemoveHeader("DS");
+                    
+                    headers.SetHeader("x-rpc-client_type", _currentConfig.ClientType);
+                    headers.SetHeader("x-rpc-app_version", _currentConfig.AppVersion);
+                    headers.SetHeader("x-rpc-device_id", _deviceId);
+                    headers.SetHeader("x-rpc-device_model", _currentConfig.DeviceModel);
+                    headers.SetHeader("x-rpc-sys_version", _currentConfig.SysVersion);
+                    headers.SetHeader("x-rpc-channel", "miyoushe");
+
+                    if (cookieDic.TryGetValue("DEVICEFP", out var fp) && !string.IsNullOrWhiteSpace(fp))
+                    {
+                        headers.SetHeader("x-rpc-device_fp", fp);
+                    }
+                    
+                    string ds;
+                    if (_currentConfig.UseDS2)
+                    {
+                        string query = GetSortedQuery(uri);
+                        string body = "";
+                        if (args.Request.Method == "POST" && args.Request.Content != null)
+                        {
+                            body = await GetJsonBodyAsync(args.Request.Content);
+                        }
+                        ds = CalculateDS2(_currentConfig.Salt, query, body);
+                    }
+                    else
+                    {
+                        ds = CalculateDS1(_currentConfig.Salt);
+                    }
+
+                    headers.SetHeader("DS", ds);
                 }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"JS Bridge Error: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"DS Injection Error: {ex.Message}");
+            }
+            finally
+            {
+                deferral.Complete();
             }
         }
-
+        
         private async Task<JsResult?> HandleJsMessageAsync(JsParam param)
         {
+            if (param.Method == "getDS" || param.Method == "getDS2")
+            {
+                string ds;
+                if (_currentConfig.UseDS2)
+                {
+                    string q = "", b = "";
+                    if (param.Payload != null)
+                    {
+                        if (param.Payload["query"] != null) q = param.Payload["query"]!.ToString();
+                        if (param.Payload["body"] is JsonObject obj) b = SortJson(obj);
+                        else if (param.Payload["body"] != null) b = param.Payload["body"]!.ToString();
+                    }
+                    ds = CalculateDS2(_currentConfig.Salt, q, b);
+                }
+                else
+                {
+                    ds = CalculateDS1(_currentConfig.Salt);
+                }
+                return new JsResult { Data = new() { ["DS"] = ds } };
+            }
+
             return param.Method switch
             {
                 "closePage" => HandleClosePage(),
-                "getDS" => GetDynamicSecretV1(),
-                "getDS2" => GetDynamicSecretV2(param),
                 "getHTTPRequestHeaders" => GetHttpRequestHeader(),
                 "getCookieInfo" => new JsResult { Data = cookieDic.ToDictionary(x => x.Key, x => (object)x.Value) },
                 "getCookieToken" => new JsResult { Data = new() { ["cookie_token"] = cookieDic.GetValueOrDefault("cookie_token") ?? cookieDic.GetValueOrDefault("cookie_token_v2") ?? "" } },
@@ -228,8 +284,148 @@ namespace FufuLauncher.Views
                 "getCurrentLocale" => GetCurrentLocale(),
                 "pushPage" => HandlePushPage(param),
                 "share" => await HandleShareAsync(param),
+                "eventTrack" => null, 
+                "configure_share" => null,
                 _ => null
             };
+        }
+
+        private async Task<string> GetJsonBodyAsync(IRandomAccessStream stream)
+        {
+            try
+            {
+                using var reader = new DataReader(stream.GetInputStreamAt(0));
+                await reader.LoadAsync((uint)stream.Size);
+                var jsonStr = reader.ReadString(reader.UnconsumedBufferLength);
+                if (string.IsNullOrWhiteSpace(jsonStr)) return "";
+
+                try
+                {
+                    var jsonNode = JsonNode.Parse(jsonStr);
+                    if (jsonNode is JsonObject jsonObj) return SortJson(jsonObj);
+                    return jsonNode?.ToJsonString(new JsonSerializerOptions { WriteIndented = false }) ?? "";
+                }
+                catch { return jsonStr; }
+            }
+            catch { return ""; }
+        }
+
+        private string SortJson(JsonObject jsonObj)
+        {
+            var sortedKeys = jsonObj.Select(k => k.Key).OrderBy(k => k, StringComparer.Ordinal).ToList();
+            var sb = new StringBuilder();
+            sb.Append("{");
+            for (int i = 0; i < sortedKeys.Count; i++)
+            {
+                var key = sortedKeys[i];
+                var value = jsonObj[key];
+                sb.Append($"\"{key}\":");
+                if (value is JsonObject nestedObj) sb.Append(SortJson(nestedObj));
+                else sb.Append(value?.ToJsonString(new JsonSerializerOptions { WriteIndented = false }));
+                if (i < sortedKeys.Count - 1) sb.Append(",");
+            }
+            sb.Append("}");
+            return sb.ToString();
+        }
+
+        private string CalculateDS1(string salt)
+        {
+            var t = (int)DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            var r = GetRandomString(6);
+            var check = GetMd5($"salt={salt}&t={t}&r={r}");
+            return $"{t},{r},{check}";
+        }
+
+        private string CalculateDS2(string salt, string query, string body)
+        {
+            var t = (int)DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            var random = new Random();
+            var r = random.Next(100000, 200001);
+            if (r == 100000) r = 642367;
+            var check = GetMd5($"salt={salt}&t={t}&r={r}&b={body}&q={query}");
+            return $"{t},{r},{check}";
+        }
+
+        private string GetSortedQuery(string url)
+        {
+            try 
+            {
+                var uriObj = new Uri(url);
+                var query = uriObj.Query.TrimStart('?');
+                if (string.IsNullOrEmpty(query)) return "";
+                var dict = System.Web.HttpUtility.ParseQueryString(query);
+                if (dict.Count == 0) return "";
+                
+                var sortedKeys = dict.AllKeys.Where(k => k != null).OrderBy(k => k, StringComparer.Ordinal).ToList();
+                var sb = new StringBuilder();
+                for (int i = 0; i < sortedKeys.Count; i++)
+                {
+                    var key = sortedKeys[i];
+                    var val = dict[key];
+                    sb.Append($"{key}={val}");
+                    if (i < sortedKeys.Count - 1) sb.Append("&");
+                }
+                return sb.ToString();
+            }
+            catch { return ""; }
+        }
+
+        private static string GetRandomString(int length)
+        {
+            const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+            var random = new Random();
+            return new string(Enumerable.Repeat(chars, length).Select(s => s[random.Next(s.Length)]).ToArray());
+        }
+
+        private string GetMd5(string input)
+        {
+            var hash = MD5.HashData(Encoding.UTF8.GetBytes(input));
+            return Convert.ToHexString(hash).ToLower();
+        }
+
+        private async void CoreWebView2_NavigationStarting(CoreWebView2 sender, CoreWebView2NavigationStartingEventArgs args)
+        {
+            await BBSWebView.CoreWebView2.ExecuteScriptAsync(miHoYoJSInterface);
+        }
+
+        private void CoreWebView2_SourceChanged(CoreWebView2 sender, CoreWebView2SourceChangedEventArgs args)
+        {
+            if (UrlTextBox != null) UrlTextBox.Text = sender.Source;
+        }
+
+        private async void CoreWebView2_WebMessageReceived(CoreWebView2 sender, CoreWebView2WebMessageReceivedEventArgs args)
+        {
+            try
+            {
+                string message = args.TryGetWebMessageAsString();
+                if (string.IsNullOrEmpty(message)) return;
+                var param = JsonSerializer.Deserialize<JsParam>(message);
+                if (param == null) return;
+
+                JsResult? result = await HandleJsMessageAsync(param);
+
+                if (result != null && !string.IsNullOrEmpty(param.Callback))
+                {
+                    await ExecuteCallback(param.Callback, result);
+                }
+            }
+            catch { }
+        }
+
+        private JsResult GetHttpRequestHeader()
+        {
+            var data = new Dictionary<string, object>
+            {
+                ["x-rpc-client_type"] = _currentConfig.ClientType,
+                ["x-rpc-app_version"] = _currentConfig.AppVersion,
+                ["x-rpc-device_id"] = _deviceId,
+                ["x-rpc-sys_version"] = _currentConfig.SysVersion,
+                ["x-rpc-channel"] = "miyoushe",
+                ["x-rpc-device_name"] = _currentConfig.DeviceModel,
+                ["x-rpc-device_model"] = _currentConfig.DeviceModel
+            };
+            if (cookieDic.TryGetValue("DEVICEFP", out var fp)) data["x-rpc-device_fp"] = fp;
+            return new JsResult { Data = data };
         }
 
         private JsResult? HandleClosePage()
@@ -238,7 +434,7 @@ namespace FufuLauncher.Views
             else Close();
             return null;
         }
-
+        
         private JsResult? HandlePushPage(JsParam param)
         {
             string? url = param.Payload?["page"]?.ToString();
@@ -249,145 +445,221 @@ namespace FufuLauncher.Views
             }
             return null;
         }
-
-        private JsResult GetHttpRequestHeader()
-        {
-            return new JsResult
-            {
-                Data = new()
-                {
-                    ["x-rpc-client_type"] = ClientType,
-                    ["x-rpc-app_version"] = AppVersion,
-                    ["x-rpc-device_id"] = _deviceId,
-                    ["x-rpc-device_fp"] = cookieDic.GetValueOrDefault("DEVICEFP") ?? "38d815ced3f93"
-                }
-            };
-        }
         
-        private JsResult GetDynamicSecretV1()
+        private async Task<JsResult?> HandleShareAsync(JsParam param)
         {
-            var t = (int)DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-            var r = GetRandomString(t);
-            var check = GetMd5($"salt={ApiSalt}&t={t}&r={r}");
-            return new JsResult { Data = new() { ["DS"] = $"{t},{r},{check}" } };
-        }
-        
-        private JsResult GetDynamicSecretV2(JsParam param)
-        {
-            var t = (int)DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-            var r = Random.Shared.Next(100000, 200000).ToString();
+            string type = param.Payload?["type"]?.ToString();
             
-            var d = JsonSerializer.Deserialize<Dictionary<string, object>>(param.Payload?["query"]);
-            var b = param.Payload?["body"]?.ToString();
-            string? q = null;
-            if (d?.Any() ?? false)
+            if (type == "screenshot")
             {
-                q = string.Join('&', d.OrderBy(x => x.Key).Select(x => $"{x.Key}={x.Value}"));
+                try
+                {
+                    string resultJson = await BBSWebView.CoreWebView2.CallDevToolsProtocolMethodAsync("Page.captureScreenshot", """{"captureBeyondViewport": true}""");
+                    
+                    var node = JsonNode.Parse(resultJson);
+                    string base64 = node?["data"]?.ToString();
+            
+                    if (!string.IsNullOrEmpty(base64))
+                    {
+                        await ShowScreenshotAsync(base64);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Screenshot Failed: {ex.Message}");
+                }
             }
-            q = q?.Replace("True", "true").Replace("False", "false");
+            else if (type == "image")
+            {
+                string base64 = param.Payload?["content"]?["image_base64"]?.ToString();
+                if (!string.IsNullOrEmpty(base64))
+                {
+                    await ShowScreenshotAsync(base64);
+                }
+            }
 
-            var check = GetMd5($"salt={ApiSalt2}&t={t}&r={r}&b={b}&q={q}");
-            return new JsResult { Data = new() { ["DS"] = $"{t},{r},{check}" } };
+            return new JsResult(); 
+        }
+        private async Task ShowScreenshotAsync(string base64)
+        {
+            try
+            {
+                _screenshotBytes = Convert.FromBase64String(base64);
+                
+                using var stream = new InMemoryRandomAccessStream();
+                await stream.WriteAsync(_screenshotBytes.AsBuffer());
+                stream.Seek(0);
+                
+                var bitmap = new BitmapImage();
+                await bitmap.SetSourceAsync(stream);
+                
+                ScreenshotImage.Source = bitmap;
+                ScreenshotGrid.Visibility = Visibility.Visible;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Show Screenshot Error: {ex.Message}");
+            }
+        }
+
+        private async void SaveScreenshot_Click(object sender, RoutedEventArgs e)
+        {
+            if (_screenshotBytes == null) return;
+
+            try
+            {
+                var picker = new FileSavePicker();
+
+                var hWnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+                WinRT.Interop.InitializeWithWindow.Initialize(picker, hWnd);
+
+                picker.SuggestedStartLocation = PickerLocationId.PicturesLibrary;
+                picker.FileTypeChoices.Add("PNG Image", new List<string>() { ".png" });
+                picker.SuggestedFileName = $"mihoyo_bbs_{DateTime.Now:yyyyMMddHHmmss}";
+
+                StorageFile file = await picker.PickSaveFileAsync();
+                if (file != null)
+                {
+                    await File.WriteAllBytesAsync(file.Path, _screenshotBytes);
+                    CloseScreenshot_Click(null, null);
+                }
+            }
+            catch (Exception ex)
+            {
+                 System.Diagnostics.Debug.WriteLine($"Save Error: {ex.Message}");
+            }
+        }
+
+        private async void CopyScreenshot_Click(object sender, RoutedEventArgs e)
+        {
+            if (_screenshotBytes == null) return;
+
+            try
+            {
+                var dataPackage = new DataPackage();
+                dataPackage.RequestedOperation = DataPackageOperation.Copy;
+                
+                using var stream = new InMemoryRandomAccessStream();
+                await stream.WriteAsync(_screenshotBytes.AsBuffer());
+                stream.Seek(0);
+                
+                var streamRef = RandomAccessStreamReference.CreateFromStream(stream);
+                dataPackage.SetBitmap(streamRef);
+                
+                Clipboard.SetContent(dataPackage);
+                
+                CloseScreenshot_Click(null, null);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Copy Error: {ex.Message}");
+            }
+        }
+
+        private void CloseScreenshot_Click(object sender, RoutedEventArgs e)
+        {
+            ScreenshotGrid.Visibility = Visibility.Collapsed;
+            _screenshotBytes = null;
+            ScreenshotImage.Source = null;
         }
 
         private JsResult GetUserInfo()
         {
-            return new JsResult
-            {
-                Data = new()
-                {
-                    ["id"] = cookieDic.GetValueOrDefault("ltuid") ?? "",
-                    ["nickname"] = "User",
-                    ["avatar_url"] = ""
-                }
+            var uid = cookieDic.GetValueOrDefault("ltuid_v2") ?? cookieDic.GetValueOrDefault("ltuid") ?? "";
+            
+            return new JsResult 
+            { 
+                Data = new() 
+                { 
+                    ["id"] = uid, 
+                    ["gender"] = "0", 
+ //                 ["nickname"] = "",
+                    ["introduce"] = "",
+                    ["avatar_url"] = "https://bbs-static.miyoushe.com/avatar/avatarDefault.png"
+                } 
             };
         }
 
-        private JsResult GetCurrentLocale()
+        private JsResult GetCurrentLocale() => new JsResult { Data = new() { ["language"] = "zh-cn", ["timeZone"] = "GMT+8" } };
+
+        private async Task ExecuteCallback(string callback, JsResult result)
         {
-            var offset = TimeZoneInfo.Local.BaseUtcOffset.Hours;
-            var tz = offset > 0 ? $"GMT+{offset}" : (offset < 0 ? $"GMT{offset}" : "GMT");
-            return new JsResult
-            {
-                Data = new()
-                {
-                    ["language"] = CultureInfo.CurrentUICulture.Name.ToLower(),
-                    ["timeZone"] = tz
-                }
-            };
+            await BBSWebView.CoreWebView2.ExecuteScriptAsync($"javascript:mhyWebBridge(\"{callback}\",{result})");
         }
 
-        private async Task<JsResult?> HandleShareAsync(JsParam param)
+        private string GetMachineGuid() => Guid.NewGuid().ToString();
+
+        private void GoButton_Click(object sender, RoutedEventArgs e) => NavigateToUrl();
+        private void UrlTextBox_KeyDown(object sender, KeyRoutedEventArgs e) { if (e.Key == Windows.System.VirtualKey.Enter) NavigateToUrl(); }
+        private void NavigateToUrl() 
         {
-            var type = param.Payload?["type"]?.ToString();
-            if (type == "screenshot")
+            var url = UrlTextBox.Text;
+            if (!string.IsNullOrEmpty(url) && !url.StartsWith("http")) url = "https://" + url;
+            if (!string.IsNullOrEmpty(url)) BBSWebView.CoreWebView2.Navigate(url);
+        }
+
+        private void ClientTypeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (BBSWebView == null) return;
+
+            if (sender is ComboBox cb && cb.SelectedItem is ComboBoxItem item && item.Tag is string type)
             {
-                var data = await BBSWebView.CoreWebView2.CallDevToolsProtocolMethodAsync("Page.captureScreenshot", """{"captureBeyondViewport": true}""");
-                var base64 = JsonNode.Parse(data)?["data"]?.ToString();
-                if (!string.IsNullOrWhiteSpace(base64))
+                if (_clientConfigs.TryGetValue(type, out var config))
                 {
-                    Convert.FromBase64String(base64);
+                    _currentConfig = config;
+                    UpdateWebViewSettings();
+                    
+                    if (BBSWebView.CoreWebView2 != null) 
+                    {
+                        BBSWebView.Reload();
+                    }
                 }
             }
-            return null;
         }
 
-        private async Task ExecuteCallback(string callback, JsResult? result)
+        private async Task LoadPageAsync(string url)
         {
-            var json = result == null ? "" : "," + JsonSerializer.Serialize(result);
-            await BBSWebView.CoreWebView2.ExecuteScriptAsync($"javascript:mhyWebBridge(\"{callback}\"{json})");
+            if (File.Exists(ConfigPath))
+            {
+                try {
+                    var json = await File.ReadAllTextAsync(ConfigPath);
+                    var cfg = JsonSerializer.Deserialize<AppConfig>(json);
+                    ParseCookie(cfg?.Account.Cookie ?? "");
+                } catch { }
+            }
+            
+            var manager = BBSWebView.CoreWebView2.CookieManager;
+            if (BBSWebView.Source == null || BBSWebView.Source.ToString() == "about:blank")
+            {
+                var cookies = await manager.GetCookiesAsync("https://webstatic.mihoyo.com");
+                foreach (var c in cookies) manager.DeleteCookie(c);
+            }
+            
+            foreach (var kv in cookieDic)
+            {
+                var cookie = manager.CreateCookie(kv.Key, kv.Value, ".mihoyo.com", "/");
+                manager.AddOrUpdateCookie(cookie);
+            }
+            BBSWebView.CoreWebView2.Navigate(url);
         }
 
-        private string GetMd5(string input)
+        private void ParseCookie(string cookieStr)
         {
-            var hash = MD5.HashData(Encoding.UTF8.GetBytes(input));
-            return Convert.ToHexString(hash).ToLower();
+            cookieDic.Clear();
+            if (string.IsNullOrWhiteSpace(cookieStr)) return;
+            foreach (var item in cookieStr.Split(';', StringSplitOptions.RemoveEmptyEntries))
+            {
+                var kv = item.Split('=', 2);
+                if (kv.Length == 2) cookieDic[kv[0].Trim()] = kv[1].Trim();
+            }
         }
         
-        private static string GetRandomString(int timestamp)
-        {
-            var sb = new StringBuilder(6);
-            var random = new Random(timestamp);
-            for (var i = 0; i < 6; i++)
-            {
-                var v8 = random.Next(0, 32768) % 26;
-                var v9 = v8 < 10 ? 48 : 87;
-                _ = sb.Append((char)(v8 + v9));
-            }
-            return sb.ToString();
-        }
-        
-        private string GetMachineGuid()
-        {
-            try
-            {
-                var id = Windows.System.Profile.SystemIdentification.GetSystemIdForPublisher();
-                if (id != null)
-                {
-                    using var sha256 = SHA256.Create();
-                    var hash = sha256.ComputeHash(id.Id.ToArray());
-                    return BitConverter.ToString(hash).Replace("-", "").ToLower().Substring(0, 32);
-                }
-            }
-            catch { }
-            return Guid.NewGuid().ToString();
-        }
-
         private class JsParam
         {
             [JsonPropertyName("method")] public string Method { get; set; } = "";
-            [JsonPropertyName("payload")]
-            public JsonNode? Payload
-            {
-                get; set;
-            }
-            [JsonPropertyName("callback")]
-            public string? Callback
-            {
-                get; set;
-            }
+            [JsonPropertyName("payload")] public JsonNode? Payload { get; set; }
+            [JsonPropertyName("callback")] public string? Callback { get; set; }
         }
-
         private class JsResult
         {
             [JsonPropertyName("retcode")] public int Code { get; set; } = 0;
@@ -395,22 +667,7 @@ namespace FufuLauncher.Views
             [JsonPropertyName("data")] public Dictionary<string, object> Data { get; set; } = new();
             public override string ToString() => JsonSerializer.Serialize(this);
         }
-        public class AppConfig
-        {
-            [JsonPropertyName("Account")]
-            public AccountConfig Account
-            {
-                get; set;
-            }
-        }
-
-        public class AccountConfig
-        {
-            [JsonPropertyName("Cookie")]
-            public string Cookie
-            {
-                get; set;
-            }
-        }
+        public class AppConfig { public AccountConfig Account { get; set; } }
+        public class AccountConfig { public string Cookie { get; set; } }
     }
 }
