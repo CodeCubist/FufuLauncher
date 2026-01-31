@@ -10,6 +10,8 @@
 
 #### [注入模块开源地址](https://github.com/CodeCubist/FufuLauncher.UnlockerIsland)
 
+#### [English](./README-en.md)
+
 ## 主要功能
 
 * **账号管理**：多账号快速切换，不用重复输入密码
