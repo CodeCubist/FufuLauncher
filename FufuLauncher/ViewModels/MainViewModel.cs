@@ -14,6 +14,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
 using Windows.Media.Playback;
 using Windows.UI;
+using Microsoft.UI.Xaml.Media.Imaging;
 
 namespace FufuLauncher.ViewModels
 {
@@ -49,6 +50,7 @@ namespace FufuLauncher.ViewModels
         private bool _isInfoCardExpanded = true;
         private double _panelOpacityValue = 0.5;
         private BannerItem _currentBanner;
+        public string CurrentDayText => DateTime.Now.Day.ToString();
         public BannerItem CurrentBanner
         {
             get => _currentBanner;
@@ -77,7 +79,10 @@ namespace FufuLauncher.ViewModels
         [ObservableProperty] private bool _isCheckinButtonEnabled = true;
         [ObservableProperty] private string _checkinButtonText = "一键签到";
         [ObservableProperty] private string _checkinSummary = "";
-
+        
+        [ObservableProperty] private string _checkinStateGlyph = "\uE730"; 
+        [ObservableProperty] private SolidColorBrush _checkinStateBrush = new(Microsoft.UI.Colors.White);
+        
         [ObservableProperty] private string _launchButtonText = "请选择游戏路径";
         [ObservableProperty] private bool _isLaunchButtonEnabled = true;
         [ObservableProperty] private bool _isGameLaunching;
@@ -207,15 +212,13 @@ namespace FufuLauncher.ViewModels
                     _panelOpacityValue = Convert.ToDouble(savedOpacity);
                 }
             }
-            catch { /* 忽略转换错误，使用默认值 */ }
+            catch
+            {
+                // ignored
+            }
 
             UpdatePanelBackgroundBrush();
             UpdateLaunchButtonState();
-        }
-        public void SetPanelOpacity(double opacity)
-        {
-            _panelOpacityValue = opacity;
-            _dispatcherQueue.TryEnqueue(UpdatePanelBackgroundBrush);
         }
 
         partial void OnHasCustomBackgroundChanged(bool value)
@@ -282,14 +285,6 @@ namespace FufuLauncher.ViewModels
             }
         }
 
-        public async Task SetPanelOpacityAsync(double opacity)
-        {
-            _panelOpacityValue = Math.Clamp(opacity, 0.0, 1.0);
-            UpdatePanelBackgroundBrush();
-            await _localSettingsService.SaveSettingAsync("PanelBackgroundOpacity", _panelOpacityValue);
-            OnPropertyChanged(nameof(PanelBackgroundBrush));
-        }
-
         private async Task LoadCustomBackgroundPathAsync()
         {
             var path = await _localSettingsService.ReadSettingAsync("CustomBackgroundPath");
@@ -309,8 +304,87 @@ namespace FufuLauncher.ViewModels
         private async Task LoadBackgroundAsync()
         {
             await UpdateUI(() => IsBackgroundLoading = true);
+            
             ClearBackground();
+
+            await UpdateUI(() =>
+            {
+                try
+                {
+                    string targetPath;
+                    
+                    if (HasCustomBackground && !string.IsNullOrEmpty(CustomBackgroundPath) && File.Exists(CustomBackgroundPath))
+                    {
+                        targetPath = CustomBackgroundPath;
+                        TryLoadImage(targetPath);
+                    }
+                    else
+                    {
+                        LoadFallbackImage();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"背景加载流程发生异常: {ex.Message}");
+                    LoadFallbackImage();
+                }
+            });
+
             await UpdateUI(() => IsBackgroundLoading = false);
+        }
+
+        private void TryLoadImage(string path)
+        {
+            try
+            {
+                var bitmap = new BitmapImage();
+                
+                bitmap.UriSource = new Uri(path);
+                
+                bitmap.ImageFailed += (_, _) =>
+                {
+                    Debug.WriteLine($"图片解码失败: {path}，正在切换至默认背景。");
+                    _dispatcherQueue.TryEnqueue(LoadFallbackImage);
+                };
+
+                BackgroundImageSource = bitmap;
+                IsVideoBackground = false;
+            }
+            catch
+            {
+                LoadFallbackImage();
+            }
+        }
+
+        private void LoadFallbackImage()
+        {
+            try
+            {
+                string fallbackPath = Path.Combine(AppContext.BaseDirectory, "Assets", "bg.png");
+
+                if (File.Exists(fallbackPath))
+                {
+                    if (BackgroundImageSource is BitmapImage currentBmp && 
+                        currentBmp.UriSource?.LocalPath == fallbackPath)
+                    {
+                        return;
+                    }
+
+                    var bitmap = new BitmapImage();
+                    bitmap.UriSource = new Uri(fallbackPath);
+                    BackgroundImageSource = bitmap;
+                    IsVideoBackground = false;
+                    Debug.WriteLine("已加载默认背景: Assets/bg.png");
+                }
+                else
+                {
+                    Debug.WriteLine($"严重错误: 默认背景文件不存在 -> {fallbackPath}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"加载默认背景失败: {ex.Message}");
+            }
         }
 
         private void ClearBackground()
@@ -323,7 +397,6 @@ namespace FufuLauncher.ViewModels
 
         private void ToggleBackgroundType()
         {
-            // Global background only; keep preference toggle for global renderer.
             PreferVideoBackground = !PreferVideoBackground;
             OnPropertyChanged(nameof(BackgroundTypeToggleText));
             _ = _localSettingsService.SaveSettingAsync("UserPreferVideoBackground", PreferVideoBackground);
@@ -455,6 +528,23 @@ namespace FufuLauncher.ViewModels
             }
         }
 
+        private void UpdateCheckinIconState(string statusText)
+        {
+            bool isSigned = !string.IsNullOrEmpty(statusText) && 
+                            (statusText.Contains("成功") || statusText.Contains("已"));
+            
+            CheckinStateGlyph = "\uE73E"; 
+
+            if (isSigned)
+            {
+                CheckinStateBrush = new SolidColorBrush(Microsoft.UI.Colors.LightGreen);
+            }
+            else
+            {
+                CheckinStateBrush = new SolidColorBrush(Microsoft.UI.Colors.White) { Opacity = 0.3 };
+            }
+        }
+        
         private async Task LoadCheckinStatusAsync()
         {
             try
@@ -465,12 +555,15 @@ namespace FufuLauncher.ViewModels
                 Debug.WriteLine($"状态更新: {status}, {summary}");
                 CheckinStatusText = status;
                 CheckinSummary = summary;
+                
+                UpdateCheckinIconState(status);
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"加载失败: {ex.Message}");
                 CheckinStatusText = "加载失败";
                 CheckinSummary = ex.Message;
+                UpdateCheckinIconState("Fail");
             }
         }
 
@@ -487,6 +580,7 @@ namespace FufuLauncher.ViewModels
                 Debug.WriteLine($"签到结果: success={success}, message={message}");
                 CheckinStatusText = success ? "签到成功" : "签到失败";
                 CheckinSummary = message;
+                UpdateCheckinIconState(success ? "已签到" : "Fail");
             }
             catch (Exception ex)
             {
@@ -509,7 +603,7 @@ namespace FufuLauncher.ViewModels
             var savedPath = pathTask.Result as string;
 
             var hasPath = !string.IsNullOrEmpty(savedPath) &&
-                          System.IO.Directory.Exists(savedPath.Trim('"').Trim());
+                          Directory.Exists(savedPath.Trim('"').Trim());
 
             if (IsGameRunning)
             {

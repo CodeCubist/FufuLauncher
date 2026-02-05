@@ -7,6 +7,7 @@ using FufuLauncher.Services;
 using Microsoft.UI.Xaml.Controls;
 using Windows.Storage.Pickers;
 using Windows.System;
+using FufuLauncher.Views;
 using WinRT.Interop;
 
 namespace FufuLauncher.ViewModels
@@ -16,6 +17,7 @@ namespace FufuLauncher.ViewModels
         private readonly ILocalSettingsService _localSettingsService;
         private readonly IAutoClickerService _autoClickerService;
         private readonly Microsoft.UI.Dispatching.DispatcherQueue _dispatcherQueue;
+        public IRelayCommand OpenBrowserCommand { get; }
 
         [ObservableProperty] private bool _isAdditionalProgramEnabled;
         [ObservableProperty] private string _additionalProgramPath = string.Empty;
@@ -62,8 +64,35 @@ namespace FufuLauncher.ViewModels
             RecordTriggerKeyCommand = new RelayCommand(StartRecordingTriggerKey);
             RecordClickKeyCommand = new RelayCommand(StartRecordingClickKey);
             ApplyProgramPathCommand = new AsyncRelayCommand(ApplyProgramPathAsync);
-
+            OpenBrowserCommand = new RelayCommand(OpenBrowserWindow);
+            
             LoadSettings();
+        }
+        
+        private void OpenBrowserWindow()
+        {
+            try
+            {
+                if (_dispatcherQueue.HasThreadAccess)
+                {
+                    var newWindow = new BrowserWindow();
+                    newWindow.Activate();
+                }
+                else
+                {
+                    _dispatcherQueue.TryEnqueue(() =>
+                    {
+                        var newWindow = new BrowserWindow();
+                        newWindow.Activate();
+                    });
+                }
+                Debug.WriteLine("[OtherViewModel] 浏览器窗口已创建");
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"打开浏览器失败: {ex.Message}";
+                Debug.WriteLine($"[OtherViewModel] 打开浏览器失败: {ex.Message}");
+            }
         }
 
         partial void OnAdditionalProgramPathChanged(string value)
@@ -73,7 +102,7 @@ namespace FufuLauncher.ViewModels
             if (!string.IsNullOrWhiteSpace(value))
             {
                 var trimmedPath = value.Trim('"');
-                if (File.Exists(trimmedPath) && System.IO.Path.GetExtension(trimmedPath).Equals(".exe", StringComparison.OrdinalIgnoreCase))
+                if (File.Exists(trimmedPath) && Path.GetExtension(trimmedPath).Equals(".exe", StringComparison.OrdinalIgnoreCase))
                 {
                     StatusMessage = "路径有效";
                 }

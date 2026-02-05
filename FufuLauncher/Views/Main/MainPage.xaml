@@ -211,20 +211,54 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
+                    
                     <TextBlock Grid.Row="0" Text="原神签到" FontSize="15" FontWeight="SemiBold" 
                                Foreground="White"
                                Margin="0,0,0,8" Opacity="0.9"/>
+                    
                     <StackPanel Grid.Row="1" Spacing="2" Margin="0,0,0,12">
                         <TextBlock Text="{Binding CheckinStatusText}" FontSize="13" TextWrapping="Wrap" Foreground="White"/>
                         <TextBlock Text="{Binding CheckinSummary}" FontSize="11" 
                                    Foreground="White"
                                    Opacity="0.6" TextWrapping="Wrap"/>
                     </StackPanel>
-                    <Button Grid.Row="2" Content="{Binding CheckinButtonText}"
-                            Command="{Binding ExecuteCheckinCommand}"
-                            IsEnabled="{Binding IsCheckinButtonEnabled, Mode=OneWay}"
-                            HorizontalAlignment="Stretch" CornerRadius="4" Padding="12,6"
-                            Style="{StaticResource AccentButtonStyle}"/>
+                    
+                    <Grid Grid.Row="2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>    <ColumnDefinition Width="Auto"/> <ColumnDefinition Width="Auto"/> </Grid.ColumnDefinitions>
+
+                        <Button Grid.Column="0" 
+                                Content="{Binding CheckinButtonText}"
+                                Command="{Binding ExecuteCheckinCommand}"
+                                IsEnabled="{Binding IsCheckinButtonEnabled, Mode=OneWay}"
+                                HorizontalAlignment="Stretch" 
+                                CornerRadius="4" 
+                                Padding="12,6"
+                                Margin="0,0,8,0"
+                                Style="{StaticResource AccentButtonStyle}"/>
+
+                        <Border Grid.Column="1"
+                                Margin="0,0,8,0" 
+                                Width="32" Height="32" 
+                                Background="#1AFFFFFF" 
+                                CornerRadius="4">
+                            <TextBlock Text="{x:Bind ViewModel.CurrentDayText}" 
+                                       FontSize="13" 
+                                       FontWeight="Bold" 
+                                       Foreground="White"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"/>
+                        </Border>
+
+                        <Border Grid.Column="2" 
+                                Width="32" Height="32" 
+                                Background="#1AFFFFFF" 
+                                CornerRadius="4">
+                            <FontIcon Glyph="{Binding CheckinStateGlyph, Mode=OneWay}" 
+                                      FontSize="16" 
+                                      Foreground="{Binding CheckinStateBrush, Mode=OneWay}"/>
+                        </Border>
+                    </Grid>
                 </Grid>
             </StackPanel>
             
@@ -297,8 +331,7 @@
                     </Border>
 
                     <StackPanel Orientation="Horizontal" Spacing="8" Margin="18,12">
-                        <FontIcon Glyph="&#xE8B7;"
-                                  FontSize="16" Foreground="White"/>
+                        <FontIcon Glyph="&#xE8B7;" FontSize="16" Foreground="White"/>
                         <TextBlock Text="截图文件夹" FontSize="14" FontWeight="SemiBold" Foreground="White"/>
                     </StackPanel>
                 </Grid>
@@ -314,7 +347,7 @@
                     BorderThickness="0"
                     CornerRadius="24"
                     Translation="0,0,32">
-                
+                 
                 <Button.ContextFlyout>
                     <MenuFlyout>
                         <MenuFlyoutItem Text="切换到 Bilibili 服" Click="SwitchToBilibili_Click" Icon="Switch" />

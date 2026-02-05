@@ -64,6 +64,9 @@
 
     <ItemGroup>
         <Compile Remove="Models\GameConfig.cs" />
+        <Compile Update="Views\Model\BrowserConfig.cs">
+          <DependentUpon>BrowserWindow.xaml</DependentUpon>
+        </Compile>
     </ItemGroup>
 
     <ItemGroup>

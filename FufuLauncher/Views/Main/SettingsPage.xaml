@@ -336,6 +336,14 @@
                                         Command="{x:Bind ViewModel.SetResolutionPresetCommand}"
                                         CommandParameter="3840 2160"
                                         Style="{StaticResource PresetButtonStyle}"/>
+                                <Button Content="1440×900" 
+                                        Command="{x:Bind ViewModel.SetResolutionPresetCommand}" 
+                                        CommandParameter="1440 900" 
+                                        Style="{StaticResource PresetButtonStyle}"/>
+                                <Button Content="1920×1200" 
+                                        Command="{x:Bind ViewModel.SetResolutionPresetCommand}" 
+                                        CommandParameter="1920 1200" 
+                                        Style="{StaticResource PresetButtonStyle}"/>
                             </StackPanel>
                         </StackPanel>
                         <StackPanel Style="{StaticResource SettingItemStyle}" Margin="0,20,0,0">

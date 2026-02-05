@@ -234,6 +234,32 @@
                         </ContentControl>
                     </Grid>
                 </StackPanel>
+                
+                <StackPanel>
+                    <TextBlock Text="实用工具" Style="{StaticResource SectionHeaderStyle}"/>
+                    
+                    <Grid Style="{StaticResource SettingsCardStyle}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <FontIcon Glyph="&#xE774;" FontSize="20" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" Margin="0,0,16,0"/>
+
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock Text="浏览器" Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                            <TextBlock Text="打开一个支持置顶的独立悬浮浏览器" Style="{StaticResource CaptionTextBlockStyle}" Opacity="0.6"/>
+                        </StackPanel>
+
+                        <Button Grid.Column="2" Command="{x:Bind ViewModel.OpenBrowserCommand}">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <FontIcon Glyph="&#xE8A7;" FontSize="14"/>
+                                <TextBlock Text="打开"/>
+                            </StackPanel>
+                        </Button>
+                    </Grid>
+                </StackPanel>
 
                 <StackPanel Spacing="12" HorizontalAlignment="Right" Margin="0,12,0,0">
                     <TextBlock Text="{x:Bind ViewModel.StatusMessage, Mode=OneWay}"
