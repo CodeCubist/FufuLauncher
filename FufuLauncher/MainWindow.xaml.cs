@@ -67,6 +67,7 @@ public sealed partial class MainWindow : WindowEx
     private static extern bool SetProcessWorkingSetSize(IntPtr process, int minimumWorkingSetSize, int maximumWorkingSetSize);
     
     private DispatcherTimer _memoryOptimizationTimer;
+    private DispatcherTimer _periodicMemoryTimer; 
     private bool _isSuspended;
 
     private enum TOKEN_INFORMATION_CLASS
@@ -161,6 +162,10 @@ public sealed partial class MainWindow : WindowEx
         _memoryOptimizationTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
         _memoryOptimizationTimer.Tick += OnMemoryOptimizationTick;
         
+        _periodicMemoryTimer = new DispatcherTimer { Interval = TimeSpan.FromMinutes(10) };
+        _periodicMemoryTimer.Tick += (s, e) => FlushMemory();
+        _periodicMemoryTimer.Start();
+        
         AppWindow.Changed += AppWindow_Changed;
 
         WeakReferenceMessenger.Default.Register<FrameBackgroundOpacityChangedMessage>(this, (r, m) =>
@@ -193,6 +198,35 @@ public sealed partial class MainWindow : WindowEx
 
     }
     
+    private void FlushMemory()
+    {
+        try
+        {
+            if (ContentFrame.BackStackDepth > 0)
+            {
+                ContentFrame.BackStack.Clear();
+            }
+            
+            GC.Collect(2, GCCollectionMode.Forced, true, true);
+            GC.WaitForPendingFinalizers();
+            GC.Collect(2, GCCollectionMode.Forced, true, true);
+            
+            bool isMinimized = AppWindow.Presenter.Kind == AppWindowPresenterKind.Overlapped && 
+                               ((OverlappedPresenter)AppWindow.Presenter).State == OverlappedPresenterState.Minimized;
+            
+            bool isHidden = !Visible;
+
+            if ((isMinimized || isHidden) && Environment.OSVersion.Platform == PlatformID.Win32NT)
+            {
+                SetProcessWorkingSetSize(GetCurrentProcess(), -1, -1);
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"内存清理异常: {ex.Message}");
+        }
+    }
+    
     private void OnMemoryOptimizationTick(object sender, object e)
     {
         _memoryOptimizationTimer.Stop();
@@ -203,26 +237,16 @@ public sealed partial class MainWindow : WindowEx
     {
         if (_isSuspended) return;
         _isSuspended = true;
-        
+    
         if (_globalBackgroundPlayer != null && _globalBackgroundPlayer.PlaybackSession.CanPause)
         {
             _globalBackgroundPlayer.Pause();
         }
-        
+    
         _networkCheckTimer.Stop();
         _messageDismissTimer.Stop();
         
-        GC.Collect();
-        GC.WaitForPendingFinalizers();
-
-        try
-        {
-            SetProcessWorkingSetSize(GetCurrentProcess(), -1, -1);
-        }
-        catch
-        {
-            // ignored
-        }
+        FlushMemory();
 
         Debug.WriteLine("应用挂起");
     }

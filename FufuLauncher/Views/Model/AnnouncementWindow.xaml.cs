@@ -13,17 +13,17 @@ namespace FufuLauncher.Views
 
         public AnnouncementWindow()
         {
-            this.InitializeComponent();
+            InitializeComponent();
 
             InitializeAppWindow();
 
-            this.ExtendsContentIntoTitleBar = true;
-            this.SetTitleBar(AppTitleBar);
-            this.Title = "游戏公告";
+            ExtendsContentIntoTitleBar = true;
+            SetTitleBar(AppTitleBar);
+            Title = "游戏公告";
 
             StartFontServer();
 
-            this.Closed += (s, e) =>
+            Closed += (s, e) =>
             {
                 _fontServer?.Stop();
             };
@@ -46,7 +46,7 @@ namespace FufuLauncher.Views
             {
                 page.ResizeRequested += OnResizeRequested;
 
-                page.CloseRequested += () => { this.Close(); };
+                page.CloseRequested += () => { Close(); };
             }
         }
 
@@ -96,7 +96,7 @@ namespace FufuLauncher.Views
                 }
                 catch
                 {
-
+                    // ignored
                 }
 
                 if (!File.Exists(fontPath))
@@ -117,7 +117,7 @@ namespace FufuLauncher.Views
 
     public class LocalFontServer
     {
-        private HttpListener _listener;
+        private HttpListener _listener = null!;
         private readonly string _fontFilePath;
         private bool _isRunning;
 
@@ -141,7 +141,7 @@ namespace FufuLauncher.Views
 
                 System.Diagnostics.Debug.WriteLine($"字体服务已在 {ServerUrl} 启动");
 
-                while (_isRunning && _listener != null && _listener.IsListening)
+                while (_isRunning && _listener.IsListening)
                 {
                     try
                     {

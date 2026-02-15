@@ -1,4 +1,3 @@
-using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
 
 namespace FufuLauncher.Views;
@@ -10,18 +9,13 @@ public sealed partial class UpdateNotificationWindow : WindowEx
     {
         InitializeComponent();
 
-        this.ExtendsContentIntoTitleBar = true;
-        this.SetTitleBar(AppTitleBar);
+        ExtendsContentIntoTitleBar = true;
+        SetTitleBar(AppTitleBar);
 
         UpdateWebView.Source = new Uri(updateInfoUrl);
 
         this.CenterOnScreen();
-        this.SystemBackdrop = new DesktopAcrylicBackdrop();
-        this.IsShownInSwitchers = true;
-    }
-
-    private void CloseButton_Click(object sender, RoutedEventArgs e)
-    {
-        this.Close();
+        SystemBackdrop = new DesktopAcrylicBackdrop();
+        IsShownInSwitchers = true;
     }
 }

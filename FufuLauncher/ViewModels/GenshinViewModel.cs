@@ -161,8 +161,9 @@ public class GenshinViewModel : INotifyPropertyChanged
             Uid = role.game_uid;
             Nickname = role.nickname;
 
-            StatusMessage = "分析旅行札记...";
-            TravelersDiary = await _genshinService.GetTravelersDiarySummaryAsync(Uid, cookie, 12);
+            StatusMessage = "分析旅行札记..."; 
+            
+            TravelersDiary = await _genshinService.GetTravelersDiarySummaryAsync(Uid, cookie, DateTime.Now.Month);
 
             StatusMessage = $"";
         }
