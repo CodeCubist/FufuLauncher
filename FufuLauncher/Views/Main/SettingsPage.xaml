@@ -372,27 +372,12 @@
                                      MaxWidth="500"
                                      HorizontalAlignment="Left"/>
                             <InfoBar Severity="Informational"
-                                     Message="提示：参数将以空格追加到游戏启动命令后，请勿输入游戏路径"
+                                     Message="提示：参数将以空格追加到游戏启动命令后，请勿输入游戏路径 如果点了没反应，请多按几下预设选项按钮"
                                      IsOpen="True"
                                      IsClosable="False"
                                      Margin="0,8,0,0"
                                      FontSize="12"/>
                         </StackPanel>
-                        
-                        <TextBlock Text="参数预览" 
-                                   Style="{ThemeResource BodyStrongTextBlockStyle}"
-                                   FontSize="14"
-                                   Margin="0,20,0,0"/>
-                        <TextBox Text="{x:Bind ViewModel.LaunchArgsPreview, Mode=OneWay}"
-                                 IsReadOnly="True"
-                                 TextWrapping="Wrap"
-                                 FontFamily="Consolas"
-                                 FontSize="11"
-                                 MinHeight="60"
-                                 MaxWidth="500"
-                                 HorizontalAlignment="Left"
-                                 Background="{ThemeResource TextControlBackground}"
-                                 Padding="12,8"/>
                     </StackPanel>
                 </Border>
                 

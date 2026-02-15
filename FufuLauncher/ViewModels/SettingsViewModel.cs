@@ -13,6 +13,7 @@ using FufuLauncher.Services.Background;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using System.Text.RegularExpressions;
 
 namespace FufuLauncher.ViewModels
 {
@@ -98,6 +99,7 @@ namespace FufuLauncher.ViewModels
         {
             get;
         }
+        
         public SettingsViewModel(
             IThemeSelectorService themeSelectorService,
             IBackgroundRenderer backgroundRenderer,
@@ -163,8 +165,12 @@ namespace FufuLauncher.ViewModels
 
             SelectCustomBackgroundCommand = new AsyncRelayCommand(SelectCustomBackgroundAsync);
         }
+        
+        partial void OnLaunchArgsWidthChanged(string value) => ApplyPresetsToText();
+        partial void OnLaunchArgsHeightChanged(string value) => ApplyPresetsToText();
+        partial void OnLaunchArgsWindowModeChanged(WindowModeType value) => ApplyPresetsToText();
 
-        private void InitializeDefaultResolution()
+private void InitializeDefaultResolution()
         {
             try
             {
@@ -191,35 +197,39 @@ namespace FufuLauncher.ViewModels
 
         public async Task ReloadSettingsAsync()
         {
-            _isInitializing = true;
+            _isLoadingLaunchParams = true;
 
-            await LoadUserPreferencesAsync();
-            await LoadCustomBackgroundSettingsAsync();
-            UpdateLaunchArgsPreview();
-
-            OnPropertyChanged(nameof(IsStartupSoundEnabled));
-            OnPropertyChanged(nameof(StartupSoundPath));
-            OnPropertyChanged(nameof(HasCustomStartupSound));
-            OnPropertyChanged(nameof(ElementTheme));
-            OnPropertyChanged(nameof(SelectedServer));
-            OnPropertyChanged(nameof(IsBackgroundEnabled));
-            OnPropertyChanged(nameof(SelectedLanguage));
-            OnPropertyChanged(nameof(MinimizeToTray));
-            OnPropertyChanged(nameof(CustomLaunchParameters));
-            OnPropertyChanged(nameof(LaunchArgsWindowMode));
-            OnPropertyChanged(nameof(LaunchArgsWidth));
-            OnPropertyChanged(nameof(LaunchArgsHeight));
-            OnPropertyChanged(nameof(CustomBackgroundPath));
-            OnPropertyChanged(nameof(HasCustomBackground));
-            OnPropertyChanged(nameof(CurrentWindowBackdrop));
-            OnPropertyChanged(nameof(IsShortTermSupportEnabled));
-            OnPropertyChanged(nameof(IsBetterGIIntegrationEnabled));
-            OnPropertyChanged(nameof(IsBetterGICloseOnExitEnabled));
-            OnPropertyChanged(nameof(GlobalBackgroundOverlayOpacity));
-            OnPropertyChanged(nameof(ContentFrameBackgroundOpacity));
-            OnPropertyChanged(nameof(IsSaveWindowSizeEnabled));
-
-            _isInitializing = false;
+            try
+            {
+                await LoadUserPreferencesAsync();
+                await LoadCustomBackgroundSettingsAsync();
+                
+                OnPropertyChanged(nameof(IsStartupSoundEnabled));
+                OnPropertyChanged(nameof(StartupSoundPath));
+                OnPropertyChanged(nameof(HasCustomStartupSound));
+                OnPropertyChanged(nameof(ElementTheme));
+                OnPropertyChanged(nameof(SelectedServer));
+                OnPropertyChanged(nameof(IsBackgroundEnabled));
+                OnPropertyChanged(nameof(SelectedLanguage));
+                OnPropertyChanged(nameof(MinimizeToTray));
+                OnPropertyChanged(nameof(CustomLaunchParameters));
+                OnPropertyChanged(nameof(LaunchArgsWindowMode));
+                OnPropertyChanged(nameof(LaunchArgsWidth));
+                OnPropertyChanged(nameof(LaunchArgsHeight));
+                OnPropertyChanged(nameof(CustomBackgroundPath));
+                OnPropertyChanged(nameof(HasCustomBackground));
+                OnPropertyChanged(nameof(CurrentWindowBackdrop));
+                OnPropertyChanged(nameof(IsShortTermSupportEnabled));
+                OnPropertyChanged(nameof(IsBetterGIIntegrationEnabled));
+                OnPropertyChanged(nameof(IsBetterGICloseOnExitEnabled));
+                OnPropertyChanged(nameof(GlobalBackgroundOverlayOpacity));
+                OnPropertyChanged(nameof(ContentFrameBackgroundOpacity));
+                OnPropertyChanged(nameof(IsSaveWindowSizeEnabled));
+            }
+            finally
+            {
+                _isLoadingLaunchParams = false;
+            }
         }
 
         private async Task LoadUserPreferencesAsync()
@@ -419,11 +429,9 @@ namespace FufuLauncher.ViewModels
         private void ParseLaunchParameters(string args)
         {
             if (string.IsNullOrWhiteSpace(args)) return;
-
+            
             try
             {
-                args = args.Trim('"').Trim();
-
                 if (args.Contains("-popupwindow"))
                 {
                     LaunchArgsWindowMode = WindowModeType.Popup;
@@ -436,59 +444,43 @@ namespace FufuLauncher.ViewModels
                 var parts = args.Split(' ');
                 for (int i = 0; i < parts.Length - 1; i++)
                 {
-                    if (parts[i] == "-screen-width" && int.TryParse(parts[i + 1], out var width))
-                    {
-                        LaunchArgsWidth = width.ToString();
-                    }
-                    else if (parts[i] == "-screen-height" && int.TryParse(parts[i + 1], out var height))
-                    {
-                        LaunchArgsHeight = height.ToString();
-                    }
+                    if (parts[i] == "-screen-width")
+                        LaunchArgsWidth = parts[i + 1];
+                    if (parts[i] == "-screen-height")
+                        LaunchArgsHeight = parts[i + 1];
                 }
             }
-            catch (Exception ex)
+            catch
             {
-                Debug.WriteLine($"解析启动参数失败: {ex.Message}");
+                // ignored
             }
         }
-
-        private string BuildLaunchArgsString()
+        
+        private void ApplyPresetsToText()
         {
-            var args = new System.Text.StringBuilder();
+            if (_isLoadingLaunchParams) return;
 
-            if (LaunchArgsWindowMode == WindowModeType.Popup)
-            {
-                args.Append("-popupwindow ");
-            }
-
+            var currentArgs = CustomLaunchParameters ?? "";
+            
+            currentArgs = Regex.Replace(currentArgs, @"-screen-width\s+\S+", "");
+            currentArgs = Regex.Replace(currentArgs, @"-screen-height\s+\S+", "");
+            currentArgs = Regex.Replace(currentArgs, @"-popupwindow", "");
+            
+            var sb = new System.Text.StringBuilder(currentArgs);
             if (!string.IsNullOrWhiteSpace(LaunchArgsWidth) && !string.IsNullOrWhiteSpace(LaunchArgsHeight))
             {
-                args.Append($"-screen-width {LaunchArgsWidth} ");
-                args.Append($"-screen-height {LaunchArgsHeight} ");
+                sb.Append($" -screen-width {LaunchArgsWidth} -screen-height {LaunchArgsHeight}");
+            }
+            if (LaunchArgsWindowMode == WindowModeType.Popup)
+            {
+                sb.Append(" -popupwindow");
             }
 
-            return args.ToString().Trim();
-        }
-
-        private void UpdateLaunchArgsPreview()
-        {
-            LaunchArgsPreview = BuildLaunchArgsString();
-            CustomLaunchParameters = LaunchArgsPreview;
-        }
-
-        partial void OnLaunchArgsWindowModeChanged(WindowModeType value)
-        {
-            UpdateLaunchArgsPreview();
-        }
-
-        partial void OnLaunchArgsWidthChanged(string value)
-        {
-            UpdateLaunchArgsPreview();
-        }
-
-        partial void OnLaunchArgsHeightChanged(string value)
-        {
-            UpdateLaunchArgsPreview();
+            var finalArgs = Regex.Replace(sb.ToString(), @"\s+", " ").Trim();
+            if (CustomLaunchParameters != finalArgs)
+            {
+                CustomLaunchParameters = finalArgs;
+            }
         }
 
         private async Task ApplyLanguageChangeAsync(AppLanguage language)
@@ -616,16 +608,16 @@ namespace FufuLauncher.ViewModels
             Debug.WriteLine($"SettingsViewModel: 保存窗口大小记忆设置 {value}");
             _ = _localSettingsService.SaveSettingAsync("IsSaveWindowSizeEnabled", value);
         }
-
+        private bool _isLoadingLaunchParams = false;
         private async Task SwitchInjectionModuleAsync(bool enableShortTerm)
         {
             try
             {
 
-                string appDirectory = AppContext.BaseDirectory;
-                string dllPath = Path.Combine(appDirectory, "Genshin.UnlockerIsland.API.dll");
-                string bakPath = Path.Combine(appDirectory, "Genshin.UnlockerIsland.API.dll.bak");
-                string tempPath = Path.Combine(appDirectory, "Genshin.UnlockerIsland.API.temp");
+                var appDirectory = AppContext.BaseDirectory;
+                var dllPath = Path.Combine(appDirectory, "Genshin.UnlockerIsland.API.dll");
+                var bakPath = Path.Combine(appDirectory, "Genshin.UnlockerIsland.API.dll.bak");
+                var tempPath = Path.Combine(appDirectory, "Genshin.UnlockerIsland.API.temp");
 
                 if (!File.Exists(dllPath) || !File.Exists(bakPath))
                 {
@@ -650,7 +642,7 @@ namespace FufuLauncher.ViewModels
 
                 File.Move(tempPath, bakPath, true);
 
-                string message = enableShortTerm ? "已切换到短期支持版本" : "已切换回标准版本";
+                var message = enableShortTerm ? "已切换到短期支持版本" : "已切换回标准版本";
                 Debug.WriteLine(message);
 
                 var successDialog = new ContentDialog
@@ -685,12 +677,11 @@ namespace FufuLauncher.ViewModels
             _ = _localSettingsService.SaveSettingAsync("MinimizeToTray", value);
             WeakReferenceMessenger.Default.Send(new MinimizeToTrayChangedMessage(value));
         }
+        
 
         partial void OnCustomLaunchParametersChanged(string value)
         {
-            Debug.WriteLine($"SettingsViewModel: 保存自定义启动参数: {value}");
-            _ = _localSettingsService.SaveSettingAsync("CustomLaunchParameters", value);
-            _ = _gameLauncherService.SetCustomLaunchParametersAsync(value);
+            _localSettingsService.SaveSettingAsync("CustomLaunchParameters", value);
         }
 
         private async Task SelectCustomBackgroundAsync()
@@ -702,7 +693,7 @@ namespace FufuLauncher.ViewModels
                 {
                     CustomBackgroundPath = path;
                     HasCustomBackground = true;
-                    await _localSettingsService.SaveSettingAsync<string>("CustomBackgroundPath", path);
+                    await _localSettingsService.SaveSettingAsync("CustomBackgroundPath", path);
 
                     WeakReferenceMessenger.Default.Send(new BackgroundRefreshMessage());
                     await RefreshMainPageBackground();
