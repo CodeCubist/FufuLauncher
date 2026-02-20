@@ -1,6 +1,6 @@
 # [芙芙启动器](https://github.com/CodeCubist/FufuLauncher)
 
-![Version](https://img.shields.io/badge/Version-v1.0.6-blue)
+![Version](https://img.shields.io/badge/Version-v1.0.8-blue)
 ![Platform](https://img.shields.io/badge/Platform-Windows%2010%2F11-brightgreen)
 ![License](https://img.shields.io/badge/License-MIT-orange)
 
@@ -11,6 +11,8 @@
 #### [注入模块开源地址](https://github.com/CodeCubist/FufuLauncher.UnlockerIsland)
 
 #### [English](./README-en.md)
+
+### 提出问题前，请检查你是否更新到了最新版本。以及提问请加上标签！
 
 ## 主要功能
 
