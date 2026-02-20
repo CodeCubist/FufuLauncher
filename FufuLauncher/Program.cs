@@ -42,7 +42,7 @@ namespace FufuLauncher
 
         private static void RunElevatedInjection(string[] args)
         {
-            int exitCode = 1;
+            var exitCode = 1;
             try
             {
                 if (args.Length < 2)
@@ -53,7 +53,9 @@ namespace FufuLauncher
                 var gameExePath = args[1];
                 var tempLauncher = new LauncherService(); 
                 var dllPath = tempLauncher.GetDefaultDllPath();
-                var commandLineArgs = string.Empty; 
+                
+                var commandLineArgs = args.Length > 4 ? args[4] : string.Empty; 
+        
                 var launcher = new LauncherService();
                 var result = launcher.LaunchGameAndInject(gameExePath, dllPath, commandLineArgs, out var errorMessage, out var pid);
 

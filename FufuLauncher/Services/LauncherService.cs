@@ -1,4 +1,6 @@
-﻿using System.Runtime.InteropServices;
+﻿using System;
+using System.IO;
+using System.Runtime.InteropServices;
 using System.Text;
 
 namespace FufuLauncher.Services
@@ -17,6 +19,24 @@ namespace FufuLauncher.Services
     public class LauncherService : ILauncherService
     {
         private const string DllName = "Launcher.dll";
+
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        private static extern IntPtr LoadLibrary(string lpFileName);
+
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        private static extern bool SetDllDirectory(string lpPathName);
+
+        static LauncherService()
+        {
+            string extractDirectory = AppContext.BaseDirectory;
+            
+            Environment.CurrentDirectory = extractDirectory;
+            
+            SetDllDirectory(extractDirectory);
+            
+            string absoluteDllPath = Path.Combine(extractDirectory, DllName);
+            LoadLibrary(absoluteDllPath);
+        }
 
         [DllImport(DllName, CharSet = CharSet.Unicode, CallingConvention = CallingConvention.Cdecl)]
         [return: MarshalAs(UnmanagedType.I1)]
