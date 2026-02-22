@@ -19,10 +19,6 @@
         <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
 
         <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
-        
-        <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
-        
-        <PublishSingleFile>true</PublishSingleFile>
 
         <PublishReadyToRun>true</PublishReadyToRun>
     </PropertyGroup>
@@ -56,10 +52,15 @@
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
             <Link>CaptureApp.exe</Link>
         </Content>
+        <Content Include="..\FufuLauncher\Update.json">
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+            <Link>Update.json</Link>
+        </Content>
     </ItemGroup>
 
     <ItemGroup>
         <ProjectReference Include="..\FufuLauncher.Core\FufuLauncher.Core.csproj" />
+        <ProjectReference Include="..\update\update.csproj" />
     </ItemGroup>
 
     <ItemGroup>
@@ -71,7 +72,7 @@
     <ItemGroup>
         <Compile Remove="Models\GameConfig.cs" />
         <Compile Update="Views\Model\BrowserConfig.cs">
-          <DependentUpon>BrowserWindow.xaml</DependentUpon>
+            <DependentUpon>BrowserWindow.xaml</DependentUpon>
         </Compile>
     </ItemGroup>
 

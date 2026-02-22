@@ -113,7 +113,7 @@ public sealed partial class PanelPage
             Debug.WriteLine($"WebView2 初始化失败: {ex.Message}");
         }
     }
-
+    private DispatcherTimer _playTimeTimer;
     private async void PanelPage_Loaded(object sender, RoutedEventArgs e)
     {
         EntranceStoryboard.Begin();
@@ -121,6 +121,35 @@ public sealed partial class PanelPage
         await Task.Delay(600);
         
         await ViewModel.LoadSavedGachaDataAsync();
+        
+        _playTimeTimer = new DispatcherTimer();
+        _playTimeTimer.Interval = TimeSpan.FromSeconds(5);
+        _playTimeTimer.Tick += PlayTimeTimer_Tick;
+        _playTimeTimer.Start();
+        
+        PlayTimeTimer_Tick(null, null);
+    }
+    
+    private void PlayTimeTimer_Tick(object sender, object e)
+    {
+        bool isRunning = Process.GetProcessesByName("YuanShen").Any() || 
+                         Process.GetProcessesByName("GenshinImpact").Any();
+        
+        GameRunningIndicator.Visibility = isRunning ? Visibility.Visible : Visibility.Collapsed;
+        
+        if (isRunning && ViewModel.WeeklyStats != null)
+        {
+            var today = DateTime.Today;
+            var todayRecord = ViewModel.WeeklyStats.DailyRecords.FirstOrDefault(r => r.Date.Date == today);
+            
+            if (todayRecord == null)
+            {
+                todayRecord = new GamePlayTimeRecord { Date = today, PlayTimeSeconds = 0 };
+                ViewModel.WeeklyStats.DailyRecords.Insert(0, todayRecord);
+            }
+            
+            todayRecord.PlayTimeSeconds += 5;
+        }
     }
 
     private async Task StartScrapingSequenceAsync()

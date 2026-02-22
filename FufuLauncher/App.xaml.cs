@@ -148,36 +148,42 @@ public partial class App : Application
     {
         try
         {
-            var baseDir = AppContext.BaseDirectory;
-            var updaterPath = Path.Combine(baseDir, "update", "update.exe");
-
-            if (!File.Exists(updaterPath))
+            string? mainExePath = Environment.ProcessPath;
+            if (string.IsNullOrEmpty(mainExePath))
             {
-                Debug.WriteLine($"[Updater] 未找到更新程序: {updaterPath}");
+                Debug.WriteLine("[Updater] 无法获取主程序路径，更新程序启动中止。");
                 return;
             }
+            
+            int currentPid = Process.GetCurrentProcess().Id;
+            
+            string? baseDirectory = Path.GetDirectoryName(mainExePath);
+            if (string.IsNullOrEmpty(baseDirectory)) return;
+            
+            string updaterPath = Path.Combine(baseDirectory, "update.exe");
 
-            Debug.WriteLine($"[Updater] 准备启动: {updaterPath}");
-
-            var startInfo = new ProcessStartInfo
+            if (File.Exists(updaterPath))
             {
-                FileName = updaterPath,
-                Arguments = "1.0.8",
-                UseShellExecute = true,
-                Verb = "runas",
-                WorkingDirectory = Path.GetDirectoryName(updaterPath)
-            };
+                var psi = new ProcessStartInfo
+                {
+                    FileName = updaterPath,
+                    Arguments = $"\"{mainExePath}\" {currentPid}", 
+                    UseShellExecute = true,
+                    WindowStyle = ProcessWindowStyle.Normal
+                };
 
-            Process.Start(startInfo);
-            Debug.WriteLine("[Updater] 启动命令已发送");
-        }
-        catch (System.ComponentModel.Win32Exception)
-        {
-            Debug.WriteLine("[Updater] 用户取消了管理员授权或启动被拒绝。");
+                Process.Start(psi);
+                Debug.WriteLine($"[Updater] 已成功启动更新程序，路径: {updaterPath}");
+            }
+            else
+            {
+                Debug.WriteLine($"[Updater] 找不到更新程序，预期路径: {updaterPath}");
+            }
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[Updater] 启动异常: {ex.Message}");
+            Debug.WriteLine($"[Updater] 启动更新程序失败: {ex.Message}");
+            LogException(ex, "LaunchLocalUpdater");
         }
     }
 
@@ -334,8 +340,7 @@ public partial class App : Application
             MainWindow.Activate();
         }
     }
-
-    // New helper method to force default Dark theme
+    
     private async Task SetDefaultThemeAsync()
     {
         try

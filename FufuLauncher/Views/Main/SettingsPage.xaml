@@ -122,6 +122,11 @@
                         <FontIcon Glyph="&#xE713;" FontFamily="Segoe MDL2 Assets"/>
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
+                <NavigationViewItem Content="检查更新" Tag="UpdateItem">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE895;" FontFamily="Segoe MDL2 Assets"/>
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
                 <NavigationViewItem Content="关于" Tag="AboutItem">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE897;" FontFamily="Segoe MDL2 Assets"/>
@@ -515,6 +520,28 @@
                                    Style="{ThemeResource CaptionTextBlockStyle}"
                                    Opacity="0.7"
                                    Margin="0,0,0,0"/>
+                    </StackPanel>
+                </Border>
+                
+                <Border x:Name="UpdateItem" Style="{StaticResource SettingsCardStyle}">
+                    <StackPanel>
+                        <TextBlock Text="检查更新" 
+                                   Style="{ThemeResource SubtitleTextBlockStyle}"
+                                   Margin="0,0,0,16"/>
+        
+                        <TextBlock Text="版本更新" 
+                                   Style="{ThemeResource BodyStrongTextBlockStyle}"
+                                   FontSize="14"/>
+                        <TextBlock Text="检查并获取最新版本。点击后将启动更新程序"
+                                   Style="{ThemeResource CaptionTextBlockStyle}"
+                                   Opacity="0.7"
+                                   Margin="0,2,0,12"/>
+        
+                        <Button Content="检查更新" 
+                                Command="{x:Bind ViewModel.CheckUpdateCommand}" 
+                                HorizontalAlignment="Left" 
+                                Padding="12,6" 
+                                CornerRadius="6" />
                     </StackPanel>
                 </Border>
 

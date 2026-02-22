@@ -375,7 +375,7 @@ private async void CreateShortcut_Click(object sender, RoutedEventArgs e)
             }
 
 
-            var downloadWindow = new FufuLauncher.Views.DownloadWindow(targetPath);
+            var downloadWindow = new DownloadWindow(targetPath);
             downloadWindow.Activate();
         }
         private async void SwitchServer_Click(object sender, RoutedEventArgs e)
@@ -508,16 +508,16 @@ private async void CreateShortcut_Click(object sender, RoutedEventArgs e)
         {
             if (string.IsNullOrEmpty(gameExePath) || !File.Exists(gameExePath)) return;
 
-            string gameDir = Path.GetDirectoryName(gameExePath);
-            string configPath = Path.Combine(gameDir, "config.ini");
-            string serverType = "未知服务器";
+            var gameDir = Path.GetDirectoryName(gameExePath);
+            var configPath = Path.Combine(gameDir, "config.ini");
+            var serverType = "未知服务器";
 
             if (File.Exists(configPath))
             {
                 try
                 {
-                    string[] lines = await File.ReadAllLinesAsync(configPath);
-                    string channel = "1";
+                    var lines = await File.ReadAllLinesAsync(configPath);
+                    var channel = "1";
 
                     foreach (var line in lines)
                     {
@@ -555,7 +555,7 @@ private async void CreateShortcut_Click(object sender, RoutedEventArgs e)
             appWindow.Resize(new Windows.Graphics.SizeInt32(1280, 800));
 
             var rootFrame = new Frame();
-            rootFrame.Navigate(typeof(Views.MapPage), newWindow);
+            rootFrame.Navigate(typeof(MapPage), newWindow);
 
             newWindow.Content = rootFrame;
             newWindow.Activate();
@@ -563,14 +563,15 @@ private async void CreateShortcut_Click(object sender, RoutedEventArgs e)
 
         private async Task<bool> ValidateGameExecutableAsync(string path)
         {
-            string cnExe = Path.Combine(path, "YuanShen.exe");
-            string globalExe = Path.Combine(path, "GenshinImpact.exe");
+            var cnExe = Path.Combine(path, "YuanShen.exe");
+            var globalExe = Path.Combine(path, "GenshinImpact.exe");
 
             if (File.Exists(cnExe))
             {
                 return true;
             }
-            else if (File.Exists(globalExe))
+
+            if (File.Exists(globalExe))
             {
                 var dialog = new ContentDialog
                 {
@@ -579,7 +580,7 @@ private async void CreateShortcut_Click(object sender, RoutedEventArgs e)
                     PrimaryButtonText = "继续使用",
                     CloseButtonText = "放弃并清除",
                     DefaultButton = ContentDialogButton.Primary,
-                    XamlRoot = this.XamlRoot
+                    XamlRoot = XamlRoot
                 };
 
                 var result = await dialog.ShowAsync();
@@ -592,7 +593,7 @@ private async void CreateShortcut_Click(object sender, RoutedEventArgs e)
                     Title = "无效的游戏路径",
                     Content = "在该路径下未找到游戏主程序 (YuanShen.exe 或 GenshinImpact.exe)。\n\n请确认您选择的是包含游戏可执行文件的安装目录。",
                     CloseButtonText = "确定",
-                    XamlRoot = this.XamlRoot
+                    XamlRoot = XamlRoot
                 };
                 await dialog.ShowAsync();
                 return false;
@@ -710,7 +711,7 @@ private async void CreateShortcut_Click(object sender, RoutedEventArgs e)
                 PrimaryButtonText = "应用",
                 CloseButtonText = "手动选择",
                 DefaultButton = ContentDialogButton.Primary,
-                XamlRoot = this.XamlRoot
+                XamlRoot = XamlRoot
             };
 
             var result = await dialog.ShowAsync();
@@ -733,7 +734,7 @@ private async void CreateShortcut_Click(object sender, RoutedEventArgs e)
             await PickGameFolderAsync();
         }
 
-        private async Task<string?> PickGameFolderAsync()
+        private async Task PickGameFolderAsync()
         {
             var hwnd = WindowNative.GetWindowHandle(App.MainWindow);
             var folderPicker = new FolderPicker
@@ -750,9 +751,8 @@ private async void CreateShortcut_Click(object sender, RoutedEventArgs e)
                 PathTextBox.Text = path;
                 await ProcessPathInput(path);
 
-                return path;
+                return;
             }
-            return null;
         }
 
         private async Task LoadGameInfoAsync(string gamePath)

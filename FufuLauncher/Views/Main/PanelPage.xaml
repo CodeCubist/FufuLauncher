@@ -344,7 +344,16 @@
             </Border.Shadow>
             
 <StackPanel Spacing="15">
-    <TextBlock Text="近30天游戏时长统计" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,5"/>
+    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,0,5">
+        <TextBlock Text="近30天游戏时长统计" FontSize="18" FontWeight="SemiBold"/>
+        <Border x:Name="GameRunningIndicator" 
+                Background="{ThemeResource SystemFillColorSuccessBrush}" 
+                CornerRadius="4" Padding="6,2" 
+                Visibility="Collapsed" 
+                VerticalAlignment="Center">
+            <TextBlock Text="游戏中" FontSize="10" Foreground="White" FontWeight="Bold"/>
+        </Border>
+    </StackPanel>
     
     <Grid>
         <Grid.RowDefinitions>

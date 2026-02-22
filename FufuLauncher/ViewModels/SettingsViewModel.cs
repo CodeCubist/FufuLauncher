@@ -85,6 +85,12 @@ namespace FufuLauncher.ViewModels
         {
             get;
         }
+
+        public ICommand CheckUpdateCommand
+        {
+            get;
+        }
+        
         private bool _isInitializing;
 
         [ObservableProperty] private bool _isStartupSoundEnabled;
@@ -119,6 +125,7 @@ namespace FufuLauncher.ViewModels
 
             SelectStartupSoundCommand = new AsyncRelayCommand(SelectStartupSoundAsync);
             ClearStartupSoundCommand = new AsyncRelayCommand(ClearStartupSound);
+            CheckUpdateCommand = new RelayCommand(CheckUpdate);
             ElementTheme = _themeSelectorService.Theme;
             _versionDescription = GetVersionDescription();
 
@@ -166,11 +173,36 @@ namespace FufuLauncher.ViewModels
             SelectCustomBackgroundCommand = new AsyncRelayCommand(SelectCustomBackgroundAsync);
         }
         
+        private void CheckUpdate()
+        {
+            try
+            {
+                var updateExePath = Path.Combine(AppContext.BaseDirectory, "update.exe");
+        
+                if (File.Exists(updateExePath))
+                {
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = updateExePath,
+                        UseShellExecute = true 
+                    });
+                }
+                else
+                {
+                    Debug.WriteLine("未找到 update.exe: " + updateExePath);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"启动更新程序失败: {ex.Message}");
+            }
+        }
+        
         partial void OnLaunchArgsWidthChanged(string value) => ApplyPresetsToText();
         partial void OnLaunchArgsHeightChanged(string value) => ApplyPresetsToText();
         partial void OnLaunchArgsWindowModeChanged(WindowModeType value) => ApplyPresetsToText();
 
-private void InitializeDefaultResolution()
+        private void InitializeDefaultResolution()
         {
             try
             {

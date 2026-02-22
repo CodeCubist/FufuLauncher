@@ -1,4 +1,5 @@
 ﻿using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Diagnostics;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -164,6 +165,7 @@ namespace FufuLauncher.ViewModels
 
             WeakReferenceMessenger.Default.Register<GamePathChangedMessage>(this, (r, m) =>
             {
+                _cachedGamePath = null;
                 _dispatcherQueue?.TryEnqueue(() => UpdateLaunchButtonState());
             });
 
@@ -655,11 +657,13 @@ namespace FufuLauncher.ViewModels
             {
                 var result = await _gameLauncherService.LaunchGameAsync();
 
+// 找到这部分代码并替换：
                 if (result.Success)
                 {
-                    for (int i = 0; i < 3; i++)
+                    // 优化点：将 3次*1000ms 的低频检测，改为 10次*300ms 的高频检测
+                    for (int i = 0; i < 10; i++)
                     {
-                        await Task.Delay(1000);
+                        await Task.Delay(300);
                         await ForceRefreshGameStateAsync();
                         if (IsGameRunning) break;
                     }
@@ -729,10 +733,78 @@ namespace FufuLauncher.ViewModels
 
         private async Task ForceRefreshGameStateAsync()
         {
-            bool actualState = CheckGameProcessRunning();
+            bool actualState = await CheckGameProcessRunningAsync(); // 改为 awaited
             if (actualState != IsGameRunning)
             {
                 await SetGameRunningStateAsync(actualState);
+            }
+        }
+        private string _cachedGamePath;
+        private async Task<bool> CheckGameProcessRunningAsync()
+        {
+            try
+            {
+                var processes = Process.GetProcessesByName(TargetProcessName)
+                    .Concat(Process.GetProcessesByName(TargetProcessNameAlt))
+                    .ToList();
+
+                if (processes.Count == 0) return false;
+
+                // 获取当前用户配置的真实游戏路径
+                if (string.IsNullOrEmpty(_cachedGamePath))
+                {
+                    var savedPathTask = await _localSettingsService.ReadSettingAsync("GameInstallationPath");
+                    _cachedGamePath = savedPathTask?.ToString()?.Trim('"')?.Trim();
+                }
+                var gamePath = _cachedGamePath;
+
+                foreach (var p in processes)
+                {
+                    try
+                    {
+                        if (p.HasExited) continue;
+
+                        // 核心：严格校验进程所在的物理路径
+                        if (!string.IsNullOrEmpty(gamePath))
+                        {
+                            var processPath = p.MainModule?.FileName;
+                            if (!string.IsNullOrEmpty(processPath))
+                            {
+                                // 如果进程路径不是配置的游戏目录，说明是无关同名进程（如私服/其他工具），直接跳过
+                                if (processPath.StartsWith(gamePath, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    return true;
+                                }
+                                continue; 
+                            }
+                        }
+
+                        // 如果因为降权获取不到路径但有窗口句柄，也判定为真实运行中
+                        if (p.MainWindowHandle != IntPtr.Zero)
+                        {
+                            return true;
+                        }
+                
+                        return true;
+                    }
+                    catch (Win32Exception)
+                    {
+                        // Win32Exception 意味着权限不足 (Access Denied)。
+                        // 游戏大概率以管理员运行，而启动器是普通权限。这是正常现象，说明找对了进程。
+                        return true;
+                    }
+                    catch (InvalidOperationException)
+                    {
+                        // 进程在此刻恰好结束，引发操作无效，跳过
+                        continue;
+                    }
+                }
+
+                return false;
+            }
+            catch
+            {
+                return false;
             }
         }
 
@@ -772,57 +844,83 @@ namespace FufuLauncher.ViewModels
         }
 
         private async Task TerminateGameAsync()
-        {
-            IsLaunchButtonEnabled = false;
-            await SetGameRunningStateAsync(true, "正在终止游戏...");
+{
+    IsLaunchButtonEnabled = false;
+    await SetGameRunningStateAsync(true, "正在终止游戏...");
 
+    try
+    {
+        var savedPathObj = await _localSettingsService.ReadSettingAsync("GameInstallationPath");
+        var gamePath = savedPathObj?.ToString()?.Trim('"')?.Trim();
+
+        var processes = Process.GetProcessesByName(TargetProcessName)
+            .Concat(Process.GetProcessesByName(TargetProcessNameAlt))
+            .ToList();
+
+        if (processes.Count == 0)
+        {
+            await SetGameRunningStateAsync(false);
+            UpdateLaunchButtonState();
+            return;
+        }
+
+        foreach (var process in processes)
+        {
             try
             {
-                var processes = Process.GetProcessesByName(TargetProcessName)
-                    .Concat(Process.GetProcessesByName(TargetProcessNameAlt))
-                    .ToList();
-
-                if (processes.Count == 0)
-                {
-                    await SetGameRunningStateAsync(false);
-                    UpdateLaunchButtonState();
-                    return;
-                }
-
-                foreach (var process in processes)
+                if (process.HasExited) continue;
+                
+                if (!string.IsNullOrEmpty(gamePath))
                 {
                     try
                     {
-                        process.Kill();
-                        await process.WaitForExitAsync();
+                        var processPath = process.MainModule?.FileName;
+                        if (!string.IsNullOrEmpty(processPath) &&
+                            !processPath.StartsWith(gamePath, StringComparison.OrdinalIgnoreCase))
+                        {
+                            continue;
+                        }
                     }
-                    catch { }
+                    catch (Win32Exception)
+                    {
+                        // ignored
+                    }
+                    catch (InvalidOperationException) { continue; }
                 }
 
-                try
-                {
-                    await _gameLauncherService.StopBetterGIAsync();
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"关闭 BetterGI 时发生错误: {ex.Message}");
-                }
-
-                await Task.Delay(1000);
-                await SetGameRunningStateAsync(false);
-                UpdateLaunchButtonState();
+                process.Kill();
+                await process.WaitForExitAsync();
             }
-            catch (Exception ex)
+            catch
             {
-                _notificationService.Show("终止失败", ex.Message, NotificationType.Error, 0);
-                await SetGameRunningStateAsync(false);
-                UpdateLaunchButtonState();
-            }
-            finally
-            {
-                IsLaunchButtonEnabled = true;
+                // ignored
             }
         }
+
+        try
+        {
+            await _gameLauncherService.StopBetterGIAsync();
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"关闭 BetterGI 时发生错误: {ex.Message}");
+        }
+
+        await Task.Delay(1000);
+        await SetGameRunningStateAsync(false);
+        UpdateLaunchButtonState();
+    }
+    catch (Exception ex)
+    {
+        _notificationService.Show("终止失败", ex.Message, NotificationType.Error, 0);
+        await SetGameRunningStateAsync(false);
+        UpdateLaunchButtonState();
+    }
+    finally
+    {
+        IsLaunchButtonEnabled = true;
+    }
+}
 
         private async Task StartGameMonitoringLoopAsync(CancellationToken token)
         {
@@ -832,7 +930,7 @@ namespace FufuLauncher.ViewModels
             {
                 try
                 {
-                    bool currentState = CheckGameProcessRunning();
+                    bool currentState = await CheckGameProcessRunningAsync(); 
 
                     if (currentState != lastState || currentState != IsGameRunning)
                     {
@@ -849,8 +947,8 @@ namespace FufuLauncher.ViewModels
                 {
                     Debug.WriteLine($"进程监控错误: {ex.Message}");
                 }
-
-                await Task.Delay(3000, token);
+                
+                await Task.Delay(1000, token); 
             }
         }
     }

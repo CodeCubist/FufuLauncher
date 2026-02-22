@@ -9,6 +9,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FufuLauncher.Core", "FufuLa
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MihoyoBBS", "MihoyoBBS\MihoyoBBS.csproj", "{7B00411A-05DF-47A7-86C5-972F1D6D2AAF}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "update", "update\update.csproj", "{3B37C745-F433-4C0F-A1EC-3373A1E2A023}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|arm64 = Debug|arm64
@@ -61,6 +63,18 @@ Global
 		{7B00411A-05DF-47A7-86C5-972F1D6D2AAF}.Release|x64.ActiveCfg = Release|Any CPU
 		{7B00411A-05DF-47A7-86C5-972F1D6D2AAF}.Release|x86.ActiveCfg = Release|Any CPU
 		{7B00411A-05DF-47A7-86C5-972F1D6D2AAF}.Release|x86.Build.0 = Release|Any CPU
+		{3B37C745-F433-4C0F-A1EC-3373A1E2A023}.Debug|arm64.ActiveCfg = Debug|Any CPU
+		{3B37C745-F433-4C0F-A1EC-3373A1E2A023}.Debug|arm64.Build.0 = Debug|Any CPU
+		{3B37C745-F433-4C0F-A1EC-3373A1E2A023}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{3B37C745-F433-4C0F-A1EC-3373A1E2A023}.Debug|x64.Build.0 = Debug|Any CPU
+		{3B37C745-F433-4C0F-A1EC-3373A1E2A023}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{3B37C745-F433-4C0F-A1EC-3373A1E2A023}.Debug|x86.Build.0 = Debug|Any CPU
+		{3B37C745-F433-4C0F-A1EC-3373A1E2A023}.Release|arm64.ActiveCfg = Release|Any CPU
+		{3B37C745-F433-4C0F-A1EC-3373A1E2A023}.Release|arm64.Build.0 = Release|Any CPU
+		{3B37C745-F433-4C0F-A1EC-3373A1E2A023}.Release|x64.ActiveCfg = Release|Any CPU
+		{3B37C745-F433-4C0F-A1EC-3373A1E2A023}.Release|x64.Build.0 = Release|Any CPU
+		{3B37C745-F433-4C0F-A1EC-3373A1E2A023}.Release|x86.ActiveCfg = Release|Any CPU
+		{3B37C745-F433-4C0F-A1EC-3373A1E2A023}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

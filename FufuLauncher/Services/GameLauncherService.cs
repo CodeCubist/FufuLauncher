@@ -136,19 +136,38 @@ namespace FufuLauncher.Services
 
         private async Task WaitGenshinStartAsync()
         {
-            while (true)
+            int timeoutMs = 60000;
+            int elapsedMs = 0;
+            int delayMs = 500;
+
+            while (elapsedMs < timeoutMs)
             {
-                await Task.Delay(500);
+                await Task.Delay(delayMs);
+                elapsedMs += delayMs;
+
                 IntPtr hwid = GetForegroundWindow();
                 if (hwid == IntPtr.Zero) continue;
+        
                 GetWindowThreadProcessId(hwid, out uint pid);
-                var process = Process.GetProcessById((int)pid);
-                if (process.ProcessName.Equals("GenshinImpact", StringComparison.OrdinalIgnoreCase) ||
-                    process.ProcessName.Equals("YuanShen", StringComparison.OrdinalIgnoreCase))
+                try
                 {
-                    await Task.Delay(2000);
-                    break;
+                    var process = Process.GetProcessById((int)pid);
+                    if (process.ProcessName.Equals("GenshinImpact", StringComparison.OrdinalIgnoreCase) ||
+                        process.ProcessName.Equals("YuanShen", StringComparison.OrdinalIgnoreCase))
+                    {
+                        await Task.Delay(2000);
+                        break;
+                    }
                 }
+                catch
+                {
+                    // ignored
+                }
+            }
+    
+            if (elapsedMs >= timeoutMs)
+            {
+                Trace.WriteLine("[启动流程] 警告：等待游戏主窗口超时 (60秒)");
             }
         }
 
@@ -200,13 +219,13 @@ namespace FufuLauncher.Services
 
                 await ApplyGenshinHDRConfigAsync(logBuilder);
 
-                string arguments = BuildLaunchArguments(config).ToString();
+                var arguments = BuildLaunchArguments(config).ToString();
                 logBuilder.AppendLine($"[启动流程] 启动参数: {arguments}");
 
-                bool useInjection = await GetUseInjectionAsync();
+                var useInjection = await GetUseInjectionAsync();
                 logBuilder.AppendLine($"[启动流程] 注入模式: {(useInjection ? "启用" : "禁用")}");
 
-                bool gameStarted = false;
+                var gameStarted = false;
 
                 if (useInjection)
                 {
@@ -215,7 +234,7 @@ namespace FufuLauncher.Services
                     logBuilder.AppendLine($"[启动流程] 配置掩码: {configMask}");
 
                     string targetDllPath = null;
-                    string defaultDllPath = _launcherService.GetDefaultDllPath();
+                    var defaultDllPath = _launcherService.GetDefaultDllPath();
 
                     if (!string.IsNullOrEmpty(defaultDllPath) && File.Exists(defaultDllPath))
                     {
@@ -226,7 +245,7 @@ namespace FufuLauncher.Services
                     {
                         try
                         {
-                            string pluginsDir = Path.Combine(AppContext.BaseDirectory, "Plugins");
+                            var pluginsDir = Path.Combine(AppContext.BaseDirectory, "Plugins");
                             if (Directory.Exists(pluginsDir))
                             {
                                 logBuilder.AppendLine($"[启动流程] 在扫描插件目录: {pluginsDir}");
