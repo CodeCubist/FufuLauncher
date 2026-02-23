@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Microsoft.Win32;
 
 namespace update;
 
@@ -36,12 +37,53 @@ internal static class Program
 
         try
         {
+            CheckWindowsVersion();
+
             CheckForUpdatesAsync().GetAwaiter().GetResult();
         }
         catch (Exception ex)
         {
             MessageBox.Show($"检查更新时发生异常:\n{ex.Message}", "更新错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
+    }
+    
+    private static void CheckWindowsVersion()
+    {
+        try
+        {
+            using var key = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Windows NT\CurrentVersion");
+            if (key != null)
+            {
+                var buildStr = key.GetValue("CurrentBuild")?.ToString();
+                if (int.TryParse(buildStr, out int buildNumber))
+                {
+                    if (buildNumber < 19041)
+                    {
+                        ShowWindowsUpdateNotification();
+                    }
+                }
+            }
+        }
+        catch
+        {
+            // ignored
+        }
+    }
+    
+    private static void ShowWindowsUpdateNotification()
+    {
+        NotifyIcon notifyIcon = new()
+        {
+            Visible = true,
+            Icon = SystemIcons.Warning,
+            BalloonTipTitle = "系统版本过低",
+            BalloonTipText = "您的 Windows 版本低于 20H1，可能无法运行主程序，建议更新系统以获得最佳运行体验",
+            BalloonTipIcon = ToolTipIcon.Warning
+        };
+        
+        notifyIcon.ShowBalloonTip(5000);
+        
+        Task.Delay(8000).ContinueWith(_ => notifyIcon.Dispose());
     }
 
     private static async Task CheckForUpdatesAsync()

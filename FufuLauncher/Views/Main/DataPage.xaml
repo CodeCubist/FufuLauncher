@@ -542,6 +542,14 @@
         <ThemeShadow/>
     </Grid.Shadow>
 </Grid>
-
+        <TextBlock Grid.Column="0"
+                   Text="数据由提瓦特小助手提供 活动时间轴由Paimon.moe提供"
+                   HorizontalAlignment="Center"
+                   VerticalAlignment="Bottom"
+                   Margin="0,0,0,12"
+                   FontSize="12"
+                   Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                   IsHitTestVisible="False"
+                   Canvas.ZIndex="100"/>
     </Grid>
 </Page>
