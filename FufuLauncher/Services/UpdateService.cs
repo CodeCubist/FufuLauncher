@@ -8,7 +8,7 @@ namespace FufuLauncher.Services;
 public class UpdateService : IUpdateService
 {
     private const string UpdateJsonUrl = "https://philia093.cyou/Update.json";
-    private const string HardcodedVersion = "1.0.8";
+    private const string HardcodedVersion = "1.0.9";
 
     private readonly ILocalSettingsService _localSettingsService;
     private readonly HttpClient _httpClient;
@@ -29,7 +29,7 @@ public class UpdateService : IUpdateService
             Timeout = TimeSpan.FromSeconds(30),
             DefaultRequestHeaders =
             {
-                UserAgent = { new System.Net.Http.Headers.ProductInfoHeaderValue("Fufu-Launcher", "1.0.8") },
+                UserAgent = { new System.Net.Http.Headers.ProductInfoHeaderValue("Fufu-Launcher", "1.0.9") },
                 Accept = { new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json") }
             }
         };
