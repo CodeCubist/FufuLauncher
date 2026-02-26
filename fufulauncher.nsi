@@ -14,6 +14,7 @@ OutFile "${APP_NAME}_Setup_v${APP_VERSION}.exe"
 
 !include "MUI2.nsh"
 !include "x64.nsh"
+!include "FileFunc.nsh"
 
 InstallDir "$LOCALAPPDATA\${APP_NAME}"
 RequestExecutionLevel admin
@@ -100,17 +101,26 @@ Function .onInit
     
     # 如果已安装，提示卸载
     SetRegView 64
-    ReadRegStr $R0 HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_NAME}" "UninstallString"
-    StrCmp $R0 "" done
-    
+
+    ReadRegStr $R0 HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_NAME}" "UninstallString"
+    StrCmp $R0 "" CheckHKLM
+
+    FoundInstallation:
     MessageBox MB_OKCANCEL|MB_ICONEXCLAMATION \
         "${APP_NAME} 已安装。$\n$\n点击'确定'移除旧版本，或'取消'取消安装。" \
         IDOK uninst
     Abort
 
+    CheckHKLM:
+    ReadRegStr $R0 HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_NAME}" "UninstallString"
+    StrCmp $R0 "" done
+    Goto FoundInstallation
+
     uninst:
         ClearErrors
-        ExecWait '$R0 _?=$INSTDIR'
+        ${GetParent} $R0 $R1
+
+        ExecWait '$R0 _?=$R1'
         IfErrors no_remove_uninstaller
         Goto done
         
