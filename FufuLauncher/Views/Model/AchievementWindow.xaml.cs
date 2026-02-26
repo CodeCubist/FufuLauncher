@@ -9,6 +9,7 @@ using FufuLauncher.Models;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media.Animation;
+using Microsoft.Data.Sqlite;
 
 namespace FufuLauncher.Views;
 
@@ -19,6 +20,7 @@ public sealed partial class AchievementWindow : Window
     private readonly string _workFilePath;
     private readonly string _assetsFilePath;
     private bool _isDataLoaded;
+    private Dictionary<AchievementItem, int> _itemUids = new();
     private HttpListener _listener;
     private bool _keepRunning = true;
     private bool _isBatchProcessing;
@@ -62,7 +64,7 @@ public sealed partial class AchievementWindow : Window
             CurrentProfileName = "未命名存档";
         }
         
-        _workFilePath = Path.Combine(docPath, "achievements.json");
+        _workFilePath = Path.Combine(docPath, "achievements.db");
         _assetsFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", "genshin_achievements_linked.json");
 
         LoadData();
@@ -71,101 +73,191 @@ public sealed partial class AchievementWindow : Window
         ViewModel.PropertyChanged += ViewModel_PropertyChanged;
     }
     
-    private async Task SyncWithAssetsDatabase()
-{
-    if (_isBatchProcessing) return;
-    _isBatchProcessing = true;
-    ViewModel.IsLoading = true;
-    ViewModel.StatusMessage = "正在对比数据库版本...";
-
-    try
+    private void EnsureDatabaseExists(string dbPath)
     {
-        if (!File.Exists(_assetsFilePath))
+        bool isNewDb = !File.Exists(dbPath);
+        if (isNewDb)
         {
-            await ShowDialogAsync("错误", "找不到内置数据库文件 (Assets/genshin_achievements_linked.json)");
-            return;
-        }
-        
-        string masterJson = await File.ReadAllTextAsync(_assetsFilePath);
-        var options = new JsonSerializerOptions
-        {
-            PropertyNameCaseInsensitive = true,
-            NumberHandling = JsonNumberHandling.AllowReadingFromString,
-            ReadCommentHandling = JsonCommentHandling.Skip
-        };
-        var masterCategories = JsonSerializer.Deserialize<List<AchievementCategory>>(masterJson, options);
-        
-        if (!File.Exists(_workFilePath))
-        {
-            File.Copy(_assetsFilePath, _workFilePath, true);
-            LoadData();
-            await ShowDialogAsync("同步完成", "未发现旧存档，已直接初始化为最新数据库。");
-            return;
-        }
-
-        var userJson = await File.ReadAllTextAsync(_workFilePath);
-        var userCategories = JsonSerializer.Deserialize<List<AchievementCategory>>(userJson, options) ?? new List<AchievementCategory>();
-
-        var addedCount = 0;
-        var newCategoriesCount = 0;
-        
-        foreach (var masterCat in masterCategories)
-        {
-            var userCat = userCategories.FirstOrDefault(c => c.Name == masterCat.Name);
-
-            if (userCat == null)
+            using var connection = new SqliteConnection($"Data Source={dbPath}");
+            connection.Open();
+            using var cmd = connection.CreateCommand();
+            cmd.CommandText = @"
+                CREATE TABLE IF NOT EXISTS Categories (
+                    Name TEXT PRIMARY KEY,
+                    IconUrl TEXT
+                );
+                CREATE TABLE IF NOT EXISTS Achievements (
+                    Uid INTEGER PRIMARY KEY AUTOINCREMENT,
+                    Id INTEGER,
+                    Title TEXT,
+                    CategoryName TEXT,
+                    RawJson TEXT,
+                    IsCompleted INTEGER,
+                    CurrentProgress INTEGER,
+                    MaxProgress INTEGER
+                );
+            ";
+            cmd.ExecuteNonQuery();
+            
+            string oldJsonPath = Path.Combine(Path.GetDirectoryName(dbPath), "achievements.json");
+            if (File.Exists(oldJsonPath))
             {
-                userCategories.Add(masterCat);
-                newCategoriesCount++;
-                addedCount += masterCat.Achievements.Count;
+                ImportJsonToDb(oldJsonPath, dbPath, connection);
             }
-            else
+            else if (File.Exists(_assetsFilePath))
             {
-                var userAchievementIds = new HashSet<int>(userCat.Achievements.Select(a => a.Id));
+                ImportJsonToDb(_assetsFilePath, dbPath, connection);
+            }
+        }
+    }
+    
+    private void ImportJsonToDb(string jsonPath, string dbPath, SqliteConnection connection = null)
+    {
+        bool closeConn = false;
+        if (connection == null)
+        {
+            connection = new SqliteConnection($"Data Source={dbPath}");
+            connection.Open();
+            closeConn = true;
+        }
+
+        string jsonContent = File.ReadAllText(jsonPath);
+        var options = new JsonSerializerOptions { 
+            PropertyNameCaseInsensitive = true, 
+            NumberHandling = JsonNumberHandling.AllowReadingFromString, 
+            ReadCommentHandling = JsonCommentHandling.Skip 
+        };
+        var rawCategories = JsonSerializer.Deserialize<List<AchievementCategory>>(jsonContent, options);
+        if (rawCategories == null) return;
+
+        using var transaction = connection.BeginTransaction();
+        var writeOptions = new JsonSerializerOptions { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
+
+        foreach (var cat in rawCategories)
+        {
+            using var catCmd = connection.CreateCommand();
+            catCmd.Transaction = transaction;
+            catCmd.CommandText = "INSERT OR IGNORE INTO Categories (Name, IconUrl) VALUES (@Name, @IconUrl)";
+            catCmd.Parameters.AddWithValue("@Name", cat.Name ?? "未知分类");
+            catCmd.Parameters.AddWithValue("@IconUrl", cat.IconUrl ?? (object)DBNull.Value);
+            catCmd.ExecuteNonQuery();
+            
+            if (cat.Achievements == null) continue;
+
+            foreach (var item in cat.Achievements)
+            {
+                using var achCmd = connection.CreateCommand();
+                achCmd.Transaction = transaction;
+                achCmd.CommandText = "INSERT INTO Achievements (Id, Title, CategoryName, RawJson, IsCompleted, CurrentProgress, MaxProgress) VALUES (@Id, @Title, @CategoryName, @RawJson, @IsCompleted, @CurrentProgress, @MaxProgress)";
+                
+                achCmd.Parameters.AddWithValue("@Id", item.Id);
+                achCmd.Parameters.AddWithValue("@Title", item.Title ?? "");
+                achCmd.Parameters.AddWithValue("@CategoryName", cat.Name ?? "未知分类");
+                achCmd.Parameters.AddWithValue("@RawJson", JsonSerializer.Serialize(item, writeOptions));
+                achCmd.Parameters.AddWithValue("@IsCompleted", item.IsCompleted ? 1 : 0);
+                achCmd.Parameters.AddWithValue("@CurrentProgress", item.CurrentProgress);
+                achCmd.Parameters.AddWithValue("@MaxProgress", item.MaxProgress);
+                achCmd.ExecuteNonQuery();
+            }
+        }
+        transaction.Commit();
+
+        if (closeConn) connection.Close();
+    }
+    
+    private async Task SyncWithAssetsDatabase()
+    {
+        if (_isBatchProcessing) return;
+        _isBatchProcessing = true;
+        ViewModel.IsLoading = true;
+        ViewModel.StatusMessage = "正在对比数据库版本...";
+
+        try
+        {
+            if (!File.Exists(_assetsFilePath))
+            {
+                await ShowDialogAsync("错误", "找不到内置数据库文件");
+                return;
+            }
+
+            string masterJson = await File.ReadAllTextAsync(_assetsFilePath);
+            var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true, NumberHandling = JsonNumberHandling.AllowReadingFromString, ReadCommentHandling = JsonCommentHandling.Skip };
+            var masterCategories = JsonSerializer.Deserialize<List<AchievementCategory>>(masterJson, options);
+
+            EnsureDatabaseExists(_workFilePath);
+
+            using var connection = new SqliteConnection($"Data Source={_workFilePath}");
+            await connection.OpenAsync();
+
+            var existingSignatures = new HashSet<string>();
+            using var idCmd = connection.CreateCommand();
+            idCmd.CommandText = "SELECT Id, Title FROM Achievements";
+            using (var reader = await idCmd.ExecuteReaderAsync())
+            {
+                while (reader.Read()) existingSignatures.Add($"{reader.GetInt32(0)}_{reader.GetString(1)}");
+            }
+
+            using var transaction = connection.BeginTransaction();
+            int addedCount = 0;
+            int newCategoriesCount = 0;
+            var writeOptions = new JsonSerializerOptions { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
+
+            foreach (var masterCat in masterCategories)
+            {
+                using var catCmd = connection.CreateCommand();
+                catCmd.Transaction = transaction;
+                catCmd.CommandText = "INSERT OR IGNORE INTO Categories (Name, IconUrl) VALUES (@Name, @IconUrl)";
+                catCmd.Parameters.AddWithValue("@Name", masterCat.Name ?? "未知分类");
+                catCmd.Parameters.AddWithValue("@IconUrl", masterCat.IconUrl ?? (object)DBNull.Value);
+                if (await catCmd.ExecuteNonQueryAsync() > 0) newCategoriesCount++;
+
+                if (masterCat.Achievements == null) continue;
 
                 foreach (var masterItem in masterCat.Achievements)
                 {
-                    if (!userAchievementIds.Contains(masterItem.Id))
+                    string sig = $"{masterItem.Id}_{masterItem.Title ?? ""}";
+                    if (!existingSignatures.Contains(sig))
                     {
-                        userCat.Achievements.Add(masterItem);
+                        using var achCmd = connection.CreateCommand();
+                        achCmd.Transaction = transaction;
+                        achCmd.CommandText = "INSERT INTO Achievements (Id, Title, CategoryName, RawJson, IsCompleted, CurrentProgress, MaxProgress) VALUES (@Id, @Title, @CategoryName, @RawJson, @IsCompleted, @CurrentProgress, @MaxProgress)";
+                        achCmd.Parameters.AddWithValue("@Id", masterItem.Id);
+                        achCmd.Parameters.AddWithValue("@Title", masterItem.Title ?? "");
+                        achCmd.Parameters.AddWithValue("@CategoryName", masterCat.Name ?? "未知分类");
+                        achCmd.Parameters.AddWithValue("@RawJson", JsonSerializer.Serialize(masterItem, writeOptions));
+                        achCmd.Parameters.AddWithValue("@IsCompleted", masterItem.IsCompleted ? 1 : 0);
+                        achCmd.Parameters.AddWithValue("@CurrentProgress", masterItem.CurrentProgress);
+                        achCmd.Parameters.AddWithValue("@MaxProgress", masterItem.MaxProgress);
+                        await achCmd.ExecuteNonQueryAsync();
                         addedCount++;
+                        existingSignatures.Add(sig);
                     }
                 }
             }
-        }
-        
-        if (addedCount > 0)
-        {
-            var writeOptions = new JsonSerializerOptions
+            transaction.Commit();
+
+            if (addedCount > 0)
             {
-                WriteIndented = true,
-                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
-            };
-            string newJsonContent = JsonSerializer.Serialize(userCategories, writeOptions);
-            await File.WriteAllTextAsync(_workFilePath, newJsonContent);
-            
-            LoadData();
-            
-            string msg = $"同步成功！\n新增分类: {newCategoriesCount} 个\n新增成就: {addedCount} 个";
-            await ShowDialogAsync("数据库更新", msg);
+                LoadData();
+                await ShowDialogAsync("数据库更新", $"同步成功！\n新增分类: {newCategoriesCount} 个\n新增成就: {addedCount} 个");
+            }
+            else
+            {
+                ViewModel.StatusMessage = "当前已是最新数据库";
+                await ShowDialogAsync("数据库更新", "您的存档已经是最新版本，无需更新。");
+            }
         }
-        else
+        catch (Exception ex)
         {
-            ViewModel.StatusMessage = "当前已是最新数据库";
-            await ShowDialogAsync("数据库更新", "您的存档已经是最新版本，无需更新。");
+            await ShowDialogAsync("更新失败", $"同步过程中发生错误：\n{ex.Message}");
+        }
+        finally
+        {
+            ViewModel.IsLoading = false;
+            _isBatchProcessing = false;
+            if (_isDataLoaded) CalculateGlobalStats(); 
         }
     }
-    catch (Exception ex)
-    {
-        await ShowDialogAsync("更新失败", $"同步过程中发生错误：\n{ex.Message}");
-    }
-    finally
-    {
-        ViewModel.IsLoading = false;
-        _isBatchProcessing = false;
-        if (_isDataLoaded) CalculateGlobalStats(); 
-    }
-}
     
     private async void OnUpdateDbClick(object sender, RoutedEventArgs e)
     {
@@ -195,7 +287,10 @@ public sealed partial class AchievementWindow : Window
             if (string.IsNullOrWhiteSpace(nameResult)) return;
 
             SaveData(); 
-            string targetPath = Path.Combine(_archivesDir, $"{nameResult}.json");
+            
+            SqliteConnection.ClearAllPools();
+            
+            string targetPath = Path.Combine(_archivesDir, $"{nameResult}.db");
             File.Copy(_workFilePath, targetPath, true);
             File.WriteAllText(_profileRecordPath, nameResult);
             CurrentProfileName = nameResult;
@@ -204,7 +299,10 @@ public sealed partial class AchievementWindow : Window
         else
         {
             SaveData();
-            string currentBackupPath = Path.Combine(_archivesDir, $"{CurrentProfileName}.json");
+            
+            SqliteConnection.ClearAllPools();
+            
+            string currentBackupPath = Path.Combine(_archivesDir, $"{CurrentProfileName}.db");
             File.Copy(_workFilePath, currentBackupPath, true);
         }
         
@@ -236,7 +334,7 @@ public sealed partial class AchievementWindow : Window
         {
             listContainer.Children.Clear();
             
-            var files = Directory.GetFiles(_archivesDir, "*.json")
+            var files = Directory.GetFiles(_archivesDir, "*.db")
                                  .Select(Path.GetFileNameWithoutExtension)
                                  .OrderBy(x => x)
                                  .ToList();
@@ -279,7 +377,7 @@ public sealed partial class AchievementWindow : Window
                 var txtBlock = new TextBlock { Text = displayText, VerticalAlignment = VerticalAlignment.Center };
                 if (isCurrent) 
                 {
-                    txtBlock.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 255, 100)); // 高亮绿色
+                    txtBlock.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 255, 100));
                     txtBlock.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold;
                 }
                 
@@ -316,7 +414,6 @@ public sealed partial class AchievementWindow : Window
                 }
                 else
                 {
-                    
                     var confirmPanel = new StackPanel { Spacing = 10, Padding = new Thickness(10) };
                     confirmPanel.Children.Add(new TextBlock { Text = "确定要永久删除吗？", FontSize = 12 });
 
@@ -338,14 +435,12 @@ public sealed partial class AchievementWindow : Window
                     {
                         try 
                         {
-                            string pathToDelete = Path.Combine(_archivesDir, $"{file}.json");
+                            string pathToDelete = Path.Combine(_archivesDir, $"{file}.db");
                             if (File.Exists(pathToDelete)) 
                             {
                                 File.Delete(pathToDelete);
                             }
-                            
                             flyout.Hide();
-                            
                             RefreshList(); 
                         }
                         catch (Exception)
@@ -372,7 +467,7 @@ public sealed partial class AchievementWindow : Window
             var newName = await ShowInputAsync("新建存档", "请输入新存档的名称：");
             if (string.IsNullOrWhiteSpace(newName)) return;
             
-            if (File.Exists(Path.Combine(_archivesDir, $"{newName}.json")))
+            if (File.Exists(Path.Combine(_archivesDir, $"{newName}.db")))
             {
                 await ShowDialogAsync("错误", "该存档名称已存在！");
                 return;
@@ -391,20 +486,16 @@ public sealed partial class AchievementWindow : Window
             ViewModel.IsLoading = true;
             ViewModel.StatusMessage = "正在切换存档...";
             
+            SqliteConnection.ClearAllPools();
+            
             if (isNew)
             {
-                if (File.Exists(_assetsFilePath))
-                {
-                    File.Copy(_assetsFilePath, _workFilePath, true);
-                }
-                else
-                {
-                    File.WriteAllText(_workFilePath, "[]");
-                }
+                if (File.Exists(_workFilePath)) File.Delete(_workFilePath);
+                EnsureDatabaseExists(_workFilePath);
             }
             else
             {
-                string sourceArchive = Path.Combine(_archivesDir, $"{profileName}.json");
+                string sourceArchive = Path.Combine(_archivesDir, $"{profileName}.db");
                 if (!File.Exists(sourceArchive))
                 {
                     await ShowDialogAsync("错误", "找不到目标存档文件！");
@@ -420,7 +511,7 @@ public sealed partial class AchievementWindow : Window
             
             if (isNew)
             {
-                string newBackupPath = Path.Combine(_archivesDir, $"{profileName}.json");
+                string newBackupPath = Path.Combine(_archivesDir, $"{profileName}.db");
                 File.Copy(_workFilePath, newBackupPath, true);
             }
 
@@ -499,7 +590,6 @@ public sealed partial class AchievementWindow : Window
         sb.Children.Add(opacityAnim);
         sb.Begin();
     }
-    
     
     private async void StartLocalServer()
     {
@@ -593,7 +683,7 @@ public sealed partial class AchievementWindow : Window
             }
         }
     }
-
+    
     private void LoadData()
     {
         ViewModel.IsLoading = true;
@@ -602,98 +692,129 @@ public sealed partial class AchievementWindow : Window
 
         try
         {
-            if (!File.Exists(_workFilePath))
-            {
-                if (File.Exists(_assetsFilePath)) File.Copy(_assetsFilePath, _workFilePath);
-                else { ViewModel.StatusMessage = "找不到源数据"; return; }
-            }
+            EnsureDatabaseExists(_workFilePath);
 
-            string jsonContent = File.ReadAllText(_workFilePath);
-            var options = new JsonSerializerOptions 
-            { 
-                PropertyNameCaseInsensitive = true,
-                NumberHandling = JsonNumberHandling.AllowReadingFromString,
-                ReadCommentHandling = JsonCommentHandling.Skip
-            };
-            
-            var rawCategories = JsonSerializer.Deserialize<ObservableCollection<AchievementCategory>>(jsonContent, options);
+            var rawCategories = new List<AchievementCategory>();
+            var categoryMap = new Dictionary<string, AchievementCategory>();
 
-            if (rawCategories != null)
+            using var connection = new SqliteConnection($"Data Source={_workFilePath}");
+            connection.Open();
+
+            using var catCmd = connection.CreateCommand();
+            catCmd.CommandText = "SELECT Name, IconUrl FROM Categories";
+            using (var reader = catCmd.ExecuteReader())
             {
-                ViewModel.Categories.Clear();
-                
-                foreach (var cat in rawCategories)
+                while (reader.Read())
                 {
-                    var groupedList = new ObservableCollection<AchievementItem>();
-                    
-                    var groups = cat.Achievements.GroupBy(x => !string.IsNullOrEmpty(x.SeriesId) ? x.SeriesId : Guid.NewGuid().ToString());
-
-                    foreach (var g in groups)
+                    var cat = new AchievementCategory
                     {
-                        var items = g.OrderBy(x => x.StageIndex).ToList();
-
-                        if (items.Count == 1)
-                        {
-                            var item = items.First();
-                            SetupItemEvents(cat, item);
-                            groupedList.Add(item);
-                        }
-                        else
-                        {
-                            var firstChild = items.First();
-                            
-                            var parentItem = new AchievementItem
-                            {
-                                Title = !string.IsNullOrEmpty(firstChild.SeriesMasterTitle) ? firstChild.SeriesMasterTitle : firstChild.Title,
-                                Description = firstChild.Description,
-                                Version = firstChild.Version,
-                                ItemIconUrl = firstChild.ItemIconUrl,
-                                SeriesId = firstChild.SeriesId,
-                                Children = new ObservableCollection<AchievementItem>(items)
-                            };
-                            
-                            foreach (var child in parentItem.Children)
-                            {
-                                SetupItemEvents(cat, child, parentItem);
-                            }
-                            
-                            parentItem.RefreshGroupStatus();
-                            groupedList.Add(parentItem);
-                        }
-                    }
-
-                    cat.Achievements = groupedList;
-                    cat.RefreshProgress();
-                    ViewModel.Categories.Add(cat);
+                        Name = reader.GetString(0),
+                        IconUrl = reader.IsDBNull(1) ? null : reader.GetString(1),
+                        Achievements = new ObservableCollection<AchievementItem>()
+                    };
+                    rawCategories.Add(cat);
+                    categoryMap[cat.Name] = cat;
                 }
-                
-                var versions = new HashSet<string> { "所有版本" };
-                foreach (var cat in ViewModel.Categories)
+            }
+            _itemUids.Clear();
+            var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+            using var achCmd = connection.CreateCommand();
+            achCmd.CommandText = "SELECT Uid, CategoryName, RawJson, IsCompleted, CurrentProgress, MaxProgress FROM Achievements";
+            using (var reader = achCmd.ExecuteReader())
+            {
+                while (reader.Read())
                 {
-                    foreach (var item in cat.Achievements)
+                    int uid = reader.GetInt32(0);
+                    string catName = reader.GetString(1);
+                    string rawJson = reader.GetString(2);
+                    bool isCompleted = reader.GetInt32(3) == 1;
+                    int currentProgress = reader.GetInt32(4);
+                    int maxProgress = reader.GetInt32(5);
+
+                    var item = JsonSerializer.Deserialize<AchievementItem>(rawJson, options);
+                    if (item != null && categoryMap.TryGetValue(catName, out var cat))
                     {
-                        if(item.IsGroup)
-                        {
-                            foreach(var child in item.Children) if (!string.IsNullOrEmpty(child.Version)) versions.Add(child.Version);
-                        }
-                        else
-                        {
-                            if (!string.IsNullOrEmpty(item.Version)) versions.Add(item.Version);
-                        }
+                        item.IsCompleted = isCompleted;
+                        item.CurrentProgress = currentProgress;
+                        item.MaxProgress = maxProgress;
+                        cat.Achievements.Add(item);
+                        
+                        _itemUids[item] = uid;
                     }
                 }
-                
-                ViewModel.AvailableVersions = new ObservableCollection<string>(versions.OrderBy(v => v));
-                ViewModel.SelectedCategory = ViewModel.Categories.FirstOrDefault();
-                
-                ApplyFilters();
-                
-                ViewModel.StatusMessage = $"共 {ViewModel.Categories.Sum(c => c.TotalCount)} 个成就";
-                CalculateGlobalStats();
-            
-                ViewModel.StatusMessage = $"数据加载完成";
-                _isDataLoaded = true;
             }
+            ViewModel.Categories.Clear();
+            
+            foreach (var cat in rawCategories)
+            {
+                var groupedList = new ObservableCollection<AchievementItem>();
+                var groups = cat.Achievements.GroupBy(x => !string.IsNullOrEmpty(x.SeriesId) ? x.SeriesId : Guid.NewGuid().ToString());
+
+                foreach (var g in groups)
+                {
+                    var items = g.OrderBy(x => x.StageIndex).ToList();
+
+                    if (items.Count == 1)
+                    {
+                        var item = items.First();
+                        SetupItemEvents(cat, item);
+                        groupedList.Add(item);
+                    }
+                    else
+                    {
+                        var firstChild = items.First();
+                        
+                        var parentItem = new AchievementItem
+                        {
+                            Title = !string.IsNullOrEmpty(firstChild.SeriesMasterTitle) ? firstChild.SeriesMasterTitle : firstChild.Title,
+                            Description = firstChild.Description,
+                            Version = firstChild.Version,
+                            ItemIconUrl = firstChild.ItemIconUrl,
+                            SeriesId = firstChild.SeriesId,
+                            Children = new ObservableCollection<AchievementItem>(items)
+                        };
+                        
+                        foreach (var child in parentItem.Children)
+                        {
+                            SetupItemEvents(cat, child, parentItem);
+                        }
+                        
+                        parentItem.RefreshGroupStatus();
+                        groupedList.Add(parentItem);
+                    }
+                }
+
+                cat.Achievements = groupedList;
+                cat.RefreshProgress();
+                ViewModel.Categories.Add(cat);
+            }
+            
+            var versions = new HashSet<string> { "所有版本" };
+            foreach (var cat in ViewModel.Categories)
+            {
+                foreach (var item in cat.Achievements)
+                {
+                    if(item.IsGroup)
+                    {
+                        foreach(var child in item.Children) if (!string.IsNullOrEmpty(child.Version)) versions.Add(child.Version);
+                    }
+                    else
+                    {
+                        if (!string.IsNullOrEmpty(item.Version)) versions.Add(item.Version);
+                    }
+                }
+            }
+            
+            ViewModel.AvailableVersions = new ObservableCollection<string>(versions.OrderBy(v => v));
+            ViewModel.SelectedCategory = ViewModel.Categories.FirstOrDefault();
+            
+            ApplyFilters();
+            
+            ViewModel.StatusMessage = $"共 {ViewModel.Categories.Sum(c => c.TotalCount)} 个成就";
+            CalculateGlobalStats();
+        
+            ViewModel.StatusMessage = $"数据加载完成";
+            _isDataLoaded = true;
         }
         catch (Exception ex)
         {
@@ -753,6 +874,26 @@ public sealed partial class AchievementWindow : Window
         ViewModel.ProgressStatText = $"{completedCount} / {totalCount} ({percent:F1}%)";
         ViewModel.GlobalProgressPercent = percent;
     }
+    
+    private void UpdateDbSingleItem(AchievementItem item)
+    {
+        if (!_isDataLoaded || _isBatchProcessing) return;
+        if (!_itemUids.TryGetValue(item, out int uid)) return;
+        
+        try
+        {
+            using var connection = new SqliteConnection($"Data Source={_workFilePath}");
+            connection.Open();
+            using var cmd = connection.CreateCommand();
+            cmd.CommandText = "UPDATE Achievements SET IsCompleted = @IsCompleted, CurrentProgress = @CurrentProgress, MaxProgress = @MaxProgress WHERE Uid = @Uid";
+            cmd.Parameters.AddWithValue("@IsCompleted", item.IsCompleted ? 1 : 0);
+            cmd.Parameters.AddWithValue("@CurrentProgress", item.CurrentProgress);
+            cmd.Parameters.AddWithValue("@MaxProgress", item.MaxProgress);
+            cmd.Parameters.AddWithValue("@Uid", uid);
+            cmd.ExecuteNonQuery();
+        }
+        catch(Exception ex) { Debug.WriteLine(ex); }
+    }
 
     private void SetupItemEvents(AchievementCategory cat, AchievementItem item, AchievementItem parent = null)
     {
@@ -760,92 +901,95 @@ public sealed partial class AchievementWindow : Window
         {
             if (_isBatchProcessing) return;
 
-            if (e.PropertyName == nameof(AchievementItem.IsCompleted))
+            if (e.PropertyName == nameof(AchievementItem.IsCompleted) || 
+                e.PropertyName == nameof(AchievementItem.CurrentProgress) ||
+                e.PropertyName == nameof(AchievementItem.MaxProgress))
             {
                 parent?.RefreshGroupStatus();
                 cat.RefreshProgress(); 
                 CalculateGlobalStats();
                 if (ViewModel.HideCompleted) ApplyFilters(); 
-                SaveData(); 
+                
+                UpdateDbSingleItem(item); 
             }
         };
     }
 
-private void ApplyFilters()
-{
-    string search = ViewModel.SearchText?.Trim().ToLower();
-    bool isGlobalSearch = !string.IsNullOrEmpty(search);
-    
-    IEnumerable<AchievementItem> sourceList;
+    private void ApplyFilters()
+    {
+        string search = ViewModel.SearchText?.Trim().ToLower();
+        bool isGlobalSearch = !string.IsNullOrEmpty(search);
+        
+        IEnumerable<AchievementItem> sourceList;
 
-    if (isGlobalSearch)
-    {
-        sourceList = ViewModel.Categories.SelectMany(c => c.Achievements);
-    }
-    else
-    {
-        if (ViewModel.SelectedCategory == null)
+        if (isGlobalSearch)
         {
-            ViewModel.FilteredAchievements.Clear();
-            return;
-        }
-        sourceList = ViewModel.SelectedCategory.Achievements;
-    }
-    
-    var resultList = new List<AchievementItem>();
-    bool isFilterVer = ViewModel.SelectedVersion != "所有版本" && !string.IsNullOrEmpty(ViewModel.SelectedVersion);
-    
-    foreach (var item in sourceList)
-    {
-        if (item.IsGroup)
-        {
-            bool matchGroup = false;
-            
-            if (isGlobalSearch)
-            {
-                if (item.Title != null && item.Title.ToLower().Contains(search)) matchGroup = true;
-                else if (item.Children.Any(c => c.Description != null && c.Description.ToLower().Contains(search))) matchGroup = true;
-            }
-            else
-            {
-                matchGroup = true;
-            }
-            
-            if (isFilterVer)
-            {
-                if (item.Version != ViewModel.SelectedVersion && !item.Children.Any(c => c.Version == ViewModel.SelectedVersion)) 
-                    matchGroup = false;
-            }
-            
-            if (ViewModel.HideCompleted)
-            {
-                if (item.Children.All(c => c.IsCompleted)) matchGroup = false;
-            }
-
-            if (matchGroup) resultList.Add(item);
+            sourceList = ViewModel.Categories.SelectMany(c => c.Achievements);
         }
         else
         {
-            bool match = true;
-            
-            if (isGlobalSearch)
+            if (ViewModel.SelectedCategory == null)
             {
-                if (!((item.Title != null && item.Title.ToLower().Contains(search)) || 
-                      (item.Description != null && item.Description.ToLower().Contains(search))))
-                    match = false;
+                ViewModel.FilteredAchievements.Clear();
+                return;
             }
-
-            if (ViewModel.HideCompleted && item.IsCompleted) match = false;
-
-            if (isFilterVer && item.Version != ViewModel.SelectedVersion) match = false;
-
-            if (match) resultList.Add(item);
+            sourceList = ViewModel.SelectedCategory.Achievements;
         }
+        
+        var resultList = new List<AchievementItem>();
+        bool isFilterVer = ViewModel.SelectedVersion != "所有版本" && !string.IsNullOrEmpty(ViewModel.SelectedVersion);
+        
+        foreach (var item in sourceList)
+        {
+            if (item.IsGroup)
+            {
+                bool matchGroup = false;
+                
+                if (isGlobalSearch)
+                {
+                    if (item.Title != null && item.Title.ToLower().Contains(search)) matchGroup = true;
+                    else if (item.Children.Any(c => c.Description != null && c.Description.ToLower().Contains(search))) matchGroup = true;
+                }
+                else
+                {
+                    matchGroup = true;
+                }
+                
+                if (isFilterVer)
+                {
+                    if (item.Version != ViewModel.SelectedVersion && !item.Children.Any(c => c.Version == ViewModel.SelectedVersion)) 
+                        matchGroup = false;
+                }
+                
+                if (ViewModel.HideCompleted)
+                {
+                    if (item.Children.All(c => c.IsCompleted)) matchGroup = false;
+                }
+
+                if (matchGroup) resultList.Add(item);
+            }
+            else
+            {
+                bool match = true;
+                
+                if (isGlobalSearch)
+                {
+                    if (!((item.Title != null && item.Title.ToLower().Contains(search)) || 
+                          (item.Description != null && item.Description.ToLower().Contains(search))))
+                        match = false;
+                }
+
+                if (ViewModel.HideCompleted && item.IsCompleted) match = false;
+
+                if (isFilterVer && item.Version != ViewModel.SelectedVersion) match = false;
+
+                if (match) resultList.Add(item);
+            }
+        }
+        
+        ViewModel.FilteredAchievements.Clear();
+        foreach (var item in resultList) ViewModel.FilteredAchievements.Add(item);
     }
-    
-    ViewModel.FilteredAchievements.Clear();
-    foreach (var item in resultList) ViewModel.FilteredAchievements.Add(item);
-}
 
     private void OnCategorySelectionChanged(object sender, SelectionChangedEventArgs e) => ApplyFilters();
     private void OnToggleViewMode(object sender, RoutedEventArgs e) => ViewModel.IsCategoryGridMode = !ViewModel.IsCategoryGridMode;
@@ -936,247 +1080,236 @@ private void ApplyFilters()
         await dialog.ShowAsync();
     }
     
-private async Task RunImportLogic(string filePath)
-{
-    if (_isBatchProcessing) return;
-    _isBatchProcessing = true;
-    
-    var progressBar = new ProgressBar { Value = 0, Maximum = 100, Height = 10, Margin = new Thickness(0, 15, 0, 5) };
-    var statusText = new TextBlock { Text = "正在准备读取数据...", FontSize = 13, Opacity = 0.8 };
-    var stackPanel = new StackPanel { Width = 380, Spacing = 5 };
-    stackPanel.Children.Add(statusText);
-    stackPanel.Children.Add(progressBar);
-
-    var progressDialog = new ContentDialog
+    private async Task RunImportLogic(string filePath)
     {
-        Title = "正在导入成就",
-        Content = stackPanel,
-        CloseButtonText = null,
-        XamlRoot = Content.XamlRoot
-    };
+        if (_isBatchProcessing) return;
+        _isBatchProcessing = true;
+        
+        var progressBar = new ProgressBar { Value = 0, Maximum = 100, Height = 10, Margin = new Thickness(0, 15, 0, 5) };
+        var statusText = new TextBlock { Text = "正在准备读取数据...", FontSize = 13, Opacity = 0.8 };
+        var stackPanel = new StackPanel { Width = 380, Spacing = 5 };
+        stackPanel.Children.Add(statusText);
+        stackPanel.Children.Add(progressBar);
 
-    var dialogTask = progressDialog.ShowAsync();
+        var progressDialog = new ContentDialog
+        {
+            Title = "正在导入成就",
+            Content = stackPanel,
+            CloseButtonText = null,
+            XamlRoot = Content.XamlRoot
+        };
 
-    try
-    {
-        var lines = new List<string>();
+        var dialogTask = progressDialog.ShowAsync();
+
         try
         {
-            using (var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
-            using (var sr = new StreamReader(fs))
+            var lines = new List<string>();
+            try
             {
-                string line;
-                while ((line = (await sr.ReadLineAsync())!) != null)
+                using (var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                using (var sr = new StreamReader(fs))
                 {
-                    if (!string.IsNullOrWhiteSpace(line)) lines.Add(line);
+                    string line;
+                    while ((line = (await sr.ReadLineAsync())!) != null)
+                    {
+                        if (!string.IsNullOrWhiteSpace(line)) lines.Add(line);
+                    }
                 }
             }
+            catch (Exception ex)
+            {
+                progressDialog.Hide();
+                await ShowDialogAsync("读取失败", $"文件可能被占用或无法读取。\n{ex.Message}");
+                return;
+            }
+
+            if (lines.Count == 0)
+            {
+                progressDialog.Hide();
+                await ShowDialogAsync("空文件", "文件中没有内容。");
+                return;
+            }
+            
+            var result = await Task.Run(() => ParseAndImport(lines, (percent, msg) =>
+            {
+                DispatcherQueue.TryEnqueue(() =>
+                {
+                    progressBar.Value = percent;
+                    statusText.Text = msg;
+                });
+            }));
+            
+            if (result.PendingUpdates.Count > 0)
+            {
+                statusText.Text = "正在应用更改";
+
+                foreach (var update in result.PendingUpdates)
+                {
+                    update.Item.CurrentProgress = update.Current;
+                    update.Item.MaxProgress = update.Max;
+                    
+                    if (update.ShouldComplete)
+                    {
+                        update.Item.IsCompleted = true;
+                    }
+                }
+                
+                foreach(var cat in ViewModel.Categories) cat.RefreshProgress();
+                
+                CalculateGlobalStats();
+                SaveData();
+                
+                if (ViewModel.HideCompleted) ApplyFilters();
+                
+                ViewModel.StatusMessage = $"导入成功，导入 {result.UpdatedCount} 个成就";
+            }
+            else
+            {
+                ViewModel.StatusMessage = $"导入结束，没有新的变动";
+            }
+            
+            progressDialog.Hide();
+            await dialogTask;
+
+            string resultMsg = $"扫描行数: {result.TotalScanned}\n" +
+                               $"跳过未完成: {result.SkippedIncomplete}\n" +
+                               $"成功同步: {result.UpdatedCount}\n" +
+                               $"已存在: {result.AlreadyDone}\n" +
+                               $"无法识别: {result.FailedCount}\n\n" +
+                               (result.Errors.Any() ? "部分未识别项:\n" + string.Join("\n", result.Errors.Take(3)) : "");
+
+            await ShowDialogAsync("导入数据", resultMsg);
         }
         catch (Exception ex)
         {
             progressDialog.Hide();
-            await ShowDialogAsync("读取失败", $"文件可能被占用或无法读取。\n{ex.Message}");
-            return;
+            await ShowDialogAsync("错误", $"导入过程中发生异常：\n{ex.Message}");
         }
-
-        if (lines.Count == 0)
+        finally
         {
-            progressDialog.Hide();
-            await ShowDialogAsync("空文件", "文件中没有内容。");
-            return;
+            _isBatchProcessing = false;
         }
-        
-        
-        
-        var result = await Task.Run(() => ParseAndImport(lines, (percent, msg) =>
-        {
-            DispatcherQueue.TryEnqueue(() =>
-            {
-                progressBar.Value = percent;
-                statusText.Text = msg;
-            });
-        }));
-        
-        if (result.PendingUpdates.Count > 0)
-        {
-            statusText.Text = "正在应用更改";
-
-            foreach (var update in result.PendingUpdates)
-            {
-                update.Item.CurrentProgress = update.Current;
-                update.Item.MaxProgress = update.Max;
-                
-                if (update.ShouldComplete)
-                {
-                    update.Item.IsCompleted = true;
-                }
-            }
-            
-            foreach(var cat in ViewModel.Categories) cat.RefreshProgress();
-            
-            CalculateGlobalStats();
-            SaveData();
-            
-            if (ViewModel.HideCompleted) ApplyFilters();
-            
-            ViewModel.StatusMessage = $"导入成功，导入 {result.UpdatedCount} 个成就";
-        }
-        else
-        {
-            ViewModel.StatusMessage = $"导入结束，没有新的变动";
-        }
-        
-        progressDialog.Hide();
-        await dialogTask;
-
-        if (result.UpdatedCount > 0)
-        {
-            CalculateGlobalStats();
-            SaveData();
-            if (ViewModel.HideCompleted) ApplyFilters();
-            ViewModel.StatusMessage = $"导入成功，导入 {result.UpdatedCount} 个成就";
-        }
-
-        string resultMsg = $"扫描行数: {result.TotalScanned}\n" +
-                           $"跳过未完成: {result.SkippedIncomplete}\n" +
-                           $"成功同步: {result.UpdatedCount}\n" +
-                           $"已存在: {result.AlreadyDone}\n" +
-                           $"无法识别: {result.FailedCount}\n\n" +
-                           (result.Errors.Any() ? "部分未识别项:\n" + string.Join("\n", result.Errors.Take(3)) : "");
-
-        await ShowDialogAsync("导入数据", resultMsg);
     }
-    catch (Exception ex)
-    {
-        progressDialog.Hide();
-        await ShowDialogAsync("错误", $"导入过程中发生异常：\n{ex.Message}");
-    }
-    finally
-    {
-        _isBatchProcessing = false;
-    }
-}
     
-private ImportStats ParseAndImport(List<string> lines, Action<double, string> reportProgress)
-{
-    var stats = new ImportStats();
-    var total = lines.Count;
-    
-    var nameMap = new Dictionary<string, List<AchievementItem>>();
-
-    foreach (var cat in ViewModel.Categories)
+    private ImportStats ParseAndImport(List<string> lines, Action<double, string> reportProgress)
     {
-        foreach (var item in cat.Achievements)
-        {
-            if (item.IsGroup)
-                foreach (var child in item.Children) AddToNameMap(nameMap, child);
-            else
-                AddToNameMap(nameMap, item);
-        }
-    }
-
-    reportProgress(10, "正在分析进度数据...");
-    
-    for (int i = 0; i < total; i++)
-    {
-        if (i % 100 == 0) reportProgress(10 + (double)i / total * 80, $"正在处理第 {i}/{total} 行...");
-
-        string line = lines[i];
-        if (string.IsNullOrWhiteSpace(line)) continue;
-
-        string[] parts;
-        if (line.Contains('\t')) parts = line.Split('\t');
-        else parts = line.Split(',');
-
-        if (parts.Length < 7) continue;
-        if (parts[0].Contains("ID") || parts[1].Contains("状态")) continue;
-
-        string nameInCsv = parts[3];
-        string descInCsv = parts[4];
+        var stats = new ImportStats();
+        var total = lines.Count;
         
-        int.TryParse(parts[5], out int currentVal);
-        int.TryParse(parts[6], out int maxVal); 
-        bool isCompletedInCsv = parts[1].Trim() == "已完成";
+        var nameMap = new Dictionary<string, List<AchievementItem>>();
 
-        string cleanName = Normalize(nameInCsv);
-        AchievementItem targetItem = null;
-
-        if (!string.IsNullOrEmpty(cleanName) && nameMap.TryGetValue(cleanName, out var candidates))
-        {
-            if (candidates.Count == 1)
-            {
-                targetItem = candidates[0];
-            }
-            else
-            {
-                string targetDesc = Normalize(descInCsv);
-                
-                targetItem = candidates
-                    .OrderBy(c => ComputeLevenshteinDistance(Normalize(c.Description), targetDesc))
-                    .First();
-            }
-        }
-        
-        if (targetItem != null)
-        {
-            bool needUpdate = false;
-            
-            if (currentVal > targetItem.CurrentProgress) needUpdate = true;
-            if (isCompletedInCsv && !targetItem.IsCompleted) needUpdate = true;
-
-            if (needUpdate)
-            {
-                stats.PendingUpdates.Add(new AchievementUpdateData
-                {
-                    Item = targetItem,
-                    ShouldComplete = isCompletedInCsv,
-                    Current = currentVal,
-                    Max = targetItem.MaxProgress > 0 ? targetItem.MaxProgress : maxVal
-                });
-                stats.UpdatedCount++;
-            }
-            else
-            {
-                stats.AlreadyDone++;
-            }
-        }
-        else
-        {
-            stats.FailedCount++;
-            if (stats.Errors.Count < 5) stats.Errors.Add($"[{parts[0]}] {nameInCsv} 匹配失败");
-        }
-    }
-
-    reportProgress(95, "正在刷新界面状态...");
-    
-    DispatcherQueue.TryEnqueue(() =>
-    {
         foreach (var cat in ViewModel.Categories)
         {
             foreach (var item in cat.Achievements)
             {
                 if (item.IsGroup)
-                {
-                    item.RefreshGroupStatus();
-                }
+                    foreach (var child in item.Children) AddToNameMap(nameMap, child);
+                else
+                    AddToNameMap(nameMap, item);
             }
         }
-    });
 
-    return stats;
-}
+        reportProgress(10, "正在分析进度数据...");
+        
+        for (int i = 0; i < total; i++)
+        {
+            if (i % 100 == 0) reportProgress(10 + (double)i / total * 80, $"正在处理第 {i}/{total} 行...");
 
-private void AddToNameMap(Dictionary<string, List<AchievementItem>> map, AchievementItem item)
-{
-    string key = Normalize(item.Title);
-    if (string.IsNullOrEmpty(key)) return;
-    
-    if (!map.ContainsKey(key))
-    {
-        map[key] = new List<AchievementItem>();
+            string line = lines[i];
+            if (string.IsNullOrWhiteSpace(line)) continue;
+
+            string[] parts;
+            if (line.Contains('\t')) parts = line.Split('\t');
+            else parts = line.Split(',');
+
+            if (parts.Length < 7) continue;
+            if (parts[0].Contains("ID") || parts[1].Contains("状态")) continue;
+
+            string nameInCsv = parts[3];
+            string descInCsv = parts[4];
+            
+            int.TryParse(parts[5], out int currentVal);
+            int.TryParse(parts[6], out int maxVal); 
+            bool isCompletedInCsv = parts[1].Trim() == "已完成";
+
+            string cleanName = Normalize(nameInCsv);
+            AchievementItem targetItem = null;
+
+            if (!string.IsNullOrEmpty(cleanName) && nameMap.TryGetValue(cleanName, out var candidates))
+            {
+                if (candidates.Count == 1)
+                {
+                    targetItem = candidates[0];
+                }
+                else
+                {
+                    string targetDesc = Normalize(descInCsv);
+                    targetItem = candidates
+                        .OrderBy(c => ComputeLevenshteinDistance(Normalize(c.Description), targetDesc))
+                        .First();
+                }
+            }
+            
+            if (targetItem != null)
+            {
+                bool needUpdate = false;
+                
+                if (currentVal > targetItem.CurrentProgress) needUpdate = true;
+                if (isCompletedInCsv && !targetItem.IsCompleted) needUpdate = true;
+
+                if (needUpdate)
+                {
+                    stats.PendingUpdates.Add(new AchievementUpdateData
+                    {
+                        Item = targetItem,
+                        ShouldComplete = isCompletedInCsv,
+                        Current = currentVal,
+                        Max = targetItem.MaxProgress > 0 ? targetItem.MaxProgress : maxVal
+                    });
+                    stats.UpdatedCount++;
+                }
+                else
+                {
+                    stats.AlreadyDone++;
+                }
+            }
+            else
+            {
+                stats.FailedCount++;
+                if (stats.Errors.Count < 5) stats.Errors.Add($"[{parts[0]}] {nameInCsv} 匹配失败");
+            }
+        }
+
+        reportProgress(95, "正在刷新界面状态...");
+        
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            foreach (var cat in ViewModel.Categories)
+            {
+                foreach (var item in cat.Achievements)
+                {
+                    if (item.IsGroup)
+                    {
+                        item.RefreshGroupStatus();
+                    }
+                }
+            }
+        });
+
+        return stats;
     }
-    map[key].Add(item);
-}
+
+    private void AddToNameMap(Dictionary<string, List<AchievementItem>> map, AchievementItem item)
+    {
+        string key = Normalize(item.Title);
+        if (string.IsNullOrEmpty(key)) return;
+        
+        if (!map.ContainsKey(key))
+        {
+            map[key] = new List<AchievementItem>();
+        }
+        map[key].Add(item);
+    }
 
     private int ComputeLevenshteinDistance(string s, string t)
     {
@@ -1200,6 +1333,7 @@ private void AddToNameMap(Dictionary<string, List<AchievementItem>> map, Achieve
         }
         return d[n, m];
     }
+    
     private string Normalize(string input)
     {
         if (string.IsNullOrEmpty(input)) return "";
@@ -1215,7 +1349,6 @@ private void AddToNameMap(Dictionary<string, List<AchievementItem>> map, Achieve
         public int AlreadyDone { get; set; }
         public int FailedCount { get; set; }
         public List<string> Errors { get; set; } = new();
-        
         public List<AchievementUpdateData> PendingUpdates { get; set; } = new();
     }
     
@@ -1238,44 +1371,54 @@ private void AddToNameMap(Dictionary<string, List<AchievementItem>> map, Achieve
         };
         await dialog.ShowAsync();
     }
-
+    
     private void SaveData()
     {
         if (!_isDataLoaded) return;
         try
         {
-            var categoriesToSave = new List<AchievementCategory>();
+            using var connection = new SqliteConnection($"Data Source={_workFilePath}");
+            connection.Open();
+            using var transaction = connection.BeginTransaction();
 
             foreach (var uiCat in ViewModel.Categories)
             {
-                var flatAchievements = new ObservableCollection<AchievementItem>();
                 foreach (var item in uiCat.Achievements)
                 {
                     if (item.IsGroup)
                     {
-                        foreach (var child in item.Children) flatAchievements.Add(child);
+                        foreach (var child in item.Children)
+                        {
+                            if (_itemUids.TryGetValue(child, out int uid))
+                            {
+                                using var cmd = connection.CreateCommand();
+                                cmd.Transaction = transaction;
+                                cmd.CommandText = "UPDATE Achievements SET IsCompleted = @IsCompleted, CurrentProgress = @CurrentProgress, MaxProgress = @MaxProgress WHERE Uid = @Uid";
+                                cmd.Parameters.AddWithValue("@Uid", uid);
+                                cmd.Parameters.AddWithValue("@IsCompleted", child.IsCompleted ? 1 : 0);
+                                cmd.Parameters.AddWithValue("@CurrentProgress", child.CurrentProgress);
+                                cmd.Parameters.AddWithValue("@MaxProgress", child.MaxProgress);
+                                cmd.ExecuteNonQuery();
+                            }
+                        }
                     }
                     else
                     {
-                        flatAchievements.Add(item);
+                        if (_itemUids.TryGetValue(item, out int uid))
+                        {
+                            using var cmd = connection.CreateCommand();
+                            cmd.Transaction = transaction;
+                            cmd.CommandText = "UPDATE Achievements SET IsCompleted = @IsCompleted, CurrentProgress = @CurrentProgress, MaxProgress = @MaxProgress WHERE Uid = @Uid";
+                            cmd.Parameters.AddWithValue("@Uid", uid);
+                            cmd.Parameters.AddWithValue("@IsCompleted", item.IsCompleted ? 1 : 0);
+                            cmd.Parameters.AddWithValue("@CurrentProgress", item.CurrentProgress);
+                            cmd.Parameters.AddWithValue("@MaxProgress", item.MaxProgress);
+                            cmd.ExecuteNonQuery();
+                        }
                     }
                 }
-
-                categoriesToSave.Add(new AchievementCategory
-                {
-                    Name = uiCat.Name,
-                    IconUrl = uiCat.IconUrl,
-                    Achievements = flatAchievements
-                });
             }
-
-            var options = new JsonSerializerOptions 
-            { 
-                WriteIndented = true,
-                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping 
-            };
-            var json = JsonSerializer.Serialize(categoriesToSave, options);
-            File.WriteAllText(_workFilePath, json);
+            transaction.Commit();
         }
         catch (Exception ex)
         {
