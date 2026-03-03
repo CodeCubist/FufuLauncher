@@ -65,7 +65,6 @@
 
     <ItemGroup>
         <ProjectReference Include="..\FufuLauncher.Core\FufuLauncher.Core.csproj" />
-        <ProjectReference Include="..\update\update.csproj" />
     </ItemGroup>
 
     <ItemGroup>

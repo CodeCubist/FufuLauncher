@@ -11,7 +11,13 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="2e6bf6ba-f1a7-4d7b-8b76-8b03b5df7f33" name="更改" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/.idea.FufuLauncher/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.FufuLauncher/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/FufuLauncher/Assets/BgMusic.wav" beforeDir="false" afterPath="$PROJECT_DIR$/FufuLauncher/Assets/BgMusic.wav" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/FufuLauncher/Assets/bg.png" beforeDir="false" afterPath="$PROJECT_DIR$/FufuLauncher/Assets/bg.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/FufuLauncher/FufuLauncher.csproj" beforeDir="false" afterPath="$PROJECT_DIR$/FufuLauncher/FufuLauncher.csproj" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/FufuLauncher/Update.json" beforeDir="false" afterPath="$PROJECT_DIR$/FufuLauncher/Update.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/FufuLauncher/Views/Main/SettingsPage.xaml" beforeDir="false" afterPath="$PROJECT_DIR$/FufuLauncher/Views/Main/SettingsPage.xaml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/FufuLauncher/Views/Model/AboutPage.xaml" beforeDir="false" afterPath="$PROJECT_DIR$/FufuLauncher/Views/Model/AboutPage.xaml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/fufulauncher.nsi" beforeDir="false" afterPath="$PROJECT_DIR$/fufulauncher.nsi" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -159,6 +165,7 @@
       <workItem from="1772256589682" duration="120000" />
       <workItem from="1772452255305" duration="1945000" />
       <workItem from="1772535561551" duration="84000" />
+      <workItem from="1772536626661" duration="623000" />
     </task>
     <task id="LOCAL-00001" summary="修复部分功能">
       <option name="closed" value="true" />
@@ -240,7 +247,15 @@
       <option name="project" value="LOCAL" />
       <updated>1772452699155</updated>
     </task>
-    <option name="localTasksCounter" value="11" />
+    <task id="LOCAL-00011" summary="不再弹窗">
+      <option name="closed" value="true" />
+      <created>1772536845295</created>
+      <option name="number" value="00011" />
+      <option name="presentableId" value="LOCAL-00011" />
+      <option name="project" value="LOCAL" />
+      <updated>1772536845295</updated>
+    </task>
+    <option name="localTasksCounter" value="12" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -270,7 +285,8 @@
     <MESSAGE value="修复部分功能" />
     <MESSAGE value="成就管理换sql数据库，更新6.4成就数据" />
     <MESSAGE value="修复插件下载安装问题" />
-    <option name="LAST_COMMIT_MESSAGE" value="修复插件下载安装问题" />
+    <MESSAGE value="不再弹窗" />
+    <option name="LAST_COMMIT_MESSAGE" value="不再弹窗" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
