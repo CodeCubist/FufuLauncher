@@ -163,72 +163,77 @@ namespace FufuLauncher.ViewModels
             }
         }
 
-        private async Task SelectGamePathAsync()
+private async Task SelectGamePathAsync()
+{
+    try
+    {
+        if (!_dispatcherQueue.HasThreadAccess)
         {
-            try
+            Debug.WriteLine("[错误] 不在UI线程上执行");
+            return;
+        }
+
+        var mainWindow = App.MainWindow;
+        if (mainWindow == null)
+        {
+            await ShowError("无法获取主窗口句柄");
+            return;
+        }
+
+        var hwnd = WindowNative.GetWindowHandle(mainWindow);
+        if (hwnd == IntPtr.Zero)
+        {
+            await ShowError("窗口句柄无效，请以普通用户模式运行");
+            return;
+        }
+        
+        var filePicker = new FileOpenPicker
+        {
+            SuggestedStartLocation = PickerLocationId.ComputerFolder,
+            ViewMode = PickerViewMode.List
+        };
+        
+        filePicker.FileTypeFilter.Add(".exe");
+
+        try
+        {
+            InitializeWithWindow.Initialize(filePicker, hwnd);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[警告] InitializeWithWindow失败: {ex.Message}");
+        }
+        
+        var file = await Task.Run(async () => await filePicker.PickSingleFileAsync());
+
+        if (file != null)
+        {
+            var path = Path.GetDirectoryName(file.Path)?.Trim('"').Trim();
+            
+            if (!string.IsNullOrEmpty(path))
             {
-                if (!_dispatcherQueue.HasThreadAccess)
-                {
-                    Debug.WriteLine("[错误] 不在UI线程上执行");
-                    return;
-                }
+                Debug.WriteLine($"[游戏信息页] 用户选择程序文件: '{file.Path}', 提取目录路径: '{path}'");
 
-                var mainWindow = App.MainWindow;
-                if (mainWindow == null)
-                {
-                    await ShowError("无法获取主窗口句柄");
-                    return;
-                }
+                await LoadGameInfoAsync(path);
+                await _localSettingsService.SaveSettingAsync(GamePathKey, path);
+                _lastLoadedPath = path;
 
-                var hwnd = WindowNative.GetWindowHandle(mainWindow);
-                if (hwnd == IntPtr.Zero)
-                {
-                    await ShowError("窗口句柄无效，请以普通用户模式运行");
-                    return;
-                }
-
-                var folderPicker = new FolderPicker
-                {
-                    SuggestedStartLocation = PickerLocationId.ComputerFolder,
-                    ViewMode = PickerViewMode.List
-                };
-                folderPicker.FileTypeFilter.Add("*");
-
-                try
-                {
-                    InitializeWithWindow.Initialize(folderPicker, hwnd);
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"[警告] InitializeWithWindow失败: {ex.Message}");
-                }
-
-                var folder = await Task.Run(async () => await folderPicker.PickSingleFolderAsync());
-
-                if (folder != null)
-                {
-                    var path = folder.Path.Trim('"').Trim();
-                    Debug.WriteLine($"[游戏信息页] 用户选择路径: '{path}'");
-
-                    await LoadGameInfoAsync(path);
-                    await _localSettingsService.SaveSettingAsync(GamePathKey, path);
-                    _lastLoadedPath = path;
-
-                    WeakReferenceMessenger.Default.Send(new GamePathChangedMessage(path));
-                    Debug.WriteLine("[游戏信息页] 已发送路径变更消息");
-                }
-            }
-            catch (UnauthorizedAccessException)
-            {
-                await ShowError("权限错误：请以普通用户身份运行程序选择游戏路径");
-                Debug.WriteLine("[严重错误] 管理员模式权限问题");
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"选择路径失败: {ex.Message}\n堆栈: {ex.StackTrace}");
-                await ShowError($"选择路径失败: {ex.Message}");
+                WeakReferenceMessenger.Default.Send(new GamePathChangedMessage(path));
+                Debug.WriteLine("[游戏信息页] 已发送路径变更消息");
             }
         }
+    }
+    catch (UnauthorizedAccessException)
+    {
+        await ShowError("权限错误：请以普通用户身份运行程序选择游戏路径");
+        Debug.WriteLine("[严重错误] 管理员模式权限问题");
+    }
+    catch (Exception ex)
+    {
+        Debug.WriteLine($"选择路径失败: {ex.Message}\n堆栈: {ex.StackTrace}");
+        await ShowError($"选择路径失败: {ex.Message}");
+    }
+}
         private async Task ShowError(string message)
         {
             try
