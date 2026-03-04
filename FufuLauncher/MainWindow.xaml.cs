@@ -26,6 +26,7 @@ using Windows.Graphics;
 using Windows.Media.Playback;
 using Windows.UI;
 using Windows.UI.ViewManagement;
+using Microsoft.Win32;
 
 namespace FufuLauncher;
 
@@ -186,7 +187,18 @@ public sealed partial class MainWindow : WindowEx
         dispatcherQueue.TryEnqueue(async () => await LoadBackgroundImageOpacityAsync());
         Activated += OnWindowActivated;
 
-        dispatcherQueue.TryEnqueue(() => CheckAndWarnUacElevation());
+        dispatcherQueue.TryEnqueue(async () =>
+        {
+            try
+            {
+                await CheckAndWarnVCRedistAsync();
+                await CheckAndWarnUacElevationAsync();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"启动弹窗检查发生未捕获异常: {ex.Message}");
+            }
+        });
 
         SizeChanged += MainWindow_SizeChanged;
 
@@ -383,26 +395,28 @@ public sealed partial class MainWindow : WindowEx
         }
     }
 
-    private async void CheckAndWarnUacElevation()
-    {
-        var ignoreFilePath = Path.Combine(AppContext.BaseDirectory, ".no_uac_warning");
-        
-        if (File.Exists(ignoreFilePath)) return;
+    private async Task CheckAndWarnUacElevationAsync()
+{
+    var ignoreFilePath = Path.Combine(AppContext.BaseDirectory, ".no_uac_warning");
+    if (File.Exists(ignoreFilePath)) return;
 
-        if (IsUacElevatedWithConsent())
+    if (IsUacElevatedWithConsent())
+    {
+        try
         {
             if (Content is FrameworkElement rootElement)
             {
                 if (rootElement.XamlRoot == null)
                 {
                     var tcs = new TaskCompletionSource<bool>();
-                    void OnLoaded(object sender, RoutedEventArgs e)
+                    RoutedEventHandler onLoaded = null;
+                    onLoaded = (s, e) =>
                     {
-                        rootElement.Loaded -= OnLoaded;
+                        rootElement.Loaded -= onLoaded;
                         tcs.TrySetResult(true);
-                    }
-                    rootElement.Loaded += OnLoaded;
-                    if (rootElement.XamlRoot == null) await tcs.Task;
+                    };
+                    rootElement.Loaded += onLoaded;
+                    await tcs.Task;
                 }
                 
                 ContentDialog dialog = new()
@@ -417,20 +431,101 @@ public sealed partial class MainWindow : WindowEx
                 
                 dialog.PrimaryButtonClick += (_, _) =>
                 {
-                    try
-                    {
-                        File.Create(ignoreFilePath).Dispose();
-                    }
-                    catch (Exception ex)
-                    {
-                        Debug.WriteLine($"创建忽略文件失败: {ex.Message}");
-                    }
+                    try { File.Create(ignoreFilePath).Dispose(); } catch { }
                 };
 
-                try { await dialog.ShowAsync(); } catch { }
+                await dialog.ShowAsync(); 
             }
         }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"显示 UAC 警告弹窗失败: {ex.Message}");
+        }
     }
+}
+
+
+    
+    private async Task CheckAndWarnVCRedistAsync()
+{
+    var ignoreFilePath = Path.Combine(AppContext.BaseDirectory, ".no_vc_warning");
+    if (File.Exists(ignoreFilePath)) return;
+
+    if (!IsVCRedistInstalled())
+    {
+        try
+        {
+            if (Content is FrameworkElement rootElement)
+            {
+                if (rootElement.XamlRoot == null)
+                {
+                    var tcs = new TaskCompletionSource<bool>();
+                    RoutedEventHandler onLoaded = null;
+                    onLoaded = (s, e) =>
+                    {
+                        rootElement.Loaded -= onLoaded;
+                        tcs.TrySetResult(true);
+                    };
+                    rootElement.Loaded += onLoaded;
+                    await tcs.Task;
+                }
+
+                ContentDialog dialog = new()
+                {
+                    XamlRoot = rootElement.XamlRoot,
+                    Title = "缺少 C++ 运行库",
+                    Content = "系统未安装 C++ VC14 运行库，这会导致本程序的注入功能无法正常使用\n\n是否前往微软官网下载并安装？",
+                    PrimaryButtonText = "前往下载(X64)",
+                    SecondaryButtonText = "不再提示",
+                    CloseButtonText = "忽略警告",
+                    DefaultButton = ContentDialogButton.Primary
+                };
+
+                var result = await dialog.ShowAsync();
+
+                if (result == ContentDialogResult.Primary)
+                {
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = "https://aka.ms/vc14/vc_redist.x64.exe",
+                        UseShellExecute = true
+                    });
+                }
+                else if (result == ContentDialogResult.Secondary)
+                {
+                    File.Create(ignoreFilePath).Dispose();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"显示 VC 运行库警告弹窗失败: {ex.Message}");
+        }
+    }
+}
+
+private bool IsVCRedistInstalled()
+{
+    try
+    {
+        // 检查 x64 运行库
+        using (var key = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64"))
+        {
+            if (key != null && key.GetValue("Installed") is int installed && installed == 1) return true;
+        }
+        
+        using (var key = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x86"))
+        {
+            if (key != null && key.GetValue("Installed") is int installed && installed == 1) return true;
+        }
+    }
+    catch (Exception ex)
+    {
+        Debug.WriteLine($"检查 VC 运行库失败: {ex.Message}");
+    }
+    
+    return false;
+}
 
     private bool IsUacElevatedWithConsent()
     {

@@ -12,8 +12,9 @@
   <component name="ChangeListManager">
     <list default="true" id="2e6bf6ba-f1a7-4d7b-8b76-8b03b5df7f33" name="更改" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/.idea.FufuLauncher/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.FufuLauncher/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/FufuLauncher/Services/AutoClickerService.cs" beforeDir="false" afterPath="$PROJECT_DIR$/FufuLauncher/Services/AutoClickerService.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/FufuLauncher/ViewModels/OtherViewModel.cs" beforeDir="false" afterPath="$PROJECT_DIR$/FufuLauncher/ViewModels/OtherViewModel.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/FufuLauncher/MainWindow.xaml.cs" beforeDir="false" afterPath="$PROJECT_DIR$/FufuLauncher/MainWindow.xaml.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/FufuLauncher/Services/LauncherService.cs" beforeDir="false" afterPath="$PROJECT_DIR$/FufuLauncher/Services/LauncherService.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/fufulauncher.nsi" beforeDir="false" afterPath="$PROJECT_DIR$/fufulauncher.nsi" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -33,7 +34,7 @@
   </component>
   <component name="MetaFilesCheckinStateConfiguration" checkMetaFiles="true" />
   <component name="ProblemsViewState">
-    <option name="selectedTabId" value="SWEA" />
+    <option name="selectedTabId" value="CurrentFile" />
   </component>
   <component name="ProjectColorInfo">{
   &quot;customColor&quot;: &quot;&quot;,
@@ -167,7 +168,7 @@
       <workItem from="1772535561551" duration="84000" />
       <workItem from="1772536626661" duration="1285000" />
       <workItem from="1772542244606" duration="2767000" />
-      <workItem from="1772622261308" duration="8734000" />
+      <workItem from="1772622261308" duration="17125000" />
     </task>
     <task id="LOCAL-00001" summary="修复部分功能">
       <option name="closed" value="true" />
@@ -305,7 +306,15 @@
       <option name="project" value="LOCAL" />
       <updated>1772633796163</updated>
     </task>
-    <option name="localTasksCounter" value="18" />
+    <task id="LOCAL-00018" summary="fix issue #102">
+      <option name="closed" value="true" />
+      <created>1772635069911</created>
+      <option name="number" value="00018" />
+      <option name="presentableId" value="LOCAL-00018" />
+      <option name="project" value="LOCAL" />
+      <updated>1772635069911</updated>
+    </task>
+    <option name="localTasksCounter" value="19" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -342,7 +351,8 @@
     <MESSAGE value="修改游戏文件的选择方式" />
     <MESSAGE value="今日的提交解决了issue #104" />
     <MESSAGE value="fix issue #95" />
-    <option name="LAST_COMMIT_MESSAGE" value="fix issue #95" />
+    <MESSAGE value="fix issue #102" />
+    <option name="LAST_COMMIT_MESSAGE" value="fix issue #102" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>

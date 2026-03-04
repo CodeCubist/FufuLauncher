@@ -1,7 +1,6 @@
-﻿using System;
-using System.IO;
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 using System.Text;
+using System.Diagnostics;
 
 namespace FufuLauncher.Services
 {
@@ -19,6 +18,8 @@ namespace FufuLauncher.Services
     public class LauncherService : ILauncherService
     {
         private const string DllName = "Launcher.dll";
+        
+        public static bool IsLauncherDllLoaded { get; private set; } = false;
 
         [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
         private static extern IntPtr LoadLibrary(string lpFileName);
@@ -28,14 +29,37 @@ namespace FufuLauncher.Services
 
         static LauncherService()
         {
-            string extractDirectory = AppContext.BaseDirectory;
-            
-            Environment.CurrentDirectory = extractDirectory;
-            
-            SetDllDirectory(extractDirectory);
-            
-            string absoluteDllPath = Path.Combine(extractDirectory, DllName);
-            LoadLibrary(absoluteDllPath);
+            try
+            {
+                string extractDirectory = AppContext.BaseDirectory;
+                Environment.CurrentDirectory = extractDirectory;
+                SetDllDirectory(extractDirectory);
+        
+                string absoluteDllPath = Path.Combine(extractDirectory, DllName);
+                
+                if (!File.Exists(absoluteDllPath))
+                {
+                    Debug.WriteLine($"找不到核心文件: {absoluteDllPath}");
+                    IsLauncherDllLoaded = false;
+                    return;
+                }
+
+                IntPtr handle = LoadLibrary(absoluteDllPath);
+                if (handle == IntPtr.Zero)
+                {
+                    int errorCode = Marshal.GetLastWin32Error();
+                    Debug.WriteLine($"加载 {DllName} 失败。文件存在，但缺少依赖项或架构不匹配。Win32错误码: {errorCode}");
+                    IsLauncherDllLoaded = false;
+                    return;
+                }
+                
+                IsLauncherDllLoaded = true;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"初始化 LauncherService 时发生异常: {ex.Message}");
+                IsLauncherDllLoaded = false;
+            }
         }
 
         [DllImport(DllName, CharSet = CharSet.Unicode, CallingConvention = CallingConvention.Cdecl)]
@@ -73,12 +97,29 @@ namespace FufuLauncher.Services
             int resin107009,
             int resin107012,
             int resin220007);
+        
 
-        public bool ValidateGamePath(string gamePath) => ValidateGamePathInternal(gamePath);
-        public bool ValidateDllPath(string dllPath) => ValidateDllPathInternal(dllPath);
+        public bool ValidateGamePath(string gamePath)
+        {
+            if (!IsLauncherDllLoaded) return false;
+            return ValidateGamePathInternal(gamePath);
+        }
+
+        public bool ValidateDllPath(string dllPath)
+        {
+            if (!IsLauncherDllLoaded) return false;
+            return ValidateDllPathInternal(dllPath);
+        }
 
         public int LaunchGameAndInject(string gamePath, string dllPath, string commandLineArgs, out string errorMessage, out int processId)
         {
+            if (!IsLauncherDllLoaded)
+            {
+                errorMessage = "由于系统缺少 C++ 运行库或核心文件被杀毒软件拦截，Launcher.dll 未加载成功，无法启动。";
+                processId = 0;
+                return -1;
+            }
+
             var errorBuffer = new StringBuilder(1024);
 
             int result = LaunchGameAndInject(gamePath, dllPath ?? "", commandLineArgs ?? "", errorBuffer, errorBuffer.Capacity);
@@ -100,6 +141,8 @@ namespace FufuLauncher.Services
 
         public string GetDefaultDllPath()
         {
+            if (!IsLauncherDllLoaded) return string.Empty;
+
             var pathBuffer = new StringBuilder(1024);
             return GetDefaultDllPath(pathBuffer, pathBuffer.Capacity) == 0
                 ? pathBuffer.ToString()
@@ -110,6 +153,8 @@ namespace FufuLauncher.Services
                                 bool disableEventCameraMove, bool removeTeamProgress, bool redirectCombineEntry,
                                 bool resin106, bool resin201, bool resin107009, bool resin107012, bool resin220007)
         {
+            if (!IsLauncherDllLoaded) return;
+
             UpdateConfig(gamePath ?? "",
                 hideQuestBanner ? 1 : 0,
                 disableDamageText ? 1 : 0,
