@@ -127,7 +127,7 @@ public sealed partial class MainWindow : WindowEx
         _backgroundRenderer = App.GetService<IBackgroundRenderer>();
         _localSettingsService = App.GetService<ILocalSettingsService>();
 
-        WeakReferenceMessenger.Default.Register<AgreementAcceptedMessage>(this, (r, m) =>
+        WeakReferenceMessenger.Default.Register<AgreementAcceptedMessage>(this, (_, _) =>
         {
             dispatcherQueue.TryEnqueue(() =>
             {
@@ -138,56 +138,56 @@ public sealed partial class MainWindow : WindowEx
 
         if (Content is FrameworkElement rootElement)
         {
-            rootElement.ActualThemeChanged += (s, e) => UpdateBackgroundOverlayTheme();
+            rootElement.ActualThemeChanged += (_, _) => UpdateBackgroundOverlayTheme();
         }
 
-        WeakReferenceMessenger.Default.Register<ValueChangedMessage<WindowBackdropType>>(this, (r, m) =>
+        WeakReferenceMessenger.Default.Register<ValueChangedMessage<WindowBackdropType>>(this, (_, m) =>
         {
             dispatcherQueue.TryEnqueue(() => ApplyBackdrop(m.Value));
         });
 
-        WeakReferenceMessenger.Default.Register<NotificationMessage>(this, (r, m) =>
+        WeakReferenceMessenger.Default.Register<NotificationMessage>(this, (_, m) =>
         {
             dispatcherQueue.TryEnqueue(() => ShowNotification(m));
         });
 
-        WeakReferenceMessenger.Default.Register<BackgroundRefreshMessage>(this, (r, m) =>
+        WeakReferenceMessenger.Default.Register<BackgroundRefreshMessage>(this, (_, _) =>
         {
-            dispatcherQueue.TryEnqueue(async () => { await LoadGlobalBackgroundAsync(); });
+            dispatcherQueue.TryEnqueue(async void () => { await LoadGlobalBackgroundAsync(); });
         });
 
-        WeakReferenceMessenger.Default.Register<BackgroundOverlayOpacityChangedMessage>(this, (r, m) =>
+        WeakReferenceMessenger.Default.Register<BackgroundOverlayOpacityChangedMessage>(this, (_, m) =>
         {
             dispatcherQueue.TryEnqueue(() => ApplyOverlayOpacity(m.Value));
         });
         
         _memoryOptimizationTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
-        _memoryOptimizationTimer.Tick += OnMemoryOptimizationTick;
+        _memoryOptimizationTimer.Tick += OnMemoryOptimizationTick!;
         
         _periodicMemoryTimer = new DispatcherTimer { Interval = TimeSpan.FromMinutes(10) };
-        _periodicMemoryTimer.Tick += (s, e) => FlushMemory();
+        _periodicMemoryTimer.Tick += (_, _) => FlushMemory();
         _periodicMemoryTimer.Start();
         
         AppWindow.Changed += AppWindow_Changed;
 
-        WeakReferenceMessenger.Default.Register<FrameBackgroundOpacityChangedMessage>(this, (r, m) =>
+        WeakReferenceMessenger.Default.Register<FrameBackgroundOpacityChangedMessage>(this, (_, m) =>
         {
             dispatcherQueue.TryEnqueue(() => ApplyFrameBackgroundOpacity(m.Value));
         });
 
-        WeakReferenceMessenger.Default.Register<MinimizeToTrayChangedMessage>(this, (r, m) =>
+        WeakReferenceMessenger.Default.Register<MinimizeToTrayChangedMessage>(this, (_, m) =>
         {
             _minimizeToTray = m.Value;
         });
-        WeakReferenceMessenger.Default.Register<BackgroundImageOpacityChangedMessage>(this, (r, m) =>
+        WeakReferenceMessenger.Default.Register<BackgroundImageOpacityChangedMessage>(this, (_, m) =>
         {
             dispatcherQueue.TryEnqueue(() => ApplyBackgroundImageOpacity(m.Value));
         });
 
-        dispatcherQueue.TryEnqueue(async () => await LoadBackgroundImageOpacityAsync());
+        dispatcherQueue.TryEnqueue(async void () => await LoadBackgroundImageOpacityAsync());
         Activated += OnWindowActivated;
 
-        dispatcherQueue.TryEnqueue(async () =>
+        dispatcherQueue.TryEnqueue(async void () =>
         {
             try
             {
@@ -205,9 +205,9 @@ public sealed partial class MainWindow : WindowEx
         UpdateBackgroundOverlayTheme();
 
         _messageDismissTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(4) };
-        _messageDismissTimer.Tick += (s, e) => HideSystemMessage();
+        _messageDismissTimer.Tick += (_, _) => HideSystemMessage();
         _networkCheckTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
-        _networkCheckTimer.Tick += (s, e) => CheckNetworkAndProxyStatus();
+        _networkCheckTimer.Tick += (_, _) => CheckNetworkAndProxyStatus();
 
     }
     
@@ -224,10 +224,10 @@ public sealed partial class MainWindow : WindowEx
             GC.WaitForPendingFinalizers();
             GC.Collect(2, GCCollectionMode.Forced, true, true);
             
-            bool isMinimized = AppWindow.Presenter.Kind == AppWindowPresenterKind.Overlapped && 
-                               ((OverlappedPresenter)AppWindow.Presenter).State == OverlappedPresenterState.Minimized;
+            var isMinimized = AppWindow.Presenter.Kind == AppWindowPresenterKind.Overlapped && 
+                              ((OverlappedPresenter)AppWindow.Presenter).State == OverlappedPresenterState.Minimized;
             
-            bool isHidden = !Visible;
+            var isHidden = !Visible;
 
             if ((isMinimized || isHidden) && Environment.OSVersion.Platform == PlatformID.Win32NT)
             {
@@ -290,8 +290,8 @@ public sealed partial class MainWindow : WindowEx
 
         var (currentNetwork, currentProxy) = await Task.Run(() =>
         {
-            bool isNet = NetworkInterface.GetIsNetworkAvailable();
-            bool isProxy = false;
+            var isNet = NetworkInterface.GetIsNetworkAvailable();
+            var isProxy = false;
             if (isNet)
             {
                 try
@@ -305,9 +305,9 @@ public sealed partial class MainWindow : WindowEx
             return (isNet, isProxy);
         });
 
-        bool shouldNotify = false;
-        string msg = "";
-        string icon = "";
+        var shouldNotify = false;
+        var msg = "";
+        var icon = "";
         Color color = Colors.White;
 
         if (!currentNetwork && (_lastNetworkAvailable == null || _lastNetworkAvailable == true))
@@ -409,8 +409,8 @@ public sealed partial class MainWindow : WindowEx
                 if (rootElement.XamlRoot == null)
                 {
                     var tcs = new TaskCompletionSource<bool>();
-                    RoutedEventHandler onLoaded = null;
-                    onLoaded = (s, e) =>
+                    RoutedEventHandler onLoaded = null!;
+                    onLoaded = (_, _) =>
                     {
                         rootElement.Loaded -= onLoaded;
                         tcs.TrySetResult(true);
@@ -431,7 +431,11 @@ public sealed partial class MainWindow : WindowEx
                 
                 dialog.PrimaryButtonClick += (_, _) =>
                 {
-                    try { File.Create(ignoreFilePath).Dispose(); } catch { }
+                    try { File.Create(ignoreFilePath).Dispose(); }
+                    catch
+                    {
+                        // ignored
+                    }
                 };
 
                 await dialog.ShowAsync(); 
@@ -443,8 +447,6 @@ public sealed partial class MainWindow : WindowEx
         }
     }
 }
-
-
     
     private async Task CheckAndWarnVCRedistAsync()
 {
@@ -460,8 +462,8 @@ public sealed partial class MainWindow : WindowEx
                 if (rootElement.XamlRoot == null)
                 {
                     var tcs = new TaskCompletionSource<bool>();
-                    RoutedEventHandler onLoaded = null;
-                    onLoaded = (s, e) =>
+                    RoutedEventHandler onLoaded = null!;
+                    onLoaded = (_, _) =>
                     {
                         rootElement.Loaded -= onLoaded;
                         tcs.TrySetResult(true);
@@ -531,11 +533,10 @@ private bool IsVCRedistInstalled()
         try
         {
             if (!IsRunningAsAdministrator()) return false;
-            IntPtr tokenHandle = IntPtr.Zero;
-            if (OpenProcessToken(GetCurrentProcess(), 0x0008, out tokenHandle))
+            if (OpenProcessToken(GetCurrentProcess(), 0x0008, out var tokenHandle))
             {
-                int size = Marshal.SizeOf(typeof(int));
-                IntPtr ptr = Marshal.AllocHGlobal(size);
+                var size = Marshal.SizeOf(typeof(int));
+                var ptr = Marshal.AllocHGlobal(size);
                 try
                 {
                     if (GetTokenInformation(tokenHandle, TOKEN_INFORMATION_CLASS.TokenElevationType, ptr, (uint)size, out _))
@@ -547,7 +548,11 @@ private bool IsVCRedistInstalled()
                 finally { Marshal.FreeHGlobal(ptr); if (tokenHandle != IntPtr.Zero) CloseHandle(tokenHandle); }
             }
         }
-        catch { }
+        catch
+        {
+            // ignored
+        }
+
         return false;
     }
 
@@ -556,7 +561,7 @@ private bool IsVCRedistInstalled()
         try
         {
             var valueObj = await _localSettingsService.ReadSettingAsync("GlobalBackgroundImageOpacity");
-            double opacity = 1.0;
+            var opacity = 1.0;
             if (valueObj != null && double.TryParse(valueObj.ToString(), out var parsed)) opacity = parsed;
             ApplyBackgroundImageOpacity(opacity);
         }
@@ -605,7 +610,7 @@ private bool IsVCRedistInstalled()
         await SaveWindowSizeAsync();
         _isExit = true;
         TrayIcon.Dispose();
-        this.Close();
+        Close();
     }
 
     private async void AppWindow_Closing(AppWindow sender, AppWindowClosingEventArgs args)
@@ -637,7 +642,10 @@ private bool IsVCRedistInstalled()
                 await localSettings.SaveSettingAsync("SavedWindowHeight", Height);
             }
         }
-        catch { }
+        catch
+        {
+            // ignored
+        }
     }
 
     private void UpdateBackgroundOverlayTheme()
@@ -702,7 +710,7 @@ private bool IsVCRedistInstalled()
             else
             {
                 var acrylicEnabled = await localSettingsService.ReadSettingAsync("IsAcrylicEnabled");
-                bool isEnabled = acrylicEnabled == null ? true : Convert.ToBoolean(acrylicEnabled);
+                var isEnabled = acrylicEnabled == null ? true : Convert.ToBoolean(acrylicEnabled);
                 backdropType = isEnabled ? WindowBackdropType.Acrylic : WindowBackdropType.None;
             }
             ApplyBackdrop(backdropType);
@@ -731,10 +739,10 @@ private bool IsVCRedistInstalled()
             }
 
             var preferVideoSetting = await _localSettingsService.ReadSettingAsync("UserPreferVideoBackground");
-            bool preferVideo = preferVideoSetting != null && Convert.ToBoolean(preferVideoSetting);
+            var preferVideo = preferVideoSetting != null && Convert.ToBoolean(preferVideoSetting);
 
             var serverJson = await _localSettingsService.ReadSettingAsync(LocalSettingsService.BackgroundServerKey);
-            int serverValue = serverJson != null ? Convert.ToInt32(serverJson) : 0;
+            var serverValue = serverJson != null ? Convert.ToInt32(serverJson) : 0;
             var server = (ServerType)serverValue;
 
             var result = await _backgroundRenderer.GetBackgroundAsync(server, preferVideo);
@@ -748,9 +756,9 @@ private bool IsVCRedistInstalled()
 
 private Task ApplyGlobalBackgroundAsync(BackgroundRenderResult? result)
 {
-    return RunOnUIThreadAsync(async () => 
+    return RunOnUIThreadAsync(async void () => 
     {
-        if (result == null) { ClearGlobalBackgroundAsync(); return; }
+        if (result == null) { await ClearGlobalBackgroundAsync(); return; }
 
         if (result.IsVideo)
         {
@@ -819,18 +827,21 @@ private Task ApplyGlobalBackgroundAsync(BackgroundRenderResult? result)
     {
         try
         {
-            this.SystemBackdrop = null;
+            SystemBackdrop = null;
             switch (type)
             {
                 case WindowBackdropType.Mica:
-                    this.SystemBackdrop = new MicaBackdrop();
+                    SystemBackdrop = new MicaBackdrop();
                     break;
                 case WindowBackdropType.Acrylic:
-                    this.SystemBackdrop = new DesktopAcrylicBackdrop();
+                    SystemBackdrop = new DesktopAcrylicBackdrop();
                     break;
             }
         }
-        catch { }
+        catch
+        {
+            // ignored
+        }
     }
 
     public async Task InitializeWindowSizeAsync()
@@ -846,8 +857,8 @@ private Task ApplyGlobalBackgroundAsync(BackgroundRenderResult? result)
                 var heightObj = await localSettings.ReadSettingAsync("SavedWindowHeight");
 
                 if (widthObj != null && heightObj != null &&
-                    double.TryParse(widthObj.ToString(), out double w) &&
-                    double.TryParse(heightObj.ToString(), out double h))
+                    double.TryParse(widthObj.ToString(), out var w) &&
+                    double.TryParse(heightObj.ToString(), out var h))
                 {
                     Width = w;
                     Height = h;
@@ -883,12 +894,15 @@ private Task ApplyGlobalBackgroundAsync(BackgroundRenderResult? result)
                 currentSize = new SizeInt32((int)Math.Round(Width), (int)Math.Round(Height));
             }
 
-            int targetX = workArea.X + Math.Max(0, (workArea.Width - currentSize.Width) / 2);
-            int targetY = workArea.Y + Math.Max(0, (workArea.Height - currentSize.Height) / 2);
+            var targetX = workArea.X + Math.Max(0, (workArea.Width - currentSize.Width) / 2);
+            var targetY = workArea.Y + Math.Max(0, (workArea.Height - currentSize.Height) / 2);
 
             AppWindow.Move(new PointInt32(targetX, targetY));
         }
-        catch { }
+        catch
+        {
+            // ignored
+        }
     }
 
     private void OnWindowActivated(object sender, WindowActivatedEventArgs args)
@@ -900,7 +914,11 @@ private Task ApplyGlobalBackgroundAsync(BackgroundRenderResult? result)
             if (File.Exists(iconPath)) TitleBarIcon.Source = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage(new Uri(iconPath));
             UpdateTitleBarWithAdminStatus();
         }
-        catch { }
+        catch
+        {
+            // ignored
+        }
+
         Activated -= OnWindowActivated;
     }
 
@@ -908,10 +926,13 @@ private Task ApplyGlobalBackgroundAsync(BackgroundRenderResult? result)
     {
         try
         {
-            bool isAdmin = IsRunningAsAdministrator();
+            var isAdmin = IsRunningAsAdministrator();
             TitleBarText.Text = isAdmin ? "芙芙启动器 [管理员]" : "芙芙启动器";
         }
-        catch { }
+        catch
+        {
+            // ignored
+        }
     }
 
     private bool IsRunningAsAdministrator()
@@ -955,12 +976,12 @@ private Task ApplyGlobalBackgroundAsync(BackgroundRenderResult? result)
         var visual = ElementCompositionPreview.GetElementVisual(element);
         var compositor = visual.Compositor;
 
-        element.SizeChanged += (s, e) =>
+        element.SizeChanged += (_, e) =>
         {
             visual.CenterPoint = new Vector3((float)e.NewSize.Width / 2f, (float)e.NewSize.Height / 2f, 0f);
         };
 
-        element.PointerPressed += (s, e) =>
+        element.PointerPressed += (_, _) =>
         {
             var anim = compositor.CreateSpringVector3Animation();
             anim.Target = "Scale";
@@ -984,8 +1005,8 @@ private Task ApplyGlobalBackgroundAsync(BackgroundRenderResult? result)
             visual.StartAnimation("Scale", anim);
         }
 
-        element.PointerReleased += (s, e) => ResetScale();
-        element.PointerExited += (s, e) => ResetScale();
+        element.PointerReleased += (_, _) => ResetScale();
+        element.PointerExited += (_, _) => ResetScale();
     }
 
     private async Task LoadMinimizeToTraySettingAsync()
@@ -1003,7 +1024,7 @@ private Task ApplyGlobalBackgroundAsync(BackgroundRenderResult? result)
         try
         {
             var accepted = await _localSettingsService.ReadSettingAsync("UserAgreementAccepted");
-            bool isAccepted = accepted != null && Convert.ToBoolean(accepted);
+            var isAccepted = accepted != null && Convert.ToBoolean(accepted);
             if (!isAccepted) ShowAgreementPage();
             else ShowMainContent();
         }
@@ -1042,7 +1063,7 @@ private Task ApplyGlobalBackgroundAsync(BackgroundRenderResult? result)
     {
         try
         {
-            string pluginsPath = Path.Combine(AppContext.BaseDirectory, "Plugins");
+            var pluginsPath = Path.Combine(AppContext.BaseDirectory, "Plugins");
             
             if (!Directory.Exists(pluginsPath))
             {
@@ -1112,7 +1133,7 @@ private Task ApplyGlobalBackgroundAsync(BackgroundRenderResult? result)
     {
         try
         {
-            double screenHeight = Bounds.Height > 0 ? Bounds.Height : 1000;
+            var screenHeight = Bounds.Height > 0 ? Bounds.Height : 1000;
 
             if (isMainPage && _isOverlayShown)
             {
@@ -1250,7 +1271,7 @@ private Task ApplyGlobalBackgroundAsync(BackgroundRenderResult? result)
         Foreground = new SolidColorBrush(Colors.White) 
     };
     Grid.SetColumn(closeButton, 2);
-    closeButton.Click += (s, e) => { try { NotificationPanel.Children.Remove(card); }
+    closeButton.Click += (_, _) => { try { NotificationPanel.Children.Remove(card); }
         catch
         {
             // ignored
@@ -1289,7 +1310,13 @@ private string GetNotificationIcon(NotificationType type)
     {
         var timer = dispatcherQueue.CreateTimer();
         timer.Interval = TimeSpan.FromMilliseconds(duration);
-        timer.Tick += (s, e) => { try { NotificationPanel.Children.Remove(card); } catch { } timer.Stop(); };
+        timer.Tick += (_, _) => { try { NotificationPanel.Children.Remove(card); }
+            catch
+            {
+                // ignored
+            }
+
+            timer.Stop(); };
         timer.Start();
     }
 
@@ -1309,7 +1336,7 @@ private string GetNotificationIcon(NotificationType type)
         try
         {
             var valueObj = await _localSettingsService.ReadSettingAsync("GlobalBackgroundOverlayOpacity");
-            double opacity = 0.3;
+            var opacity = 0.3;
             if (valueObj != null && double.TryParse(valueObj.ToString(), out var parsed)) opacity = parsed;
             ApplyOverlayOpacity(opacity);
         }
@@ -1321,7 +1348,7 @@ private string GetNotificationIcon(NotificationType type)
         try
         {
             var valueObj = await _localSettingsService.ReadSettingAsync("ContentFrameBackgroundOpacity");
-            double opacity = 0.0;
+            var opacity = 0.0;
             if (valueObj != null && double.TryParse(valueObj.ToString(), out var parsed)) opacity = parsed;
             ApplyFrameBackgroundOpacity(opacity);
         }

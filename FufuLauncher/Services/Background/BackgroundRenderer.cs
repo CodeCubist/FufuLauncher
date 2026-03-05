@@ -281,7 +281,10 @@ namespace FufuLauncher.Services.Background
                         File.Delete(file);
                     }
                 }
-                catch { }
+                catch
+                {
+                    // ignored
+                }
             }
 
             _cachedBackground = null;

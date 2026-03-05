@@ -37,12 +37,12 @@ public partial class App : Application
     {
         if (ex == null) return;
 
-        string message = $"程序遇到了一个错误\n\n" +
-                         $"错误来源: {source}\n" +
-                         $"错误信息: {ex.Message}\n\n" +
-                         $"堆栈信息:\n{ex.StackTrace}";
+        var message = $"程序遇到了一个错误\n\n" +
+                      $"错误来源: {source}\n" +
+                      $"错误信息: {ex.Message}\n\n" +
+                      $"堆栈信息:\n{ex.StackTrace}";
 
-        IntPtr hwnd = IntPtr.Zero;
+        var hwnd = IntPtr.Zero;
         try
         {
             if (MainWindow != null)
@@ -75,7 +75,7 @@ public partial class App : Application
     {
         get; set;
     }
-    private static Microsoft.UI.Dispatching.DispatcherQueue _mainDispatcherQueue;
+    private static Microsoft.UI.Dispatching.DispatcherQueue _mainDispatcherQueue = null!;
     public App()
     {
         AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
@@ -90,7 +90,7 @@ public partial class App : Application
         InitializeComponent();
 
         var appInstance = AppInstance.GetCurrent();
-        appInstance.Activated += App_Activated;
+        appInstance.Activated += App_Activated!;
 
         Host = Microsoft.Extensions.Hosting.Host.CreateDefaultBuilder()
             .UseContentRoot(AppContext.BaseDirectory)
@@ -207,19 +207,19 @@ public partial class App : Application
     {
         try
         {
-            string? mainExePath = Environment.ProcessPath;
+            var mainExePath = Environment.ProcessPath;
             if (string.IsNullOrEmpty(mainExePath))
             {
                 Debug.WriteLine("[Updater] 无法获取主程序路径，更新程序启动中止。");
                 return;
             }
             
-            int currentPid = Process.GetCurrentProcess().Id;
+            var currentPid = Process.GetCurrentProcess().Id;
             
-            string? baseDirectory = Path.GetDirectoryName(mainExePath);
+            var baseDirectory = Path.GetDirectoryName(mainExePath);
             if (string.IsNullOrEmpty(baseDirectory)) return;
             
-            string updaterPath = Path.Combine(baseDirectory, "update.exe");
+            var updaterPath = Path.Combine(baseDirectory, "update.exe");
 
             if (File.Exists(updaterPath))
             {
@@ -268,7 +268,7 @@ public partial class App : Application
         }
         catch
         {
-
+            // ignored
         }
     }
 
@@ -279,7 +279,7 @@ public partial class App : Application
         try
         {
             var logPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "FufuLauncher", "CrashLog.txt");
-            Directory.CreateDirectory(Path.GetDirectoryName(logPath));
+            Directory.CreateDirectory(Path.GetDirectoryName(logPath)!);
 
             var log = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {source}\n" +
                      $"Exception: {ex.GetType().Name}\n" +
@@ -347,7 +347,7 @@ public partial class App : Application
                     {
                         await _mainDispatcherQueue.EnqueueAsync(() =>
                         {
-                            var announcementWindow = new Views.AnnouncementWindowL(announcementUrl);
+                            var announcementWindow = new AnnouncementWindowL(announcementUrl);
                             announcementWindow.Activate();
                         });
                     }
