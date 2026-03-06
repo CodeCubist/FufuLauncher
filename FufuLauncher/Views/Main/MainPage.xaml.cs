@@ -1,6 +1,5 @@
 ﻿using System.ComponentModel;
 using System.Diagnostics;
-using CommunityToolkit.Mvvm.ComponentModel;
 using FufuLauncher.Contracts.Services;
 using FufuLauncher.ViewModels;
 using Microsoft.UI.Xaml;
@@ -58,7 +57,7 @@ private async void SwitchToBilibili_Click(object sender, RoutedEventArgs e)
                 var localSettingsService = App.GetService<ILocalSettingsService>();
                 var gamePathSetting = await localSettingsService.ReadSettingAsync("GameInstallationPath");
                 
-                string gameDir = gamePathSetting as string;
+                var gameDir = gamePathSetting as string;
                 if (!string.IsNullOrEmpty(gameDir))
                 {
                     gameDir = gameDir.Trim('"').Trim();
@@ -137,7 +136,7 @@ private async void SwitchToBilibili_Click(object sender, RoutedEventArgs e)
                     }
                     else
                     {
-                        await ShowDialog("错误", $"缺失核心文件：{sourceSdkPath}\n请确保已将 PCGameSDK.dll 放入软件的 Assets 文件夹。");
+                        await ShowDialog("错误", $"缺失核心文件：{sourceSdkPath}\n请重新安装该软件");
                         return;
                     }
                 }
@@ -164,7 +163,7 @@ private async void SwitchToBilibili_Click(object sender, RoutedEventArgs e)
                 Title = title,
                 Content = content,
                 CloseButtonText = "确定",
-                XamlRoot = this.XamlRoot
+                XamlRoot = XamlRoot
             };
             await dialog.ShowAsync();
         }

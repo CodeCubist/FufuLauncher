@@ -22,9 +22,9 @@ public sealed partial class AboutPage : Page
 
         TextBlock warningText = new()
         {
-            Text = "请注意：联系时请直入主题，说明来意。\n请不要发送“在吗”、“你好”等无意义的开场白。",
+            Text = "请注意：联系时请直入主题，说明来意。\n请不要发送“在吗”、“你好”等无意义的开场白",
             TextWrapping = TextWrapping.Wrap,
-            Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["SystemControlErrorTextForegroundBrush"] // 使用警示色或默认色
+            Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["SystemControlErrorTextForegroundBrush"]
         };
 
         ComboBox platformCombo = new()
@@ -136,17 +136,17 @@ public sealed partial class AboutPage : Page
                         {
                             string DownloadShell = "";
                             DownloadShell += $"taskkill /F /IM FufuLauncher.exe *> $null\n";
-                            DownloadShell += $"del \"{System.Environment.CurrentDirectory}\\*\" /f /s /q\n";
-                            DownloadShell += $"curl -H \"Authorization: Bearer {userToken}\" -L \"{downloadUrl}\" --ssl-no-revoke -o \"{System.Environment.CurrentDirectory}\\FufuLauncher_Build.zip\"\n";
-                            DownloadShell += $"tar -xf \"{System.Environment.CurrentDirectory}\\FufuLauncher_Build.zip\" -C \"{System.Environment.CurrentDirectory}\"\n";
-                            DownloadShell += $"del \"{System.Environment.CurrentDirectory}\\FufuLauncher_Build.zip\" /f /s /q\n";
-                            DownloadShell += $"start {System.Environment.CurrentDirectory}\\FufuLauncher.exe\n";
+                            DownloadShell += $"del \"{Environment.CurrentDirectory}\\*\" /f /s /q\n";
+                            DownloadShell += $"curl -H \"Authorization: Bearer {userToken}\" -L \"{downloadUrl}\" --ssl-no-revoke -o \"{Environment.CurrentDirectory}\\FufuLauncher_Build.zip\"\n";
+                            DownloadShell += $"tar -xf \"{Environment.CurrentDirectory}\\FufuLauncher_Build.zip\" -C \"{Environment.CurrentDirectory}\"\n";
+                            DownloadShell += $"del \"{Environment.CurrentDirectory}\\FufuLauncher_Build.zip\" /f /s /q\n";
+                            DownloadShell += $"start {Environment.CurrentDirectory}\\FufuLauncher.exe\n";
                             DownloadShell += $"del %0";
                             GetBuildFormActionsToggle.Content = "获取成功! 已生成下载脚本.";
                             Debug.WriteLine("[GetBuildFromActions] 生成的下载脚本内容: \n" + DownloadShell);
                             Debug.WriteLine("[GetBuildFromActions] 下载脚本路径: " + batchFilePath);
-                            System.IO.File.WriteAllText(batchFilePath, DownloadShell, System.Text.Encoding.UTF8);
-                            ProcessStartInfo psi = new ProcessStartInfo
+                            File.WriteAllText(batchFilePath, DownloadShell, System.Text.Encoding.UTF8);
+                            ProcessStartInfo psi = new()
                             {
                                 FileName = "cmd.exe",
                                 Arguments = $"/c \"{batchFilePath}\"",
@@ -154,7 +154,7 @@ public sealed partial class AboutPage : Page
                                 Verb = "runas"
                             };
                             Process.Start(psi);
-                            System.Environment.Exit(0);
+                            Environment.Exit(0);
                         }
                         else
                         {
@@ -203,13 +203,13 @@ public sealed partial class AboutPage : Page
     }
     private async Task<string> PromptForTokenAsync()
     {
-        TextBox tokenInput = new TextBox
+        TextBox tokenInput = new()
         {
             PlaceholderText = "请输入你的 GitHub Token",
             AcceptsReturn = false,
             TextWrapping = TextWrapping.NoWrap
         };
-        ContentDialog tokenDialog = new ContentDialog
+        ContentDialog tokenDialog = new()
         {
             Title = "GitHub Token",
             Content = tokenInput,
@@ -218,7 +218,7 @@ public sealed partial class AboutPage : Page
             DefaultButton = ContentDialogButton.Primary
         };
 
-        tokenDialog.XamlRoot = this.XamlRoot;
+        tokenDialog.XamlRoot = XamlRoot;
         ContentDialogResult result = await tokenDialog.ShowAsync();
         if (result == ContentDialogResult.Primary)
         {

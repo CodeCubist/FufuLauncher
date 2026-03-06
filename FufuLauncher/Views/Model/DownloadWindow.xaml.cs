@@ -16,7 +16,7 @@ namespace FufuLauncher.Views
 
         public DownloadWindow(string installPath)
         {
-            this.InitializeComponent();
+            InitializeComponent();
             _installPath = installPath;
             PathBox.Text = _installPath;
 
@@ -31,7 +31,7 @@ namespace FufuLauncher.Views
                 appWindow.Resize(new Windows.Graphics.SizeInt32(900, 700));
             }
 
-            this.Closed += (s, e) => { if (_isDownloading) _cts?.Cancel(); };
+            Closed += (s, e) => { if (_isDownloading) _cts?.Cancel(); };
         }
 
         private async void StartButton_Click(object sender, RoutedEventArgs e)
@@ -73,8 +73,8 @@ namespace FufuLauncher.Views
 
             try
             {
-                string lang = ((ComboBoxItem)LanguageCombo.SelectedItem).Tag.ToString();
-                bool downloadBase = BaseGameCheck.IsChecked == true;
+                var lang = ((ComboBoxItem)LanguageCombo.SelectedItem).Tag.ToString();
+                var downloadBase = BaseGameCheck.IsChecked == true;
 
                 await Task.Run(() => downloader.StartDownloadAsync(_installPath, lang, downloadBase, 16, _cts.Token));
 
@@ -90,7 +90,7 @@ namespace FufuLauncher.Views
                         Title = "完成",
                         Content = "所有文件下载、校验、部署已完成。",
                         CloseButtonText = "确定",
-                        XamlRoot = this.Content.XamlRoot
+                        XamlRoot = Content.XamlRoot
                     };
                     await dialog.ShowAsync();
                 });
@@ -110,7 +110,7 @@ namespace FufuLauncher.Views
                         Title = "错误",
                         Content = ex.Message,
                         CloseButtonText = "关闭",
-                        XamlRoot = this.Content.XamlRoot
+                        XamlRoot = Content.XamlRoot
                     };
                     await dialog.ShowAsync();
                 });
@@ -126,7 +126,7 @@ namespace FufuLauncher.Views
         private void CancelButton_Click(object sender, RoutedEventArgs e)
         {
             if (_isDownloading) _cts?.Cancel();
-            else this.Close();
+            else Close();
         }
 
         private void LogToggle_Click(object sender, RoutedEventArgs e)

@@ -32,6 +32,8 @@ namespace FufuLauncher;
 
 public sealed partial class MainWindow : WindowEx
 {
+    #region Fields & Native APIs
+    
     private Microsoft.UI.Dispatching.DispatcherQueue dispatcherQueue;
     private UISettings settings;
     private readonly IBackgroundRenderer _backgroundRenderer;
@@ -89,6 +91,9 @@ public sealed partial class MainWindow : WindowEx
     {
         get;
     }
+    #endregion
+    
+    #region Initialization
 
     private Task RunOnUIThreadAsync(Action action)
     {
@@ -211,6 +216,10 @@ public sealed partial class MainWindow : WindowEx
 
     }
     
+    #endregion
+    
+    #region Memory Management
+    
     private void FlushMemory()
     {
         try
@@ -283,6 +292,10 @@ public sealed partial class MainWindow : WindowEx
         
         Debug.WriteLine("应用已唤醒");
     }
+    
+    #endregion
+    
+    #region Network & System Messages
 
     private async void CheckNetworkAndProxyStatus()
     {
@@ -394,6 +407,10 @@ public sealed partial class MainWindow : WindowEx
             OverlayTranslate.Y = Bounds.Height + 100;
         }
     }
+    
+    #endregion
+    
+    #region Environment Checks
 
     private async Task CheckAndWarnUacElevationAsync()
 {
@@ -555,6 +572,10 @@ private bool IsVCRedistInstalled()
 
         return false;
     }
+    
+    #endregion
+    
+    #region Window & Background Management
 
     private async Task LoadBackgroundImageOpacityAsync()
     {
@@ -947,6 +968,10 @@ private Task ApplyGlobalBackgroundAsync(BackgroundRenderResult? result)
         }
         catch { return false; }
     }
+    
+    #endregion
+    
+    #region Navigation & Layout
 
     private async void NavigationView_Loaded(object sender, RoutedEventArgs e)
     {
@@ -1188,6 +1213,10 @@ private Task ApplyGlobalBackgroundAsync(BackgroundRenderResult? result)
     {
         dispatcherQueue.TryEnqueue(() => { TitleBarHelper.ApplySystemThemeToCaptionButtons(); });
     }
+    
+    #endregion
+    
+    #region Notifications
 
     private void ShowNotification(NotificationMessage message)
     {
@@ -1330,6 +1359,10 @@ private string GetNotificationIcon(NotificationType type)
             _ => new SolidColorBrush(ColorHelper.FromArgb(255, 0, 103, 192))
         };
     }
+    
+    #endregion
+    
+    #region Opacity & Visual Settings
 
     private async Task LoadOverlayOpacityAsync()
     {
@@ -1385,4 +1418,5 @@ private string GetNotificationIcon(NotificationType type)
         baseColor.A = (byte)(_frameBackgroundOpacity * 255);
         brush.Color = baseColor;
     }
+    #endregion
 }

@@ -13,8 +13,8 @@ namespace FufuLauncher.Views
 
         public AnnouncementPage()
         {
-            this.InitializeComponent();
-            this.Loaded += AnnouncementPage_Loaded;
+            InitializeComponent();
+            Loaded += AnnouncementPage_Loaded;
         }
 
         private async void AnnouncementPage_Loaded(object sender, RoutedEventArgs e)
@@ -72,7 +72,7 @@ namespace FufuLauncher.Views
                 {
                     System.Diagnostics.Debug.WriteLine("【捕获关闭指令】正在关闭窗口...");
 
-                    this.DispatcherQueue.TryEnqueue(() =>
+                    DispatcherQueue.TryEnqueue(() =>
                     {
                         CloseRequested?.Invoke();
                     });
