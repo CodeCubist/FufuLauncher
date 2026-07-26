@@ -70,6 +70,7 @@ public sealed partial class MainWindow : WindowEx
     private int _currentSlideshowIndex = 0;
 
     private bool _isSuspended;
+    private Views.DesktopNotificationWindow? _desktopNotificationWindow;
 
     public bool IsAgreementShowing { get; private set; }
 
@@ -817,6 +818,8 @@ public sealed partial class MainWindow : WindowEx
         _announcementCheckTimer?.Stop();
         _slideshowTimer?.Stop();
         _networkMonitorService.Stop();
+        _desktopNotificationWindow?.CloseForAppExit();
+        _desktopNotificationWindow = null;
 
         // 通知 ViewModel 取消后台任务
         try { App.GetService<MainViewModel>()?.Cleanup(); } catch { }
@@ -1904,22 +1907,8 @@ public sealed partial class MainWindow : WindowEx
     {
         try
         {
-            if (NotificationContainer.Visibility == Visibility.Collapsed || 
-                (NotificationContainer.Tag is string state && state == "Closing"))
-            {
-                NotificationContainer.Tag = null;
-                NotificationContainer.Visibility = Visibility.Visible;
-                PlayContainerEntranceAnimation();
-            }
-
-            var infoBar = CreateInfoBar(message);
-            NotificationPanel.Children.Insert(0, infoBar);
-            PlayEntranceAnimation(infoBar);
-            
-            if (message.Duration > 0)
-            {
-                SetupAutoDismiss(infoBar, message.Duration);
-            }
+            _desktopNotificationWindow ??= new Views.DesktopNotificationWindow();
+            _desktopNotificationWindow.ShowNotification(message);
         }
         catch
         {
