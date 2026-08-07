@@ -9,8 +9,12 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization.Metadata;
+using System.Threading;
 using FufuLauncher.Constants;
+using FufuLauncher.Constants.MiHoYo;
 using FufuLauncher.Contracts.Services;
+using FufuLauncher.Models.MiHoYo.Fingerprint;
+using FufuLauncher.Models.MiHoYo.Identity;
 using FufuLauncher.Services;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
@@ -56,8 +60,15 @@ public sealed partial class LoginQrWindow : Window
     #region 字段、常量、构造函数
     private const string Salt = "dDIQHbKOdaPaLuvQKVzUzqdeCaxjtaPV";
     private const string SaltGame = "t0qEgfub6cvueAPgR5m9aQWWVciEer7v";
-    private readonly string _deviceId;
-    private readonly string _deviceFp;
+    private string _deviceId = "";
+    private string _deviceFp = "";
+    private string _lifecycleId = "";
+    private DeviceFpRequest? _fpRequest;
+    private DeviceFpRequest? _webFpRequest;
+    private readonly IDeviceFingerprintService _fingerprintService;
+    private readonly IBbsRequestBuilder _requestBuilder;
+    private AccountContext? _loginCtx;
+    private readonly SemaphoreSlim _fpLock = new(1, 1);
     private HttpClient _httpClient;
 
     public bool DidLoginSucceed() => IsLoginSuccessful;
@@ -68,7 +79,7 @@ public sealed partial class LoginQrWindow : Window
     private bool _hoYoLabCredentialsExtracted;
     private SemaphoreSlim _extractSemaphore = new SemaphoreSlim(1, 1);
     private DispatcherQueue _dispatcherQueue;
-    private TaskCompletionSource<(Dictionary<string, string> Cookies, string ServerType)>? _loginTcs;
+    private TaskCompletionSource<(Dictionary<string, string> Cookies, string ServerType, DeviceFpRequest? Fingerprint, DeviceFpRequest? WebFingerprint)>? _loginTcs;
     private ContentDialog _statusDialog;
     private bool _isDialogOpen;
     private bool _isLoginCompleting;
@@ -86,8 +97,8 @@ public sealed partial class LoginQrWindow : Window
 
     public LoginQrWindow()
     {
-        _deviceId = Guid.NewGuid().ToString("N")[..16].ToUpper();
-        _deviceFp = GenerateDeviceFingerprint();
+        _fingerprintService = App.GetService<IDeviceFingerprintService>();
+        _requestBuilder = App.GetService<IBbsRequestBuilder>();
         var handler = new HttpClientHandler { UseCookies = false };
         _httpClient = new HttpClient(handler);
 
@@ -472,7 +483,7 @@ public sealed partial class LoginQrWindow : Window
         if (tcs == null)
             return;
 
-        tcs.TrySetResult((cookies, serverType));
+        tcs.TrySetResult((cookies, serverType, _fpRequest, _webFpRequest));
         DispatcherQueue.TryEnqueue(() => Close());
     }
 
@@ -495,6 +506,7 @@ public sealed partial class LoginQrWindow : Window
     #region 米游社APP扫码登录（重构为基于会话对象）
     private async Task StartAppLoginFlowAsync(LoginSession session)
     {
+        await EnsureFingerprintAsync();
         _isLoginCompleting = false;
         UpdateStatus("正在创建APP登录二维码...", true);
 
@@ -517,9 +529,9 @@ public sealed partial class LoginQrWindow : Window
         var body = new JsonObject();
         string bodyStr = body.ToJsonString(_jsonOptions);
 
-        var request = new HttpRequestMessage(HttpMethod.Post, url);
-        request.Content = new StringContent(bodyStr, Encoding.UTF8, "application/json");
-        AddCommonHeaders(request, bodyStr, "", "3", "ddxf5dufpuyo", "2.90.1");
+        var request = _requestBuilder.Build(_loginCtx ??= BuildLoginContext(),
+            BbsRequestScene.WebLogin, HttpMethod.Post, url, body: bodyStr,
+            options: new BbsRequestOptions { AppId = "ddxf5dufpuyo", ClientType = "3", SdkVersion = "2.42.0", LifecycleId = _lifecycleId, Minimal = true });
 
         try
         {
@@ -559,9 +571,9 @@ public sealed partial class LoginQrWindow : Window
             var body = new JsonObject { ["ticket"] = session.Ticket };
             string bodyStr = body.ToJsonString(_jsonOptions);
 
-            using var request = new HttpRequestMessage(HttpMethod.Post, url);
-            request.Content = new StringContent(bodyStr, Encoding.UTF8, "application/json");
-            AddCommonHeaders(request, bodyStr, "", "3", "ddxf5dufpuyo", "2.90.1");
+            using var request = _requestBuilder.Build(_loginCtx ??= BuildLoginContext(),
+                BbsRequestScene.WebLogin, HttpMethod.Post, url, body: bodyStr,
+                options: new BbsRequestOptions { AppId = "ddxf5dufpuyo", ClientType = "3", SdkVersion = "2.42.0", LifecycleId = _lifecycleId, Minimal = true });
 
             try
             {
@@ -641,6 +653,7 @@ public sealed partial class LoginQrWindow : Window
     #region 游戏扫码登录（重构为基于会话对象）
     private async Task StartGameLoginFlowAsync(LoginSession session)
     {
+        await EnsureFingerprintAsync();
         _isLoginCompleting = false;
         UpdateStatus("正在创建游戏扫码二维码...", true);
 
@@ -963,10 +976,9 @@ public sealed partial class LoginQrWindow : Window
         var body = new JsonObject();
         string bodyStr = body.ToJsonString(_jsonOptions);
 
-        var request = new HttpRequestMessage(HttpMethod.Post, url);
-        request.Content = new StringContent(bodyStr, Encoding.UTF8, "application/json");
-
-        AddCommonHeaders(request, bodyStr, "", "2", "bll8iq97cem8", "2.90.1");
+        var request = _requestBuilder.Build(_loginCtx ??= BuildLoginContext(),
+            BbsRequestScene.WebLogin, HttpMethod.Post, url, body: bodyStr,
+            options: new BbsRequestOptions { AppId = "bll8iq97cem8", ClientType = "2", SdkVersion = "2.42.0", LifecycleId = _lifecycleId, Minimal = true });
 
         try
         {
@@ -985,9 +997,9 @@ public sealed partial class LoginQrWindow : Window
         var body = new JsonObject { ["ticket"] = ticket, ["token_types"] = tokenTypes };
         string bodyStr = body.ToJsonString(_jsonOptions);
 
-        var request = new HttpRequestMessage(HttpMethod.Post, url);
-        request.Content = new StringContent(bodyStr, Encoding.UTF8, "application/json");
-        AddCommonHeaders(request, bodyStr, "", "2", "bll8iq97cem8", "2.90.1", authCookie);
+        var request = _requestBuilder.Build(_loginCtx ??= BuildLoginContext(),
+            BbsRequestScene.WebLogin, HttpMethod.Post, url, body: bodyStr,
+            options: new BbsRequestOptions { AppId = "bll8iq97cem8", ClientType = "2", SdkVersion = "2.42.0", Cookie = authCookie, LifecycleId = _lifecycleId, IncludeDs = true });
 
         try
         {
@@ -1007,9 +1019,9 @@ public sealed partial class LoginQrWindow : Window
 
         for (int i = 0; i < 3; i++)
         {
-            var request = new HttpRequestMessage(HttpMethod.Post, url);
-            request.Content = new StringContent(bodyStr, Encoding.UTF8, "application/json");
-            AddCommonHeaders(request, bodyStr, "", "2", "bll8iq97cem8", "2.90.1");
+            var request = _requestBuilder.Build(_loginCtx ??= BuildLoginContext(),
+                BbsRequestScene.WebLogin, HttpMethod.Post, url, body: bodyStr,
+                options: new BbsRequestOptions { AppId = "bll8iq97cem8", ClientType = "2", SdkVersion = "2.42.0", LifecycleId = _lifecycleId, Minimal = true });
 
             try
             {
@@ -1047,7 +1059,7 @@ public sealed partial class LoginQrWindow : Window
 
     private async Task StartWebPassportLoginAsync()
     {
-       
+        await EnsureFingerprintAsync();
         _currentSession?.Cancel();
 
         UpdateStatus("正在加载通行证登录页面...", true);
@@ -1381,18 +1393,19 @@ public sealed partial class LoginQrWindow : Window
 
     #region 公共
     
-    public Task<(Dictionary<string, string> Cookies, string ServerType)> ShowAndWaitAsync()
+    public Task<(Dictionary<string, string> Cookies, string ServerType, DeviceFpRequest? Fingerprint, DeviceFpRequest? WebFingerprint)> ShowAndWaitAsync()
     {
         _loginTcs?.TrySetCanceled();
-        _loginTcs = new TaskCompletionSource<(Dictionary<string, string>, string)>();
+        _loginTcs = new TaskCompletionSource<(Dictionary<string, string>, string, DeviceFpRequest?, DeviceFpRequest?)>();
         this.Activate();
         return _loginTcs.Task;
     }
     private async Task<string> GetCookieAccountInfoBySTokenAsync(string stoken)
     {
         string url = $"{ApiEndpoints.GetCookieAccountInfoBySTokenUrl}?stoken={stoken}";
-        var request = new HttpRequestMessage(HttpMethod.Get, url);
-        AddCommonHeaders(request, "", $"stoken={stoken}", "2", "bll8iq97cem8", "2.20.1", "", "https://user.mihoyo.com/");
+        var request = _requestBuilder.Build(_loginCtx ??= BuildLoginContext(),
+            BbsRequestScene.WebLogin, HttpMethod.Get, url,
+            options: new BbsRequestOptions { AppId = "bll8iq97cem8", ClientType = "2", SdkVersion = "2.42.0", Referer = "https://user.mihoyo.com/", LifecycleId = _lifecycleId, IncludeDs = true });
 
         try
         {
@@ -1404,28 +1417,6 @@ public sealed partial class LoginQrWindow : Window
         return "";
     }
 
-    private void AddCommonHeaders(HttpRequestMessage request, string body, string query, string clientType, string appId, string sdkVersion, string cookie = "", string referer = "")
-    {
-        request.Headers.TryAddWithoutValidation("User-Agent", "Mozilla/5.0 miHoYoBBS/2.90.1 Capture/2.2.0");
-        request.Headers.TryAddWithoutValidation("Accept", "*/*");
-        request.Headers.TryAddWithoutValidation("Accept-Language", "zh-cn");
-
-        if (!string.IsNullOrEmpty(cookie)) request.Headers.TryAddWithoutValidation("Cookie", cookie);
-        if (!string.IsNullOrEmpty(referer)) request.Headers.TryAddWithoutValidation("Referer", referer);
-
-        request.Headers.TryAddWithoutValidation("x-rpc-client_type", clientType);
-        request.Headers.TryAddWithoutValidation("x-rpc-app_version", "2.90.1");
-        request.Headers.TryAddWithoutValidation("x-rpc-device_id", _deviceId);
-        request.Headers.TryAddWithoutValidation("x-rpc-device_fp", _deviceFp);
-        request.Headers.TryAddWithoutValidation("x-rpc-game_biz", "bbs_cn");
-        request.Headers.TryAddWithoutValidation("x-rpc-app_id", appId);
-        request.Headers.TryAddWithoutValidation("x-rpc-sdk_version", sdkVersion);
-        request.Headers.TryAddWithoutValidation("x-rpc-account_version", "2.90.1");
-        request.Headers.TryAddWithoutValidation("x-rpc-device_model", "Mi 14");
-        request.Headers.TryAddWithoutValidation("x-rpc-device_name", "Mihoyo Capture");
-
-        request.Headers.TryAddWithoutValidation("DS", GenerateDS(body, query));
-    }
     private string GenerateDeviceFingerprint()
     {
         long timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
@@ -1444,19 +1435,56 @@ public sealed partial class LoginQrWindow : Window
         string fpStr = JsonSerializer.Serialize(deviceInfo, _jsonOptions);
         return CreateMD5(fpStr);
     }
-    private string GenerateDS(string body, string query)
+    private async Task EnsureFingerprintAsync()
     {
-        long t = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-        string r = GenerateRandomString(6, "abcdefghijklmnopqrstuvwxyz0123456789");
-
-        string b = string.IsNullOrEmpty(body) ? "" : body;
-        string q = string.IsNullOrEmpty(query) ? "" : query;
-
-        string signStr = $"salt={Salt}&t={t}&r={r}&b={b}&q={q}";
-        string sign = CreateMD5(signStr);
-
-        return $"{t},{r},{sign}";
+        if (!string.IsNullOrEmpty(_deviceFp) && !string.IsNullOrEmpty(_deviceId)) return;
+        await _fpLock.WaitAsync();
+        try
+        {
+            if (!string.IsNullOrEmpty(_deviceFp) && !string.IsNullOrEmpty(_deviceId)) return;
+            try
+            {
+                var fp = await _fingerprintService.RegisterStandaloneAsync();
+                _fpRequest = fp;
+                _webFpRequest = _fingerprintService.GetCurrentWebFingerprint();
+                _deviceId = fp.DeviceId;
+                _deviceFp = fp.DeviceFp;
+                _lifecycleId = Guid.NewGuid().ToString();
+                _loginCtx = BuildLoginContext();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[LoginQrWindow] 指纹注册失败，使用本地假指纹: {ex.Message}");
+                _deviceId = Guid.NewGuid().ToString("N")[..16].ToUpper();
+                _deviceFp = GenerateDeviceFingerprint();
+                _lifecycleId = Guid.NewGuid().ToString();
+                _loginCtx = BuildLoginContext();
+            }
+        }
+        finally
+        {
+            _fpLock.Release();
+        }
     }
+    // 登录场景轻量 ctx：设备字段用预注册指纹（WebLogin 场景统一走 IBbsRequestBuilder）
+    private AccountContext BuildLoginContext() => new(
+        AccountId: "",
+        ServerType: FufuLauncher.Models.MiHoYo.Identity.ServerType.Cn,
+        Cookies: new Dictionary<string, string>(),
+        Identity: new AccountIdentity("", ""),
+        Device: new DeviceIdentity(
+            DeviceId: _deviceId,
+            BbsDeviceId: _deviceId,
+            DeviceFp: _deviceFp,
+            DeviceName: "Xiaomi 2605EPN8EC",
+            SysVersion: "12",
+            Model: "2605EPN8EC",
+            FpLastUpdate: DateTimeOffset.UtcNow),
+        UserAgent: new UserAgent(
+            Mobile: BbsUserAgents.MobileFor("12", "2605EPN8EC", "V417IR", BbsConstants.CnAppVersion),
+            Web: BbsUserAgents.Web,
+            OkHttp: BbsUserAgents.OkHttp));
+
     private string GenerateRandomString(int length, string chars)
     {
         var random = new Random();

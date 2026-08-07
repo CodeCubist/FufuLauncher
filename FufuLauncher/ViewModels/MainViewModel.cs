@@ -14,8 +14,10 @@ using FufuLauncher.Contracts.Services;
 using FufuLauncher.Helpers;
 using FufuLauncher.Messages;
 using FufuLauncher.Models;
+using FufuLauncher.Models.MiHoYo.Identity;
 using FufuLauncher.Services;
 using FufuLauncher.Services.Background;
+using FufuLauncher.Services.MiHoYo;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
@@ -38,6 +40,7 @@ namespace FufuLauncher.ViewModels
         private readonly IGameLauncherService _gameLauncherService;
         private readonly INotificationService _notificationService;
         private readonly DailyNoteCardService _dailyNoteCardService;
+        private readonly IAccountIdentityService _identityService;
         private readonly DispatcherQueue _dispatcherQueue;
         private static bool _isFirstLoad = true;
         private bool _hasAttemptedAutoCheckin = false;
@@ -219,7 +222,8 @@ namespace FufuLauncher.ViewModels
             ILauncherService launcherService,
             INavigationService navigationService,
             INotificationService notificationService,
-            DailyNoteCardService dailyNoteCardService)
+            DailyNoteCardService dailyNoteCardService,
+            IAccountIdentityService identityService)
         {
             _contentService = contentService;
             _backgroundRenderer = backgroundRenderer;
@@ -229,6 +233,7 @@ namespace FufuLauncher.ViewModels
             _gameLauncherService = gameLauncherService;
             _notificationService = notificationService;
             _dailyNoteCardService = dailyNoteCardService;
+            _identityService = identityService;
             _dispatcherQueue = App.MainWindow.DispatcherQueue;
 
             WeakReferenceMessenger.Default.Register<FufuLauncher.Messages.TextStyleChangedMessage>(this, async (r, m) =>
@@ -999,9 +1004,21 @@ private void BackgroundVideoPlayer_MediaFailed(MediaPlayer sender, MediaPlayerFa
                     return;
                 }
 
-                string serverType = entry.ServerType; 
+                string serverType = entry.ServerType;
 
-                var (status, summary) = await _checkinService.GetCheckinStatusAsync(targetUid, cookies, serverType);
+                AccountContext? statusCtx = null;
+                try
+                {
+                    statusCtx = await _identityService.BuildAsync(activeId);
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"[CheckinStatus] 身份组装失败: {ex.Message}");
+                }
+
+                var (status, summary) = statusCtx != null
+                    ? await _checkinService.GetCheckinStatusAsync(targetUid, statusCtx, serverType)
+                    : await _checkinService.GetCheckinStatusAsync(targetUid, cookies, serverType);
 
                 CheckinStatusText = status;
                 CheckinSummary = summary;
@@ -1470,7 +1487,7 @@ private void QuickSwitchPreset(PresetModel targetPreset)
                 var customUid = await _localSettingsService.ReadSettingAsync("CustomCheckinUid");
                 string targetUid = customUid?.ToString()?.Trim();
 
-                
+
                 var uids = await _checkinService.GetBoundUidsAsync(cookies, entry.ServerType);
                 if (uids.Count == 0)
                 {
@@ -1481,7 +1498,19 @@ private void QuickSwitchPreset(PresetModel targetPreset)
                 string roleId = string.IsNullOrEmpty(targetUid) ? uids[0] : targetUid;
                 string server = roleId.StartsWith("5") ? "cn_qd01" : "cn_gf01";
 
-                var dailyNoteData = await _dailyNoteCardService.LoadCardDataAsync(roleId, server, cookies);
+                AccountContext ctx;
+                try
+                {
+                    ctx = await _identityService.BuildAsync(activeId);
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"[DailyNote] 身份组装失败: {ex.Message}");
+                    await ClearDailyNoteDataAsync();
+                    return;
+                }
+
+                var dailyNoteData = await _dailyNoteCardService.LoadCardDataAsync(roleId, server, ctx);
 
                 await UpdateUI(() =>
                 {

@@ -15,7 +15,7 @@ namespace FufuLauncher.Contracts.Services;
 public interface IDeviceExtFieldsBuilder
 {
     /// <summary>
-    /// 基于真机设备档案构造一组 ext_fields。
+    /// 基于设备档案构造一组 ext_fields。
     /// key 集合应与服务端 getExtList 接口返回的字段集合保持兼容。
     /// </summary>
     Dictionary<string, object> Build(DeviceProfile profile);

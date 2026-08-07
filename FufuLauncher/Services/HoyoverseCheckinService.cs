@@ -7,6 +7,7 @@ using System.Text.Json;
 using FufuLauncher.Contracts.Services;
 using FufuLauncher.Helpers;
 using FufuLauncher.Models;
+using FufuLauncher.Models.MiHoYo.Identity;
 using MihoyoBBS;
 
 namespace FufuLauncher.Services;
@@ -24,12 +25,15 @@ public class HoyoverseCheckinService : IHoyoverseCheckinService
         _hoyolabRoleResolverService = hoyolabRoleResolverService;
     }
 
+    private static string CookiesToString(Dictionary<string, string> cookies) =>
+        string.Join("; ", cookies.Where(kv => !string.IsNullOrEmpty(kv.Value)).Select(kv => $"{kv.Key}={kv.Value}"));
+
     private static Config BuildConfigFromCookies(Dictionary<string, string> cookies, string serverType)
     {
-        string cookieStr = string.Join("; ", cookies.Select(kv => $"{kv.Key}={kv.Value}"));
+        string cookieStr = CookiesToString(cookies);
         var config = new Config
         {
-            Account = new MihoyoBBS.AccountConfig 
+            Account = new MihoyoBBS.AccountConfig
             {
                 Cookie = cookieStr
             }
@@ -46,18 +50,19 @@ public class HoyoverseCheckinService : IHoyoverseCheckinService
             cookies.TryGetValue("ltuid", out var stuid2);
             config.Account.Stuid = stuid1 ?? stuid2;
         }
-       
+
         cookies.TryGetValue("stoken", out var stoken);
         config.Account.Stoken = stoken;
         cookies.TryGetValue("mid", out var mid);
         config.Account.Mid = mid;
         return config;
     }
+
     public async Task<List<string>> GetBoundUidsAsync(Dictionary<string, string> cookies, string serverType)
     {
         if (serverType == "os")
         {
-            string cookieStr = string.Join("; ", cookies.Select(kv => $"{kv.Key}={kv.Value}"));
+            string cookieStr = CookiesToString(cookies);
             var rolesResult = await _hoyolabRoleResolverService.ResolveRolesAsync(cookieStr);
             return rolesResult.Roles.Select(a => a.game_uid).ToList();
         }
@@ -67,6 +72,13 @@ public class HoyoverseCheckinService : IHoyoverseCheckinService
         var genshin = new Genshin();
         await genshin.InitializeAsync(config).ConfigureAwait(false);
         return genshin.AccountList.Select(a => a.GameUid).ToList();
+    }
+
+    public Task<List<string>> GetBoundUidsAsync(AccountContext ctx, string serverType)
+    {
+        var dict = ctx.Cookies as Dictionary<string, string>
+            ?? new Dictionary<string, string>(ctx.Cookies);
+        return GetBoundUidsAsync(dict, serverType);
     }
 
     private async Task<HashSet<string>> GetDisabledUidsAsync()
@@ -88,7 +100,7 @@ public class HoyoverseCheckinService : IHoyoverseCheckinService
     {
         if (serverType == "os")
         {
-            string cookieStr = string.Join("; ", cookies.Select(kv => $"{kv.Key}={kv.Value}"));
+            string cookieStr = CookiesToString(cookies);
             var rolesResult = await _hoyolabRoleResolverService.ResolveRolesAsync(cookieStr);
             if (!rolesResult.HasRoles)
                 return ("Checkin_NotDetected".GetLocalized(), rolesResult.Message);
@@ -119,11 +131,18 @@ public class HoyoverseCheckinService : IHoyoverseCheckinService
         return (isSignData.IsSign == true ? "Checkin_SignedToday".GetLocalized() : "Checkin_UnsignedToday".GetLocalized(), string.Format("Checkin_AccountLabel".GetLocalized(), cnAccount.Nickname));
     }
 
+    public Task<(string status, string summary)> GetCheckinStatusAsync(string targetUid, AccountContext ctx, string serverType)
+    {
+        var dict = ctx.Cookies as Dictionary<string, string>
+            ?? new Dictionary<string, string>(ctx.Cookies);
+        return GetCheckinStatusAsync(targetUid, dict, serverType);
+    }
+
     public async Task<(bool success, string message)> ExecuteCheckinAsync(string targetUid, Dictionary<string, string> cookies, string serverType)
     {
         if (serverType == "os")
         {
-            string cookieStr = string.Join("; ", cookies.Select(kv => $"{kv.Key}={kv.Value}"));
+            string cookieStr = CookiesToString(cookies);
             var rolesResult = await _hoyolabRoleResolverService.ResolveRolesAsync(cookieStr);
             if (!rolesResult.HasRoles)
                 return (false, rolesResult.Message);
@@ -147,6 +166,13 @@ public class HoyoverseCheckinService : IHoyoverseCheckinService
         return (success, result);
     }
 
+    public Task<(bool success, string message)> ExecuteCheckinAsync(string targetUid, AccountContext ctx, string serverType)
+    {
+        var dict = ctx.Cookies as Dictionary<string, string>
+            ?? new Dictionary<string, string>(ctx.Cookies);
+        return ExecuteCheckinAsync(targetUid, dict, serverType);
+    }
+
     public async Task<CheckinCalendarData?> GetCalendarDataAsync(Dictionary<string, string> cookies, string serverType)
     {
         if (serverType == "os")
@@ -155,16 +181,23 @@ public class HoyoverseCheckinService : IHoyoverseCheckinService
         }
         //if (serverType == "os")
         //{
-        //    string cookieStr = string.Join("; ", cookies.Select(kv => $"{kv.Key}={kv.Value}"));
+        //    string cookieStr = CookiesToString(cookies);
         //    var os = new HoyolabCheckinService();
         //    await os.InitializeAsync(cookieStr);
-        //    return await os.GetCheckinCalendarAsync();   
+        //    return await os.GetCheckinCalendarAsync();
         //}
 
         var config = BuildConfigFromCookies(cookies, serverType);
         var genshin = new Genshin();
         await genshin.InitializeAsync(config);
         return await genshin.GetCheckinCalendarAsync();
+    }
+
+    public Task<CheckinCalendarData?> GetCalendarDataAsync(AccountContext ctx, string serverType)
+    {
+        var dict = ctx.Cookies as Dictionary<string, string>
+            ?? new Dictionary<string, string>(ctx.Cookies);
+        return GetCalendarDataAsync(dict, serverType);
     }
 
     private static GameRoleInfo SelectRole(List<GameRoleInfo> roles, string targetUid)

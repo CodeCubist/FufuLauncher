@@ -9,6 +9,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using FufuLauncher.Constants;
 using FufuLauncher.Models;
+using FufuLauncher.Services.MiHoYo.Transport;
 
 namespace FufuLauncher.Services;
 
@@ -35,21 +36,42 @@ public class GachaService
 
     public async Task<string> GenerateAuthKeyAsync(string stoken, string mid, string stuid, string gameUid)
     {
+        // 兼容旧调用方：手动构造最小 ctx（仅放 cookies + 标识字段），让新签名路径生效
+        var ctx = new Models.MiHoYo.Identity.AccountContext(
+            AccountId: $"legacy_{stuid}",
+            ServerType: Models.MiHoYo.Identity.ServerType.Cn,
+            Cookies: new Dictionary<string, string>
+            {
+                ["stuid"] = stuid,
+                ["stoken"] = stoken,
+                ["mid"] = mid
+            },
+            Identity: new Models.MiHoYo.Identity.AccountIdentity(Stuid: stuid, Mid: mid),
+            Device: new Models.MiHoYo.Identity.DeviceIdentity(DeviceId: "", BbsDeviceId: "", DeviceFp: "", DeviceName: "", SysVersion: "", Model: "", FpLastUpdate: DateTimeOffset.UtcNow),
+            UserAgent: new Models.MiHoYo.Identity.UserAgent(Mobile: "", Web: "", OkHttp: ""));
+        return await GenerateAuthKeyAsync(ctx, gameUid);
+    }
+
+    /// <summary>
+    /// 推荐入口：ctx 里带 stuid/stoken/mid，service 自己组装 cookie 字符串。
+    /// </summary>
+    public async Task<string> GenerateAuthKeyAsync(Models.MiHoYo.Identity.AccountContext ctx, string gameUid)
+    {
         try
         {
+            string stuid = ctx.Stuid;
+            string stoken = ctx.Stoken ?? "";
+            string mid = ctx.Mid;
+
             var body = $"{{\"auth_appid\":\"webview_gacha\",\"game_biz\":\"hk4e_cn\",\"game_uid\":{gameUid},\"region\":\"cn_gf01\"}}";
-            var ds = CalculateLk2Ds();
             var cookie = $"stuid={stuid};stoken={stoken};mid={mid};";
 
-            var request = new HttpRequestMessage(HttpMethod.Post, ApiEndpoints.GenAuthKeyUrl);
-            request.Content = new StringContent(body, Encoding.UTF8, "application/json");
-            request.Headers.TryAddWithoutValidation("Cookie", cookie);
-            request.Headers.TryAddWithoutValidation("DS", ds);
-            request.Headers.TryAddWithoutValidation("x-rpc-app_version", AppVersion);
-            request.Headers.TryAddWithoutValidation("x-rpc-client_type", "5");
-            request.Headers.TryAddWithoutValidation("x-rpc-device_id", Guid.NewGuid().ToString("N"));
-            request.Headers.TryAddWithoutValidation("Referer", "https://app.mihoyo.com");
-            request.Headers.TryAddWithoutValidation("User-Agent", $"Mozilla/5.0 (Windows NT 10.0; Win64; x64) miHoYoBBS/{AppVersion}");
+            using var request = BbsRequestHeaders.ForGacha(
+                HttpMethod.Post, ApiEndpoints.GenAuthKeyUrl,
+                stuidStokenMidCookie: cookie,
+                lk2Salt: Lk2Salt,
+                gachaAppVersion: AppVersion,
+                body: body);
 
             var response = await _httpClient.SendAsync(request);
             var json = await response.Content.ReadAsStringAsync();
@@ -68,15 +90,6 @@ public class GachaService
             Debug.WriteLine($"[Gacha] genAuthKey 异常: {ex.Message}");
             return null;
         }
-    }
-
-    private static string CalculateLk2Ds()
-    {
-        var t = (int)DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-        var chars = "abcdefghijklmnopqrstuvwxyz0123456789";
-        var r = new string(Enumerable.Range(0, 6).Select(_ => chars[new Random().Next(chars.Length)]).ToArray());
-        var check = Convert.ToHexString(MD5.HashData(Encoding.UTF8.GetBytes($"salt={Lk2Salt}&t={t}&r={r}"))).ToLowerInvariant();
-        return $"{t},{r},{check}";
     }
 
     public string ExtractBaseUrl(string fullUrl)

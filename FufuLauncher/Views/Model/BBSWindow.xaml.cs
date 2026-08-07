@@ -25,6 +25,7 @@ using FufuLauncher.Contracts.Services;
 using FufuLauncher.Services;
 using FufuLauncher.Services.MiHoYo;
 using Microsoft.UI.Xaml.Media.Imaging;
+using FufuLauncher.Constants.MiHoYo;
 
 namespace FufuLauncher.Views
 {
@@ -35,13 +36,13 @@ namespace FufuLauncher.Views
 
         private byte[] _screenshotBytes;
 
-        private const string CNVersion = "2.109.0";
+        private const string CNVersion = BbsConstants.CnAppVersion;
         private const string CNK2 = "lX8m5VO5at5JG7hR8hzqFwzyL5aB1tYo";
         private const string CNLK2 = "yBh10ikxtLPoIhgwgPZSv5dmfaOTSJ6a";
         private const string CNX4 = "xV8v4Qu54lUKrEYFZkJhB8cuOh9Asafs";
         private const string CNX6 = "t0qEgfub6cvueAPgR5m9aQWWVciEer7v";
-        private const string ToolVersion = "v6.6.1-gr-cn";
-        private const string Page = "v6.6.1-gr-cn_#/ys";
+        private const string ToolVersion = BbsConstants.ToolVersion;
+        private const string Page = BbsConstants.Page;
 
         private class ClientConfig
         {
@@ -87,7 +88,6 @@ namespace FufuLauncher.Views
         private Dictionary<string, string> cookieDic = new();
 
         private readonly IDeviceFingerprintService _fingerprintService;
-        private static readonly DeviceProfileService _deviceProfileService = new();
         private string _deviceName = "";
         private string _sysVersion = "";
         private string _deviceUserAgent = "";
@@ -140,24 +140,22 @@ namespace FufuLauncher.Views
 
             _fingerprintService = App.GetService<IDeviceFingerprintService>();
 
-            // 统一设备档案：和 DailyNoteService 使用同一套
+            // 统一设备档案：和 DailyNoteService / AccountIdentityService 使用同一套设备画像（2605EPN8EC / Android 12）
             var accountManager = App.GetService<AccountManager>();
             var activeId = accountManager.ActiveAccountId;
+            _deviceName = "Xiaomi 2605EPN8EC";
+            _sysVersion = "12";
+            _deviceUserAgent = $"Mozilla/5.0 (Linux; Android 12; 2605EPN8EC Build/V417IR; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/110.0.5481.154 Safari/537.36 miHoYoBBS/{CNVersion}";
+
             if (!string.IsNullOrEmpty(activeId))
             {
-                _deviceId = DeviceProfileService.GetDeviceIdForAccount(activeId);
-                var profile = _deviceProfileService.SelectProfile(activeId);
-                _deviceName = profile.DeviceName;
-                _sysVersion = profile.SysVersion;
-                _deviceUserAgent = profile.UserAgent;
+                // 优先取进程内已注册指纹的 device_id；无则先随机，EnsureDeviceFpAsync 注册后覆盖
+                _deviceId = _fingerprintService.GetCurrentFingerprint(activeId)?.DeviceId
+                    ?? Guid.NewGuid().ToString();
             }
             else
             {
-                
                 _deviceId = Guid.NewGuid().ToString();
-                _deviceName = "Xiaomi%2024031PN0DC";
-                _sysVersion = "12";
-                _deviceUserAgent = $"Mozilla/5.0 (Linux; Android 12; 24031PN0DC Build/V417IR; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/110.0.5481.154 Safari/537.36 miHoYoBBS/{CNVersion}";
             }
 
           
@@ -253,7 +251,9 @@ namespace FufuLauncher.Views
                     return;
                 }
 
-                _activeDeviceFp = await _fingerprintService.GetOrRegisterFingerprintAsync(activeId, cookies);
+                var reg = await _fingerprintService.GetOrRegisterFingerprintAsync(activeId, cookies);
+                _activeDeviceFp = reg.DeviceFp;
+                _deviceId = reg.DeviceId;
                 System.Diagnostics.Debug.WriteLine($"[BBSWindow] 活跃账号指纹已获取: {_activeDeviceFp}");
 
                 if (!string.IsNullOrEmpty(_activeDeviceFp))

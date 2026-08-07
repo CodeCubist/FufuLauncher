@@ -1437,7 +1437,7 @@ public sealed partial class MainWindow : WindowEx
                         var cookies = await accountManager.LoadCookiesAsync(activeId);
                         if (cookies != null && cookies.Count > 0)
                         {
-                            var refreshService = new TokenRefreshService();
+                            var refreshService = App.GetService<ITokenRefreshService>();
                             var newCookies = await refreshService.RefreshCookieAsync(cookies);
                             if (newCookies != null)
                             {

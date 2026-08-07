@@ -36,6 +36,5 @@ public static class GenshinApiEndpoints
     // DS Salts
     public const string BbsX6Salt = "t0qEgfub6cvueAPgR5m9aQWWVciEer7v";
     public const string PassportAppId = "bll8iq97cem8";
-    public const string BbsVersion = "2.99.1";
 }
 

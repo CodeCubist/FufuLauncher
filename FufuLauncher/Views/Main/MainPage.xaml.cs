@@ -259,7 +259,7 @@ public sealed partial class MainPage : Page
                 return;
             }
 
-            var tokenService = new TokenRefreshService();
+            var tokenService = App.GetService<ITokenRefreshService>();
             var newCookies = await tokenService.RefreshCookieAsync(cookies, true);
 
             if (newCookies != null)

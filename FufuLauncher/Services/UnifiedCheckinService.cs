@@ -8,6 +8,8 @@ using System.Text.Json;
 using FufuLauncher.Contracts.Services;
 using FufuLauncher.Helpers;
 using FufuLauncher.Models;
+using FufuLauncher.Models.MiHoYo.Identity;
+using FufuLauncher.Services.MiHoYo;
 using MihoyoBBS;
 
 namespace FufuLauncher.Services;
@@ -21,6 +23,7 @@ public class UnifiedCheckinService : IUnifiedCheckinService
     private readonly ICloudGameCheckinService _cloudGameCheckinService;
     private readonly AccountManager _accountManager;
     private readonly IHoyolabRoleResolverService _hoyolabRoleResolverService;
+    private readonly IAccountIdentityService _identityService;
 
     public UnifiedCheckinService(
         ILocalSettingsService localSettingsService,
@@ -28,7 +31,8 @@ public class UnifiedCheckinService : IUnifiedCheckinService
         ICommunityCheckinService communityCheckinService,
         ICloudGameCheckinService cloudGameCheckinService,
         AccountManager accountManager,
-        IHoyolabRoleResolverService hoyolabRoleResolverService)
+        IHoyolabRoleResolverService hoyolabRoleResolverService,
+        IAccountIdentityService identityService)
     {
         _localSettingsService = localSettingsService;
         _gameCheckinService = gameCheckinService;
@@ -36,6 +40,7 @@ public class UnifiedCheckinService : IUnifiedCheckinService
         _cloudGameCheckinService = cloudGameCheckinService;
         _accountManager = accountManager;
         _hoyolabRoleResolverService = hoyolabRoleResolverService;
+        _identityService = identityService;
     }
 
     public async Task<UnifiedCheckinResult> ExecuteAllCheckinsAsync(IProgress<string>? progress = null)
@@ -235,8 +240,20 @@ public class UnifiedCheckinService : IUnifiedCheckinService
                     }
 
                     Report($"[{account.Nickname}] {"Checkin_CommunityCheckinProgress".GetLocalized()}");
-                    var communityResult = await _communityCheckinService.ExecuteCheckinAsync(
-                        account, true, communityRead, communityLike, communityShare);
+                    AccountContext? ctx = null;
+                    try
+                    {
+                        ctx = await _identityService.BuildAsync(account.ConfigPath);
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"[统一签到] 账号 {account.Nickname} 身份组装失败: {ex.Message}");
+                    }
+                    var communityResult = ctx != null
+                        ? await _communityCheckinService.ExecuteCheckinAsync(
+                            ctx, account.Uid, account.Nickname, true, communityRead, communityLike, communityShare)
+                        : await _communityCheckinService.ExecuteCheckinAsync(
+                            account, true, communityRead, communityLike, communityShare);
 
                     result.CommunityResult.SuccessCount += communityResult.SuccessCount;
                     result.CommunityResult.FailCount += communityResult.FailCount;

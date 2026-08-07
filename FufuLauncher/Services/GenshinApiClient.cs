@@ -8,6 +8,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using FufuLauncher.Constants;
+using FufuLauncher.Constants.MiHoYo;
 using FufuLauncher.Helpers;
 using FufuLauncher.Models.Genshin;
 
@@ -16,9 +17,9 @@ namespace FufuLauncher.Services;
 public class GenshinApiClient
 {
     private readonly HttpClient _httpClient;
-    private const string CnAppVersion = "2.90.1";
+    private const string CnAppVersion = BbsConstants.CnAppVersion;
     private const string OsAppVersion = "3.13.0";
-    private const string CnUserAgent = "Mozilla/5.0 (Linux; Android 13; Pixel 5 Build/TQ3A.230901.001; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/118.0.0.0 Mobile Safari/537.36 miHoYoBBS/2.90.1";
+    private const string CnUserAgent = $"Mozilla/5.0 (Linux; Android 13; Pixel 5 Build/TQ3A.230901.001; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/118.0.0.0 Mobile Safari/537.36 miHoYoBBS/{CnAppVersion}";
     private const string OsUserAgent = "Mozilla/5.0 (Linux; Android 13; Pixel 5) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/118.0.0.0 Mobile Safari/537.36 miHoYoBBSOversea/3.13.0";
     private const string CnSalt = "xV8v4Qu54lUKrEYFZkJhB8cuOh9Asafs";
     private const string OsSalt = "h4c1d6ywfq5bsbnbhm1bzq7bxzzv6srt";

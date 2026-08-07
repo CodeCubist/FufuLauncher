@@ -13,6 +13,7 @@ internal sealed class ExtFieldsBuilder : IDeviceExtFieldsBuilder
 {
     private const string Brand = "Xiaomi";
     private const string Manufacturer = "Xiaomi";
+    private const string DeviceName = "Xiaomi 17 Max";
     private const string Model = "2605EPN8EC";       
     private const string Hardware = "Xiaomi";     
     private const string CpuType = "arm64-v8a";
@@ -59,7 +60,7 @@ internal sealed class ExtFieldsBuilder : IDeviceExtFieldsBuilder
         {
             { "proxyStatus", 0 }, { "isRoot", 0 },
             { "romCapacity", appHeapMb },
-            { "deviceName", p.DeviceModel },      
+            { "deviceName", DeviceName },      
             { "productName", p.DeviceType },          
             { "romRemain", rng.Next(200, 480).ToString() },
             { "hostname", Hostname },                

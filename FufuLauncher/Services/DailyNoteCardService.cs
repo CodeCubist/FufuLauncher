@@ -1,4 +1,4 @@
-﻿/*
+/*
 Copyright (c) FufuLauncher Dev Team. All rights reserved.
 Licensed under the MIT License.
 */
@@ -6,16 +6,22 @@ Licensed under the MIT License.
 // By kyxsan.
 // Licensed under the MIT License.
 
-using FufuLauncher.Services.MiHoYo;
+using FufuLauncher.Contracts.Services;
+using FufuLauncher.Models.MiHoYo.Identity;
 
 namespace FufuLauncher.Services;
 
 public class DailyNoteCardService
 {
-    private readonly DailyNoteService _dailyNoteService = new();
+    private readonly IDailyNoteService _dailyNoteService;
 
-    public async Task<DailyNoteCardData> LoadCardDataAsync(string roleId, string server, Dictionary<string, string> cookies)
+    public DailyNoteCardService(IDailyNoteService dailyNoteService)
     {
-        return await _dailyNoteService.GetDailyNoteAsync(roleId, server);
+        _dailyNoteService = dailyNoteService;
+    }
+
+    public async Task<DailyNoteCardData> LoadCardDataAsync(string roleId, string server, AccountContext ctx)
+    {
+        return await _dailyNoteService.GetDailyNoteAsync(ctx, roleId, server);
     }
 }

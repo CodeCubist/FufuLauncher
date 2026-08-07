@@ -6,10 +6,12 @@ using System.Diagnostics;
 using System.Net;
 using System.Text;
 using System.Text.Json;
-using FufuLauncher.Contracts.Services;
 using FufuLauncher.Constants;
+using FufuLauncher.Constants.MiHoYo;
+using FufuLauncher.Contracts.Services;
 using FufuLauncher.Helpers;
 using FufuLauncher.Models;
+using FufuLauncher.Models.MiHoYo.Identity;
 
 namespace FufuLauncher.Services;
 
@@ -29,6 +31,40 @@ public class CommunityCheckinService : ICommunityCheckinService
     }
 
     public async Task<CheckinTypeResult> ExecuteCheckinAsync(
+        AccountContext ctx,
+        string uid,
+        string nickname,
+        bool signEnabled,
+        bool readEnabled,
+        bool likeEnabled,
+        bool shareEnabled)
+    {
+        // 设备画像直接取 AccountContext.Device（指纹体系产物），不再走 LocalSettings 旧键
+        var account = new AccountCredentials
+        {
+            Uid = uid,
+            Nickname = nickname,
+            Stuid = ctx.Stuid,
+            Stoken = ctx.Stoken ?? "",
+            Mid = ctx.Mid,
+            Cookie = BuildCookieString(ctx),
+        };
+        return await ExecuteCheckinCoreAsync(account, BuildDeviceInfo(ctx.Device), signEnabled, readEnabled, likeEnabled, shareEnabled);
+    }
+
+    private static string BuildCookieString(AccountContext ctx)
+    {
+        var sb = new StringBuilder();
+        foreach (var kv in ctx.Cookies)
+        {
+            if (string.IsNullOrEmpty(kv.Value)) continue;
+            if (sb.Length > 0) sb.Append(';');
+            sb.Append($"{kv.Key}={kv.Value}");
+        }
+        return sb.ToString();
+    }
+
+    public async Task<CheckinTypeResult> ExecuteCheckinAsync(
         AccountCredentials account,
         bool signEnabled,
         bool readEnabled,
@@ -44,9 +80,40 @@ public class CommunityCheckinService : ICommunityCheckinService
             return result;
         }
 
+        Dictionary<string, string>? deviceInfo;
         try
         {
-            var deviceInfo = await LoadDeviceInfoAsync();
+            deviceInfo = await LoadDeviceInfoAsync();
+        }
+        catch (Exception ex)
+        {
+            result.Success = false;
+            result.Message = string.Format("CheckinCommunity_Exception".GetLocalized(), ex.Message);
+            Debug.WriteLine($"[社区签到] 账号 {account.Uid} 异常: {ex.Message}");
+            return result;
+        }
+        if (deviceInfo == null)
+        {
+            result.Success = false;
+            result.Message = "缺少设备信息，无法执行社区签到（未找到指纹画像）";
+            Debug.WriteLine($"[社区签到] 账号 {account.Uid}: 无设备画像，跳过社区签到");
+            return result;
+        }
+        return await ExecuteCheckinCoreAsync(account, deviceInfo, signEnabled, readEnabled, likeEnabled, shareEnabled);
+    }
+
+    private async Task<CheckinTypeResult> ExecuteCheckinCoreAsync(
+        AccountCredentials account,
+        Dictionary<string, string> deviceInfo,
+        bool signEnabled,
+        bool readEnabled,
+        bool likeEnabled,
+        bool shareEnabled)
+    {
+        var result = new CheckinTypeResult { TypeName = "CheckinCommunity_Title".GetLocalized(), Executed = true };
+
+        try
+        {
             var stokenCookie = account.GetStokenCookie();
 
             // 1. Get task state
@@ -184,25 +251,33 @@ public class CommunityCheckinService : ICommunityCheckinService
             var deviceModelObj = await _localSettingsService.ReadSettingAsync("DeviceModel");
             var deviceFpObj = await _localSettingsService.ReadSettingAsync("DeviceFp");
 
+            // 无画像（新用户/未注册指纹）时返回 null，由调用方跳过签到，不再回退到过时的伪设备
+            if (deviceIdObj == null || deviceNameObj == null)
+            {
+                return null;
+            }
+
             return new Dictionary<string, string>
             {
-                ["id"] = deviceIdObj?.ToString() ?? Guid.NewGuid().ToString("N"),
-                ["name"] = deviceNameObj?.ToString() ?? "Xiaomi MI 6",
-                ["model"] = deviceModelObj?.ToString() ?? "Mi 6",
+                ["id"] = deviceIdObj.ToString()!,
+                ["name"] = deviceNameObj.ToString()!,
+                ["model"] = deviceModelObj?.ToString() ?? "",
                 ["fp"] = deviceFpObj?.ToString() ?? ""
             };
         }
         catch
         {
-            return new Dictionary<string, string>
-            {
-                ["id"] = Guid.NewGuid().ToString("N"),
-                ["name"] = "Xiaomi MI 6",
-                ["model"] = "Mi 6",
-                ["fp"] = ""
-            };
+            return null;
         }
     }
+
+    private static Dictionary<string, string> BuildDeviceInfo(DeviceIdentity device) => new()
+    {
+        ["id"] = device.BbsDeviceId,
+        ["name"] = device.DeviceName,
+        ["model"] = device.Model,
+        ["fp"] = device.DeviceFp
+    };
 
     private Dictionary<string, string> BuildHeaders(string stokenCookie, Dictionary<string, string> device)
     {
@@ -212,7 +287,7 @@ public class CommunityCheckinService : ICommunityCheckinService
             ["DS"] = ds,
             ["cookie"] = stokenCookie,
             ["x-rpc-client_type"] = "2",
-            ["x-rpc-app_version"] = GenshinApiEndpoints.BbsVersion,
+            ["x-rpc-app_version"] = BbsConstants.CnAppVersion,
             ["x-rpc-sys_version"] = "12",
             ["x-rpc-channel"] = "miyousheluodi",
             ["x-rpc-device_id"] = device["id"],
@@ -239,7 +314,7 @@ public class CommunityCheckinService : ICommunityCheckinService
             request.Headers.Add("Accept", "application/json, text/plain, */*");
             request.Headers.Add("Origin", "https://webstatic.mihoyo.com");
             request.Headers.Add("User-Agent",
-                "Mozilla/5.0 (Linux; Android 12; Unspecified Device) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/103.0.5060.129 Mobile Safari/537.36 miHoYoBBS/2.99.1");
+                $"Mozilla/5.0 (Linux; Android 12; Unspecified Device) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/103.0.5060.129 Mobile Safari/537.36 miHoYoBBS/{BbsConstants.CnAppVersion}");
             request.Headers.Add("Referer", "https://webstatic.mihoyo.com");
             request.Headers.Add("Accept-Language", "zh-CN,en-US;q=0.8");
             request.Headers.Add("X-Requested-With", "com.mihoyo.hyperion");

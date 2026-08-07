@@ -405,12 +405,11 @@ public partial class AccountViewModel : ObservableRecipient
 
         RunOnUIThread(() => CurrentAccount = info);
 
-        var loaded = await LoadUserInfoAsync();
-        if (!loaded)
-        {
-            
-        }
+        await LoadUserInfoAsync();
+
+        // 指纹更新统一由 App 的 ActiveAccountChanged 事件触发（启动/登录/切号都经过 SetActiveAccountIdAsync），此处不再重复发
     }
+
     private async Task OpenGenshinDataAsync()
     {
         try
@@ -518,6 +517,7 @@ public partial class AccountViewModel : ObservableRecipient
 
             Debug.WriteLine($"[LoadAccountInfo] 已加载账户: {entry.Nickname} ({entry.Id})");
 
+            // 指纹更新统一由 App 的 ActiveAccountChanged 事件触发，页面加载不重复发
             // LoadUserInfoAsync 已在 LoadActiveAccountAsync 中被调用
             RefreshSavedAccountsList(); 
         }
@@ -552,11 +552,11 @@ public partial class AccountViewModel : ObservableRecipient
         {
             RunOnUIThread(() => StatusMessage = "正在打开登录窗口...");
             var loginWindow = new LoginQrWindow();
-            var (cookies, serverType) = await loginWindow.ShowAndWaitAsync();
+            var (cookies, serverType, fingerprint, webFingerprint) = await loginWindow.ShowAndWaitAsync();
 
             Debug.WriteLine($"[LoginAsync] 登录成功，Cookie 数量: {cookies.Count}, 服务器: {serverType}");
 
-            var entry = await _accountManager.AddAccountAsync(cookies, serverType, nickname: "新账户");
+            var entry = await _accountManager.AddAccountAsync(cookies, serverType, nickname: "新账户", fingerprint, webFingerprint);
             await _accountManager.SwitchAccountAsync(entry.Id);
 
             await LoadActiveAccountAsync(entry.Id);
@@ -594,7 +594,6 @@ public partial class AccountViewModel : ObservableRecipient
             });
             _lastNotifiedAccountId = null;
 
-           
             RefreshSavedAccountsList();
         }
         catch (Exception ex)
@@ -637,11 +636,11 @@ public partial class AccountViewModel : ObservableRecipient
         try
         {
             var loginWindow = new LoginQrWindow();
-            var (cookies, serverType) = await loginWindow.ShowAndWaitAsync();
+            var (cookies, serverType, fingerprint, webFingerprint) = await loginWindow.ShowAndWaitAsync();
 
             Debug.WriteLine($"[AddNewAccount] 登录成功，Cookie 数量: {cookies.Count}, 服务器: {serverType}");
 
-            var entry = await _accountManager.AddAccountAsync(cookies, serverType, nickname: "新账户");
+            var entry = await _accountManager.AddAccountAsync(cookies, serverType, nickname: "新账户", fingerprint, webFingerprint);
             await _accountManager.SwitchAccountAsync(entry.Id);
 
             await LoadActiveAccountAsync(entry.Id);

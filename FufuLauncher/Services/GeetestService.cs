@@ -4,13 +4,15 @@
 
 using System.Diagnostics;
 using System.Net.Http;
-using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using FufuLauncher.Constants;
+using FufuLauncher.Constants.MiHoYo;
 using FufuLauncher.Contracts.Services;
 using FufuLauncher.Helpers;
-using FufuLauncher.Services.MiHoYo;
+using FufuLauncher.Models.MiHoYo.Identity;
+using FufuLauncher.Services.MiHoYo.Transport;
 using Microsoft.UI;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
@@ -21,34 +23,41 @@ using Windows.Graphics;
 
 namespace FufuLauncher.Services;
 
-public sealed class GeetestService
+public class GeetestService : IGeetestService
 {
     private const string CreateVerificationUrl = "https://api-takumi-record.mihoyo.com/game_record/app/card/wapi/createVerification?is_high=true";
     private const string VerifyVerificationUrl = "https://api-takumi-record.mihoyo.com/game_record/app/card/wapi/verifyVerification";
     private const string DailyNoteChallengePath = "/game_record/app/genshin/api/dailyNote";
 
-    private const string CNVersion = "2.109.0";
+    private const string CNVersion = BbsConstants.CnAppVersion;
     private const string CNX4 = "xV8v4Qu54lUKrEYFZkJhB8cuOh9Asafs";
     private const string Referer = "https://webstatic.mihoyo.com";
-
-    private static string MobileUserAgent => DailyNoteService.GetCurrentUserAgent();
 
     private static readonly HttpClient _httpClient = new() { Timeout = TimeSpan.FromSeconds(15) };
 
     private readonly IDeviceFingerprintService _fingerprintService;
     private readonly AccountManager _accountManager;
 
-    public GeetestService()
+    public GeetestService(
+        IDeviceFingerprintService fingerprintService,
+        AccountManager accountManager)
     {
-        _fingerprintService = App.GetService<IDeviceFingerprintService>()
-            ?? throw new InvalidOperationException("Geetest_NoFingerprintService".GetLocalized());
-        _accountManager = App.GetService<AccountManager>()
-            ?? throw new InvalidOperationException("Geetest_NoAccountService".GetLocalized());
+        _fingerprintService = fingerprintService;
+        _accountManager = accountManager;
     }
 
-    public async Task<string> TryVerifyForDailyNoteAsync(Dictionary<string, string> cookies)
+    public async Task<string> TryVerifyForDailyNoteAsync(AccountContext ctx, Dictionary<string, string> cookies)
     {
-        string createJson = await CallCreateVerificationAsync(cookies);
+        return await TryVerifyForDailyNoteAsync(
+            ctx.UserAgent.Mobile,
+            ctx.Device.BbsDeviceId,
+            _accountManager.ActiveAccountId!,
+            cookies);
+    }
+
+    private async Task<string> TryVerifyForDailyNoteAsync(string mobileUserAgent, string bbsDeviceId, string activeId, Dictionary<string, string> cookies)
+    {
+        string createJson = await CallCreateVerificationAsync(mobileUserAgent, bbsDeviceId, activeId, cookies);
         string gt = null;
         string challenge = null;
 
@@ -77,7 +86,7 @@ public sealed class GeetestService
         }
         Debug.WriteLine($"[GeetestService] TryVerifyForDailyNote: 验证码完成 challenge={result.Challenge}, validate={result.Validate}");
 
-        string verifyJson = await CallVerifyVerificationAsync(cookies, result.Challenge, result.Validate);
+        string verifyJson = await CallVerifyVerificationAsync(mobileUserAgent, bbsDeviceId, activeId, cookies, result.Challenge, result.Validate);
         using (JsonDocument doc = JsonDocument.Parse(verifyJson))
         {
             int retcode = doc.RootElement.TryGetProperty("retcode", out JsonElement rc) ? rc.GetInt32() : -1;
@@ -93,34 +102,34 @@ public sealed class GeetestService
         }
     }
 
-    private async Task<string> CallCreateVerificationAsync(Dictionary<string, string> cookies)
+    private async Task<string> CallCreateVerificationAsync(string mobileUserAgent, string bbsDeviceId, string activeId, Dictionary<string, string> cookies)
     {
-        string activeId = _accountManager.ActiveAccountId ?? throw new InvalidOperationException("Geetest_NoActiveAccount".GetLocalized());
-        string cookieStr = DailyNoteService.BuildCookieString(cookies, DailyNoteService.CookieMode.Cookie);
-        string ds = DailyNoteService.CalculateDS2(CNX4, "is_high=true", "");
-        string fp = await _fingerprintService.GetOrRegisterFingerprintAsync(activeId, cookies);
+        if (string.IsNullOrEmpty(activeId)) throw new InvalidOperationException("Geetest_NoActiveAccount".GetLocalized());
+        string cookieStr = BbsRequestHeaders.BuildCookieStringForTest(cookies, BbsRequestHeaders.CookieMode.Full);
+        string ds = DynamicSignature.Compute(CNX4, query: "is_high=true", body: "");
+        string fp = (await _fingerprintService.GetOrRegisterFingerprintAsync(activeId, cookies)).DeviceFp;
         Debug.WriteLine($"[GeetestService] CallCreateVerification: device_fp={fp}");
 
         using HttpRequestMessage req = new(HttpMethod.Get, CreateVerificationUrl);
         req.Headers.Add("Cookie", cookieStr);
         req.Headers.Add("x-rpc-app_version", CNVersion);
         req.Headers.Add("x-rpc-client_type", "5");
-        req.Headers.Add("x-rpc-device_id", DailyNoteService.GetGameRecordDeviceId());
+        req.Headers.Add("x-rpc-device_id", bbsDeviceId);
         req.Headers.Add("x-rpc-device_fp", fp);
         req.Headers.Add("x-rpc-challenge_game", "2");
         req.Headers.Add("x-rpc-challenge_path", DailyNoteChallengePath);
         req.Headers.Add("DS", ds);
         req.Headers.Add("Referer", Referer);
-        req.Headers.UserAgent.ParseAdd(MobileUserAgent);
+        req.Headers.UserAgent.ParseAdd(mobileUserAgent);
 
         HttpResponseMessage resp = await _httpClient.SendAsync(req);
         return await resp.Content.ReadAsStringAsync();
     }
 
-    private async Task<string> CallVerifyVerificationAsync(Dictionary<string, string> cookies, string challenge, string validate)
+    private async Task<string> CallVerifyVerificationAsync(string mobileUserAgent, string bbsDeviceId, string activeId, Dictionary<string, string> cookies, string challenge, string validate)
     {
-        string activeId = _accountManager.ActiveAccountId ?? throw new InvalidOperationException("Geetest_NoActiveAccount".GetLocalized());
-        string cookieStr = DailyNoteService.BuildCookieString(cookies, DailyNoteService.CookieMode.Cookie);
+        if (string.IsNullOrEmpty(activeId)) throw new InvalidOperationException("Geetest_NoActiveAccount".GetLocalized());
+        string cookieStr = BbsRequestHeaders.BuildCookieStringForTest(cookies, BbsRequestHeaders.CookieMode.Full);
         GeetestWebResponse body = new()
         {
             Challenge = challenge,
@@ -128,8 +137,8 @@ public sealed class GeetestService
             Seccode = $"{validate}|jordan"
         };
         string bodyJson = JsonSerializer.Serialize(body);
-        string ds = DailyNoteService.CalculateDS2(CNX4, "", bodyJson);
-        string fp = await _fingerprintService.GetOrRegisterFingerprintAsync(activeId, cookies);
+        string ds = DynamicSignature.Compute(CNX4, query: "", body: bodyJson);
+        string fp = (await _fingerprintService.GetOrRegisterFingerprintAsync(activeId, cookies)).DeviceFp;
         Debug.WriteLine($"[GeetestService] CallVerifyVerification: device_fp={fp}");
 
         using HttpRequestMessage req = new(HttpMethod.Post, VerifyVerificationUrl);
@@ -137,13 +146,13 @@ public sealed class GeetestService
         req.Headers.Add("Cookie", cookieStr);
         req.Headers.Add("x-rpc-app_version", CNVersion);
         req.Headers.Add("x-rpc-client_type", "5");
-        req.Headers.Add("x-rpc-device_id", DailyNoteService.GetGameRecordDeviceId());
+        req.Headers.Add("x-rpc-device_id", bbsDeviceId);
         req.Headers.Add("x-rpc-device_fp", fp);
         req.Headers.Add("x-rpc-challenge_game", "2");
         req.Headers.Add("x-rpc-challenge_path", DailyNoteChallengePath);
         req.Headers.Add("DS", ds);
         req.Headers.Add("Referer", Referer);
-        req.Headers.UserAgent.ParseAdd(MobileUserAgent);
+        req.Headers.UserAgent.ParseAdd(mobileUserAgent);
 
         HttpResponseMessage resp = await _httpClient.SendAsync(req);
         return await resp.Content.ReadAsStringAsync();

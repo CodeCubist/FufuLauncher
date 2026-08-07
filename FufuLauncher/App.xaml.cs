@@ -170,6 +170,8 @@ public partial class App : Application
                     services.AddSingleton<IUnifiedCheckinService, UnifiedCheckinService>();
                     services.AddSingleton<DailyNoteCardService>();
                     services.AddSingleton<IDeviceFingerprintService, Services.MiHoYo.DeviceFingerprintService>();
+                    services.AddSingleton<IDeviceExtFieldsBuilder, Services.MiHoYo.Fingerprint.ExtFieldsBuilder>();
+                    services.AddSingleton<IBbsRequestBuilder, Services.MiHoYo.Transport.BbsRequestBuilder>();
                     services.AddSingleton<BlankViewModel>();
                     services.AddTransient<BlankPage>();
                     services.AddSingleton<ILauncherService, LauncherService>();
@@ -188,6 +190,13 @@ public partial class App : Application
                     services.AddSingleton<IUidLookupService, Services.UID.UidLookupService>();
 
                     services.AddSingleton<AccountManager>();
+                    services.AddSingleton<IAccountIdentityService, Services.MiHoYo.AccountIdentityService>();
+
+                    // Stage 5: DI 化 DailyNoteService / GeetestService / TokenRefreshService
+                    services.AddSingleton<IDailyNoteService, Services.MiHoYo.DailyNoteService>();
+                    services.AddSingleton<IGeetestService, GeetestService>();
+                    services.AddSingleton<ITokenRefreshService, TokenRefreshService>();
+                    services.AddSingleton<DailyNoteCardService>();
 
                     services.AddLogging(builder =>
                     {
@@ -425,7 +434,10 @@ public partial class App : Application
                 });
             }
             var accountManager = GetService<AccountManager>();
+            // 在 InitializeAsync 之前订阅：LoadAccountListAsync 内部 SetActiveAccountIdAsync 会触发事件
+            accountManager.ActiveAccountChanged += OnActiveAccountChangedForFingerprint;
             await accountManager.InitializeAsync();
+
             MainWindow = new MainWindow();
             _cpuUsageMonitor = new ProcessCpuUsageMonitor(_mainDispatcherQueue, GetService<ILocalSettingsService>());
             _cpuUsageMonitor.Start();
@@ -438,6 +450,7 @@ public partial class App : Application
             await activationService.ActivateAsync(args);
 
             Debug.WriteLine("=== App 主窗口已激活 ===");
+
             var shouldRunBackgroundTasks = !Helpers.AppPaths.IsFirstRun && 
                 !(MainWindow is MainWindow mw && mw.IsAgreementShowing);
             if (shouldRunBackgroundTasks)
@@ -511,6 +524,36 @@ public partial class App : Application
             LogException(ex, "OnLaunched (启动流程异常)");
             ShowCrashDialog("应用启动流程异常", ex);
             Environment.Exit(-1);
+        }
+    }
+
+    // 活跃账号变更时（启动加载 / 主动切号 / 删除后选下一个）触发：
+// 1) 有 saved fp → 调一次 UpdateFingerprintAsync（服务端会发新 fp，未变就保留）
+// 2) 无 saved fp → 走 GetOrRegisterFingerprintAsync 全新注册
+// 由 AccountManager.SetActiveAccountIdAsync fire-and-forget 调用，不阻塞切号路径
+    private async Task OnActiveAccountChangedForFingerprint(string accountId)
+    {
+        try
+        {
+            var accountManager = GetService<AccountManager>();
+            var cookies = await accountManager.LoadCookiesAsync(accountId);
+            if (cookies == null || cookies.Count == 0)
+            {
+                Debug.WriteLine($"[DeviceFingerprint] 活跃账号 {accountId} 无 cookies，跳过指纹更新");
+                return;
+            }
+
+            var fpService = GetService<IDeviceFingerprintService>();
+            var updated = await fpService.UpdateFingerprintAsync(accountId);
+            if (updated == null)
+            {
+                Debug.WriteLine($"[DeviceFingerprint] 活跃账号 {accountId} 无已保存指纹，执行注册");
+                await fpService.GetOrRegisterFingerprintAsync(accountId, cookies);
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[DeviceFingerprint] 活跃账号指纹更新失败: {ex.Message}");
         }
     }
     

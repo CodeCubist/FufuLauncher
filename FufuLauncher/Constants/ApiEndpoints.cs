@@ -39,7 +39,8 @@ namespace FufuLauncher.Constants
         public const string UpdateHtmlUrl = "https://philia093.cyou/Update.html";
         public const string UpdateHtmlFallbackUrl = "https://fu1.fun/Update.html";
         public const string MihoyoBbsUserGameRolesUrl = "https://api-takumi.mihoyo.com/binding/api/getUserGameRolesByCookie?game_biz=hk4e_cn";
-        public const string MiyousheUserFullInfoUrl = "https://bbs-api.miyoushe.com/user/wapi/getUserFullInfo";
+        // bbs-api.mihoyo.com + user/wapi + uid&gids=2（wapi 通道不校验 DS）
+        public const string MiyousheUserFullInfoUrl = "https://bbs-api.mihoyo.com/user/wapi/getUserFullInfo?uid={0}&gids=2";
         public const string PassportCreateQrLoginUrl = "https://passport-api.mihoyo.com/account/ma-cn-passport/web/createQRLogin";
         public const string PassportScanQrLoginUrl = "https://passport-api.mihoyo.com/account/ma-cn-passport/app/scanQRLogin";
         public const string PassportConfirmQrLoginUrl = "https://passport-api.mihoyo.com/account/ma-cn-passport/app/confirmQRLogin";

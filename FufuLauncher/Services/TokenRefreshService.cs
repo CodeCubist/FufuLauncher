@@ -9,7 +9,9 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization.Metadata;
 using FufuLauncher.Constants;
+using FufuLauncher.Constants.MiHoYo;
 using CommunityToolkit.Mvvm.Messaging;
+using FufuLauncher.Contracts.Services;
 using FufuLauncher.Messages;
 using FufuLauncher.Models;
 using MihoyoBBS;
@@ -17,7 +19,7 @@ using FufuLauncher.Helpers;
 
 namespace FufuLauncher.Services;
 
-public class TokenRefreshService
+public class TokenRefreshService : ITokenRefreshService
 {
     private const string Salt = "dDIQHbKOdaPaLuvQKVzUzqdeCaxjtaPV";
     private const string WebSalt = "G1ktdwFL4IyGkHuuWSmz0wUe9Db9scyK";
@@ -155,12 +157,12 @@ public class TokenRefreshService
             request.Headers.TryAddWithoutValidation("DS", GenerateWebDS());
             request.Headers.TryAddWithoutValidation("x-rpc-channel", "miyousheluodi");
             request.Headers.TryAddWithoutValidation("Origin", "https://act.mihoyo.com");
-            request.Headers.TryAddWithoutValidation("x-rpc-app_version", "2.93.1");
+            request.Headers.TryAddWithoutValidation("x-rpc-app_version", BbsConstants.CnAppVersion);
             request.Headers.TryAddWithoutValidation("x-rpc-client_type", "5");
             request.Headers.TryAddWithoutValidation("Referer", "https://act.mihoyo.com/");
             request.Headers.TryAddWithoutValidation("Cookie", cookie);
             request.Headers.TryAddWithoutValidation("x-rpc-device_id", _deviceId);
-            request.Headers.TryAddWithoutValidation("User-Agent", "Mozilla/5.0 (Linux; Android 12; Unspecified Device) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/103.0.5060.129 Mobile Safari/537.36 miHoYoBBS/2.93.1");
+            request.Headers.TryAddWithoutValidation("User-Agent", $"Mozilla/5.0 (Linux; Android 12; Unspecified Device) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/103.0.5060.129 Mobile Safari/537.36 miHoYoBBS/{BbsConstants.CnAppVersion}");
 
             var response = await _httpClient.SendAsync(request);
             var responseText = await response.Content.ReadAsStringAsync();
@@ -294,14 +296,14 @@ public class TokenRefreshService
 
     private void AddCommonHeaders(HttpRequestMessage request, string body, string query, string clientType, string appId, string sdkVersion, string cookie = "")
     {
-        request.Headers.TryAddWithoutValidation("User-Agent", "Mozilla/5.0 miHoYoBBS/2.90.1 Capture/2.2.0");
+        request.Headers.TryAddWithoutValidation("User-Agent", $"Mozilla/5.0 miHoYoBBS/{BbsConstants.CnAppVersion} Capture/2.2.0");
         request.Headers.TryAddWithoutValidation("Accept", "*/*");
         request.Headers.TryAddWithoutValidation("Accept-Language", "zh-cn");
 
         if (!string.IsNullOrEmpty(cookie)) request.Headers.TryAddWithoutValidation("Cookie", cookie);
 
         request.Headers.TryAddWithoutValidation("x-rpc-client_type", clientType);
-        request.Headers.TryAddWithoutValidation("x-rpc-app_version", "2.90.1");
+        request.Headers.TryAddWithoutValidation("x-rpc-app_version", BbsConstants.CnAppVersion);
         request.Headers.TryAddWithoutValidation("x-rpc-device_id", _deviceId);
         request.Headers.TryAddWithoutValidation("x-rpc-device_fp", _deviceFp);
         request.Headers.TryAddWithoutValidation("x-rpc-game_biz", "bbs_cn");
