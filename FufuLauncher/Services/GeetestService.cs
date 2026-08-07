@@ -36,27 +36,25 @@ public class GeetestService : IGeetestService
     private static readonly HttpClient _httpClient = new() { Timeout = TimeSpan.FromSeconds(15) };
 
     private readonly IDeviceFingerprintService _fingerprintService;
-    private readonly AccountManager _accountManager;
 
     public GeetestService(
-        IDeviceFingerprintService fingerprintService,
-        AccountManager accountManager)
+        IDeviceFingerprintService fingerprintService)
     {
         _fingerprintService = fingerprintService;
-        _accountManager = accountManager;
     }
 
-    public async Task<string> TryVerifyForDailyNoteAsync(AccountContext ctx, Dictionary<string, string> cookies)
+    public async Task<string> TryVerifyForDailyNoteAsync(AccountContext ctx)
     {
-        return await TryVerifyForDailyNoteAsync(
-            ctx.UserAgent.Mobile,
-            ctx.Device.BbsDeviceId,
-            _accountManager.ActiveAccountId!,
-            cookies);
+        // cookies 从 ctx 取（单一事实来源）：RefreshAsync 后调用方能拿到最新值，避免外部传入过期 cookies；
+        // 复制成可变 Dictionary（下游指纹注册/拼接需要）
+        return await TryVerifyForDailyNoteAsync(ctx, new Dictionary<string, string>(ctx.Cookies));
     }
 
-    private async Task<string> TryVerifyForDailyNoteAsync(string mobileUserAgent, string bbsDeviceId, string activeId, Dictionary<string, string> cookies)
+    private async Task<string> TryVerifyForDailyNoteAsync(AccountContext ctx, Dictionary<string, string> cookies)
     {
+        string mobileUserAgent = ctx.UserAgent.Mobile;
+        string bbsDeviceId = ctx.Device.BbsDeviceId;
+        string activeId = ctx.AccountId;
         string createJson = await CallCreateVerificationAsync(mobileUserAgent, bbsDeviceId, activeId, cookies);
         string gt = null;
         string challenge = null;
@@ -122,7 +120,7 @@ public class GeetestService : IGeetestService
         req.Headers.Add("Referer", Referer);
         req.Headers.UserAgent.ParseAdd(mobileUserAgent);
 
-        HttpResponseMessage resp = await _httpClient.SendAsync(req);
+        using HttpResponseMessage resp = await _httpClient.SendAsync(req);
         return await resp.Content.ReadAsStringAsync();
     }
 
@@ -154,7 +152,7 @@ public class GeetestService : IGeetestService
         req.Headers.Add("Referer", Referer);
         req.Headers.UserAgent.ParseAdd(mobileUserAgent);
 
-        HttpResponseMessage resp = await _httpClient.SendAsync(req);
+        using HttpResponseMessage resp = await _httpClient.SendAsync(req);
         return await resp.Content.ReadAsStringAsync();
     }
 

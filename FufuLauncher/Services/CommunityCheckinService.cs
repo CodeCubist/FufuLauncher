@@ -39,7 +39,18 @@ public class CommunityCheckinService : ICommunityCheckinService
         bool likeEnabled,
         bool shareEnabled)
     {
-        // 设备画像直接取 AccountContext.Device（指纹体系产物），不再走 LocalSettings 旧键
+        // 设备画像直接取 AccountContext.Device（指纹体系产物），不再走 LocalSettings 旧键；
+        // 指纹字段缺失时不发空头，直接返回失败
+        if (ctx.Device is null ||
+            string.IsNullOrEmpty(ctx.Device.DeviceFp) ||
+            string.IsNullOrEmpty(ctx.Device.BbsDeviceId))
+        {
+            var result = new CheckinTypeResult { TypeName = "CheckinCommunity_Title".GetLocalized(), Executed = true, Success = false };
+            result.Message = "缺少设备信息，无法执行社区签到（未找到指纹画像）";
+            Debug.WriteLine($"[社区签到] 账号 {uid}: 无设备画像，跳过社区签到");
+            return result;
+        }
+
         var account = new AccountCredentials
         {
             Uid = uid,

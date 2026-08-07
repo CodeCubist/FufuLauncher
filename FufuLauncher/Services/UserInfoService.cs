@@ -46,25 +46,6 @@ public class UserInfoService : IUserInfoService
         _httpClient.Timeout = TimeSpan.FromSeconds(15);
     }
 
-    private void ApplyCommonHeaders(string cookie)
-    {
-
-        var keys = new[] { "ltoken", "ltuid", "cookie_token", "account_id", "ltoken_v2", "ltuid_v2", "cookie_token_v2", "account_id_v2" };
-        var found = keys.Where(k => cookie.Contains(k + "=", StringComparison.OrdinalIgnoreCase)).ToArray();
-        var missing = keys.Where(k => !found.Contains(k, StringComparer.OrdinalIgnoreCase)).ToArray();
-        System.Diagnostics.Debug.WriteLine($"[UserInfoService] Cookie length={cookie.Length}, found=[{string.Join(", ", found)}], missing=[{string.Join(", ", missing)}]");
-
-        _httpClient.DefaultRequestHeaders.Clear();
-        _httpClient.DefaultRequestHeaders.TryAddWithoutValidation("Cookie", cookie);
-        _httpClient.DefaultRequestHeaders.TryAddWithoutValidation("DS", GenerateDS());
-        _httpClient.DefaultRequestHeaders.TryAddWithoutValidation("x-rpc-device_id", Guid.NewGuid().ToString("N"));
-        _httpClient.DefaultRequestHeaders.TryAddWithoutValidation("x-rpc-client_type", "5");
-        _httpClient.DefaultRequestHeaders.TryAddWithoutValidation("Referer", "https://act.mihoyo.com/");
-        _httpClient.DefaultRequestHeaders.TryAddWithoutValidation("Origin", "https://act.mihoyo.com");
-        _httpClient.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent",
-            $"Mozilla/5.0 (Linux; Android 12; Unspecified Device) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/103.0.5060.129 Mobile Safari/537.36 miHoYoBBS/{BbsConstants.CnAppVersion}");
-    }
-
     private string GenerateDS() =>
         DynamicSignature.ComputeMinimal(
             salt: "xV8v4Qu54lUKrEYFZkJhB8cuoh9NXmz9",
@@ -91,7 +72,6 @@ public class UserInfoService : IUserInfoService
         try
         {
             bool isOs = await IsInternationalAsync(cookie);
-            ApplyCommonHeaders(cookie);
 
             if (isOs)
             {
@@ -103,7 +83,18 @@ public class UserInfoService : IUserInfoService
             }
             else
             {
-                var response = await _httpClient.GetAsync(ApiEndpoints.MihoyoBbsUserGameRolesUrl);
+                // per-request 头（不污染共享 _httpClient 的 DefaultRequestHeaders，避免旧 Cookie/DS 泄漏到后续 builder 请求）
+                using var request = new HttpRequestMessage(HttpMethod.Get, ApiEndpoints.MihoyoBbsUserGameRolesUrl);
+                request.Headers.TryAddWithoutValidation("Cookie", cookie);
+                request.Headers.TryAddWithoutValidation("DS", GenerateDS());
+                request.Headers.TryAddWithoutValidation("x-rpc-device_id", Guid.NewGuid().ToString("N"));
+                request.Headers.TryAddWithoutValidation("x-rpc-client_type", "5");
+                request.Headers.TryAddWithoutValidation("Referer", "https://act.mihoyo.com/");
+                request.Headers.TryAddWithoutValidation("Origin", "https://act.mihoyo.com");
+                request.Headers.TryAddWithoutValidation("User-Agent",
+                    $"Mozilla/5.0 (Linux; Android 12; Unspecified Device) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/103.0.5060.129 Mobile Safari/537.36 miHoYoBBS/{BbsConstants.CnAppVersion}");
+
+                var response = await _httpClient.SendAsync(request);
                 var json = await response.Content.ReadAsStringAsync();
                 System.Diagnostics.Debug.WriteLine($"[UserInfoService] GameRoles HTTP {response.StatusCode} | Body({json?.Length ?? 0}): {(json?.Length > 300 ? json[..300] : json ?? "(null)")}");
                 return JsonSerializer.Deserialize<GameRolesResponse>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
@@ -127,14 +118,26 @@ public class UserInfoService : IUserInfoService
         {
             bool isOs = await IsInternationalAsync(cookie);
             string uid = ExtractUid(cookie, isOs);
+            if (string.IsNullOrEmpty(uid))
+            {
+                _logger.LogError("无法从 cookie 中解析 uid");
+                return new UserFullInfoResponse(-1, "无法从 cookie 中解析 uid", null);
+            }
 
             string url = isOs
                 ? "https://bbs-api-os.hoyolab.com/community/painter/wapi/user/full"
                 : string.Format(ApiEndpoints.MiyousheUserFullInfoUrl, uid);
 
-            // 用真实活跃账号 id 构造 ctx（避免合成 id 污染指纹缓存 / LoadFingerprint 找不到 entry）；无活跃账号时回退合成 id
-            var accountId = _accountManager.ActiveAccountId ?? $"{(isOs ? "os" : "cn")}_{uid}";
-            var ctx = await _identityService.BuildAsync(accountId);
+            // 校验 cookie 归属：只允许与活跃账号匹配的 cookie 走指纹 ctx；
+            // 不匹配时拒绝构造请求，避免以活跃账号身份发出其他账号的请求
+            var activeId = _accountManager.ActiveAccountId;
+            var expectedId = $"{(isOs ? "os" : "cn")}_{uid}";
+            if (!string.Equals(activeId, expectedId, StringComparison.Ordinal))
+            {
+                _logger.LogError($"cookie 账号 {expectedId} 与活跃账号 {activeId} 不一致，拒绝构造 UserFullInfo 请求");
+                return new UserFullInfoResponse(-1, "cookie 与活跃账号不一致", null);
+            }
+            var ctx = await _identityService.BuildAsync(activeId);
             return await GetUserFullInfoAsync(ctx, url);
         }
         catch (Exception ex)
@@ -145,20 +148,21 @@ public class UserInfoService : IUserInfoService
     }
 
     // 从 cookie 字符串解析用户 uid：国服 stuid/ltuid，国际服 account_id_v2/ltuid_v2
+    // 按 ';' 分割后精确匹配 key，避免子串误命中（如 my_ltuid=999 命中 ltuid=）
     private static string ExtractUid(string cookie, bool isOs)
     {
         string[] keys = isOs
             ? new[] { "account_id_v2", "ltuid_v2" }
             : new[] { "stuid", "ltuid" };
-        foreach (string key in keys)
+        foreach (string segment in cookie.Split(';', StringSplitOptions.RemoveEmptyEntries))
         {
-            int idx = cookie.IndexOf(key + "=", StringComparison.OrdinalIgnoreCase);
-            if (idx < 0) continue;
-            int start = idx + key.Length + 1;
-            int end = cookie.IndexOf(';', start);
-            if (end < 0) end = cookie.Length;
-            string value = cookie[start..end].Trim();
-            if (value.Length > 0) return value;
+            int eq = segment.IndexOf('=');
+            if (eq < 0) continue;
+            string key = segment[..eq].Trim();
+            string value = segment[(eq + 1)..].Trim();
+            if (value.Length == 0) continue;
+            if (keys.Contains(key, StringComparer.OrdinalIgnoreCase))
+                return value;
         }
         return string.Empty;
     }
@@ -194,7 +198,7 @@ public class UserInfoService : IUserInfoService
         return await Task.FromResult(new GameRecordCardResponse(-1, "UserInfo_FeatureRemoved".GetLocalized(), null));
     }
 
-    // ctx 里的 cookies 是 Dict<string,string>，转成 "k=v;k2=v2" 字符串给现有 IsInternationalAsync / ApplyCommonHeaders 用
+    // ctx 里的 cookies 是 Dict<string,string>，转成 "k=v;k2=v2" 字符串给现有 IsInternationalAsync 用
     private static string BuildCookieString(AccountContext ctx)
     {
         var sb = new StringBuilder();

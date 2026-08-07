@@ -37,16 +37,16 @@ internal sealed class DeviceFingerprintService : IDeviceFingerprintService
     };
 
 
-    private DeviceFpRequest? _lastRequest;
-    private DeviceFpRequest? _lastWebRequest;
-    private bool _fpRegistered;
-    private string _currentAccountId = "";
+    private volatile DeviceFpRequest? _lastRequest;
+    private volatile DeviceFpRequest? _lastWebRequest;
+    private volatile bool _fpRegistered;
+    private volatile string _currentAccountId = "";
     private readonly SemaphoreSlim _fpLock = new(1, 1);
 
     private readonly IDeviceExtFieldsBuilder _extFieldsBuilder;
     private readonly AccountManager _accountManager;
     private readonly IBbsRequestBuilder _requestBuilder;
-    private bool _lastRegisterSucceeded;
+    private volatile bool _lastRegisterSucceeded;
     #endregion
 
     #region
@@ -59,31 +59,12 @@ internal sealed class DeviceFingerprintService : IDeviceFingerprintService
 
     public DeviceFpRequest? GetCurrentFingerprint(string accountId)
     {
-        _fpLock.Wait();
-        try
-        {
-            return _currentAccountId == accountId && _lastRequest is { DeviceFp.Length: > 0 }
-                ? _lastRequest
-                : null;
-        }
-        finally
-        {
-            _fpLock.Release();
-        }
+        // 无锁直接读：字段为 volatile 引用，保证可见性；避免 UI 线程同步 Wait() 与锁内 await 造成死锁
+        var last = _lastRequest;
+        return _currentAccountId == accountId && last is { DeviceFp.Length: > 0 } ? last : null;
     }
 
-    public DeviceFpRequest? GetCurrentWebFingerprint()
-    {
-        _fpLock.Wait();
-        try
-        {
-            return _lastWebRequest;
-        }
-        finally
-        {
-            _fpLock.Release();
-        }
-    }
+    public DeviceFpRequest? GetCurrentWebFingerprint() => _lastWebRequest;
 
     public async Task<DeviceFpRequest> RegisterStandaloneAsync()
     {
@@ -163,7 +144,7 @@ internal sealed class DeviceFingerprintService : IDeviceFingerprintService
 
             // 强制重新注册（打出请求日志）；注册成功且指纹变化则写入 cookie 文件
             var cookies = await _accountManager.LoadCookiesAsync(accountId);
-            if (cookies.Count == 0)
+            if (cookies is not { Count: > 0 })
             {
                 Debug.WriteLine($"[DeviceFingerprint] 账号 {accountId} 无 cookies，跳过重注册");
                 return;
@@ -195,18 +176,19 @@ internal sealed class DeviceFingerprintService : IDeviceFingerprintService
 
     public async Task<DeviceFpRequest?> UpdateFingerprintAsync(string accountId)
     {
-        // 从账号 cookie 文件取上次注册时保存的完整请求体；无则无法更新
-        var saved = await _accountManager.LoadFingerprintAsync(accountId);
-        if (saved == null)
-        {
-            Debug.WriteLine($"[DeviceFingerprint] 账号 {accountId} 无已保存指纹，跳过更新");
-            return null;
-        }
-        Debug.WriteLine($"[DeviceFingerprint] >>> 开始更新指纹: account={accountId}, saved_fp={saved.DeviceFp}, seed_id={saved.SeedId}, seed_time={saved.SeedTime}");
-
         await _fpLock.WaitAsync();
         try
         {
+            // 从账号 cookie 文件取上次注册时保存的完整请求体；无则无法更新
+            // 注意：saved 必须在锁内读取，否则并发注册/重置可能把锁外旧值覆盖写回
+            var saved = await _accountManager.LoadFingerprintAsync(accountId);
+            if (saved == null)
+            {
+                Debug.WriteLine($"[DeviceFingerprint] 账号 {accountId} 无已保存指纹，跳过更新");
+                return null;
+            }
+            Debug.WriteLine($"[DeviceFingerprint] >>> 开始更新指纹: account={accountId}, saved_fp={saved.DeviceFp}, seed_id={saved.SeedId}, seed_time={saved.SeedTime}");
+
             // ext_fields 重新构造（实时字段重新采样；时间偏移已固定不变）
             var extList = await FetchExtListAsync();
             var allFields = _extFieldsBuilder.Build(DefaultProfile);
@@ -249,9 +231,11 @@ internal sealed class DeviceFingerprintService : IDeviceFingerprintService
             }
 
             // 同步进程内缓存（仅当仍是该账号：fire-and-forget 的延迟更新可能在切号后才完成，
-            // 不能把旧账号的 update 覆盖到新账号缓存；disk 已按账号写对，BuildAsync 会重新恢复）
-            if (_currentAccountId == accountId)
+            // 不能把旧账号的 update 覆盖到新账号缓存；disk 已按账号写对，BuildAsync 会重新恢复。
+            // 冷启动时 _currentAccountId 尚未由 GetOrRegister 设置（为空），此时更新结果应直接生效）
+            if (_currentAccountId == accountId || string.IsNullOrEmpty(_currentAccountId))
             {
+                _currentAccountId = accountId;
                 _lastRequest = update;
                 _fpRegistered = true;
                 Debug.WriteLine($"[DeviceFingerprint] 已同步内存缓存，后续请求使用: {update.DeviceFp}");
@@ -296,7 +280,7 @@ internal sealed class DeviceFingerprintService : IDeviceFingerprintService
             DeviceId: "",
             BbsDeviceId: "",
             DeviceFp: "",
-            DeviceName: "Xiaomi " + DefaultProfile.DeviceModel,
+            DeviceName: DefaultProfile.DeviceModel,
             SysVersion: DefaultProfile.OsVersion,
             Model: DefaultProfile.DeviceModel,
             FpLastUpdate: DateTimeOffset.UtcNow),

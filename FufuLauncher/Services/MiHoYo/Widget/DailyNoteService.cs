@@ -63,9 +63,6 @@ public class DailyNoteService : IDailyNoteService
         await _semaphore.WaitAsync();
         try
         {
-            Dictionary<string, string> cookies = ctx.Cookies as Dictionary<string, string>
-                ?? new Dictionary<string, string>(ctx.Cookies);
-
             // 2. 调主接口
             string apiUrl = $"{BbsConstants.DailyNoteUrl}?server={Uri.EscapeDataString(server)}&role_id={Uri.EscapeDataString(roleId)}";
             string json = await RequestDailyNoteAsync(ctx, apiUrl, null);
@@ -82,7 +79,7 @@ public class DailyNoteService : IDailyNoteService
                     await _fingerprintService.ResetFingerprintAsync(ctx.AccountId);
                     ctx = await _identityService.RefreshAsync(ctx);
 
-                    string xrpcChallenge = await _geetestService.TryVerifyForDailyNoteAsync(ctx, cookies);
+                    string xrpcChallenge = await _geetestService.TryVerifyForDailyNoteAsync(ctx);
                     if (!string.IsNullOrEmpty(xrpcChallenge))
                     {
                         json = await RequestDailyNoteAsync(ctx, apiUrl, xrpcChallenge);
@@ -127,10 +124,27 @@ public class DailyNoteService : IDailyNoteService
 
     private static int ParseRetcode(string json)
     {
-        using var doc = JsonDocument.Parse(json); return doc.RootElement.TryGetProperty("retcode", out var rc) ? rc.GetInt32() : -1;
+        // 响应可能不是 JSON（网关错误页 / 风控 HTML / 空体），解析失败按 -1 处理，不抛异常
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            return doc.RootElement.TryGetProperty("retcode", out var rc) ? rc.GetInt32() : -1;
+        }
+        catch (JsonException)
+        {
+            return -1;
+        }
     }
     private static string ExtractMessage(string json)
     {
-        using var doc = JsonDocument.Parse(json); return doc.RootElement.TryGetProperty("message", out var m) ? m.GetString() ?? "Status_UnknownError".GetLocalized() : "Status_UnknownError".GetLocalized();
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            return doc.RootElement.TryGetProperty("message", out var m) ? m.GetString() ?? "Status_UnknownError".GetLocalized() : "Status_UnknownError".GetLocalized();
+        }
+        catch (JsonException)
+        {
+            return "Status_UnknownError".GetLocalized();
+        }
     }
 }

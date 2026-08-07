@@ -183,8 +183,21 @@ public class AccountManager
             if (existingEntry != null)
             {
                 string existingCookiePath = Path.Combine(CookiesDir, existingEntry.CookieFilePath);
-                // 未传新指纹时保留原有 Fingerprint / FingerprintWeb，避免覆盖清空
-                var existingFile = JsonSerializer.Deserialize<CookieFile>(await File.ReadAllTextAsync(existingCookiePath));
+                // 未传新指纹时保留原有 Fingerprint / FingerprintWeb，避免覆盖清空；
+                // 旧文件缺失或损坏时不中断登录，按无指纹保留并记录日志
+                CookieFile? existingFile = null;
+                if (File.Exists(existingCookiePath))
+                {
+                    try
+                    {
+                        existingFile = JsonSerializer.Deserialize<CookieFile>(await File.ReadAllTextAsync(existingCookiePath));
+                    }
+                    catch (JsonException ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine(
+                            $"[AccountManager] 旧 cookie 文件解析失败 ({existingEntry.CookieFilePath})，按无指纹保留: {ex.Message}");
+                    }
+                }
                 var existingCookieJson = JsonSerializer.Serialize(new CookieFile
                 {
                     Cookies = cookies,
@@ -294,7 +307,12 @@ public class AccountManager
                     cookies = cookieFile?.Cookies ?? JsonSerializer.Deserialize<Dictionary<string, string>>(json);
                     fingerprintWeb = cookieFile?.FingerprintWeb;
                 }
-                catch (JsonException) { }
+                catch (JsonException ex)
+                {
+                    // 解析失败不清空原文件：中止写入，保留现场供排查
+                    Debug.WriteLine($"[AccountManager] Cookie 文件解析失败 ({entry.CookieFilePath})，中止指纹写入: {ex.Message}");
+                    return;
+                }
             }
             var newJson = JsonSerializer.Serialize(new CookieFile { Cookies = cookies, Fingerprint = fingerprint, FingerprintWeb = fingerprintWeb }, _cookieJsonOptions);
             await File.WriteAllTextAsync(path, newJson);
@@ -326,7 +344,12 @@ public class AccountManager
                     cookies = cookieFile?.Cookies ?? JsonSerializer.Deserialize<Dictionary<string, string>>(json);
                     fingerprintNative = cookieFile?.Fingerprint;
                 }
-                catch (JsonException) { }
+                catch (JsonException ex)
+                {
+                    // 解析失败不清空原文件：中止写入，保留现场供排查
+                    Debug.WriteLine($"[AccountManager] Cookie 文件解析失败 ({entry.CookieFilePath})，中止 Web 指纹写入: {ex.Message}");
+                    return;
+                }
             }
             var newJson = JsonSerializer.Serialize(new CookieFile { Cookies = cookies, Fingerprint = fingerprintNative, FingerprintWeb = fingerprint }, _cookieJsonOptions);
             await File.WriteAllTextAsync(path, newJson);
@@ -456,7 +479,12 @@ public class AccountManager
                     fingerprint = existing?.Fingerprint;
                     fingerprintWeb = existing?.FingerprintWeb;
                 }
-                catch (JsonException) { }
+                catch (JsonException ex)
+                {
+                    // 解析失败不清空原文件：中止写入，保留现场供排查
+                    Debug.WriteLine($"[AccountManager] Cookie 文件解析失败 ({entry.CookieFilePath})，中止 cookie 更新: {ex.Message}");
+                    return;
+                }
             }
             var json = JsonSerializer.Serialize(new CookieFile { Cookies = newCookies, Fingerprint = fingerprint, FingerprintWeb = fingerprintWeb }, _cookieJsonOptions);
             await File.WriteAllTextAsync(cookiePath, json);

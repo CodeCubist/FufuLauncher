@@ -71,7 +71,8 @@ public class GachaService
                 stuidStokenMidCookie: cookie,
                 lk2Salt: Lk2Salt,
                 gachaAppVersion: AppVersion,
-                body: body);
+                body: body,
+                deviceId: ctx.Device.DeviceId);
 
             var response = await _httpClient.SendAsync(request);
             var json = await response.Content.ReadAsStringAsync();

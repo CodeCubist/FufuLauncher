@@ -506,7 +506,7 @@ public sealed partial class LoginQrWindow : Window
     #region 米游社APP扫码登录（重构为基于会话对象）
     private async Task StartAppLoginFlowAsync(LoginSession session)
     {
-        await EnsureFingerprintAsync();
+        if (!await EnsureFingerprintAsync()) return;
         _isLoginCompleting = false;
         UpdateStatus("正在创建APP登录二维码...", true);
 
@@ -653,7 +653,7 @@ public sealed partial class LoginQrWindow : Window
     #region 游戏扫码登录（重构为基于会话对象）
     private async Task StartGameLoginFlowAsync(LoginSession session)
     {
-        await EnsureFingerprintAsync();
+        if (!await EnsureFingerprintAsync()) return;
         _isLoginCompleting = false;
         UpdateStatus("正在创建游戏扫码二维码...", true);
 
@@ -808,8 +808,8 @@ public sealed partial class LoginQrWindow : Window
         request.Headers.TryAddWithoutValidation("x-rpc-game_biz", "bbs_cn");
         request.Headers.TryAddWithoutValidation("x-rpc-sys_version", "12");
         request.Headers.TryAddWithoutValidation("x-rpc-device_id", _deviceId);
-        request.Headers.TryAddWithoutValidation("x-rpc-device_name", "Xiaomi MI 6");
-        request.Headers.TryAddWithoutValidation("x-rpc-device_model", "MI 6");
+        request.Headers.TryAddWithoutValidation("x-rpc-device_name", _loginCtx?.Device.DeviceName ?? "Xiaomi 2605EPN8EC");
+        request.Headers.TryAddWithoutValidation("x-rpc-device_model", _loginCtx?.Device.Model ?? "2605EPN8EC");
         request.Headers.TryAddWithoutValidation("x-rpc-app_id", "bll8iq97cem8");
         request.Headers.TryAddWithoutValidation("x-rpc-client_type", "4");
         request.Headers.TryAddWithoutValidation("User-Agent", "okhttp/4.9.3");
@@ -852,8 +852,8 @@ public sealed partial class LoginQrWindow : Window
         request.Headers.TryAddWithoutValidation("x-rpc-game_biz", "bbs_cn");
         request.Headers.TryAddWithoutValidation("x-rpc-sys_version", "12");
         request.Headers.TryAddWithoutValidation("x-rpc-device_id", _deviceId);
-        request.Headers.TryAddWithoutValidation("x-rpc-device_name", "Xiaomi MI 6");
-        request.Headers.TryAddWithoutValidation("x-rpc-device_model", "MI 6");
+        request.Headers.TryAddWithoutValidation("x-rpc-device_name", _loginCtx?.Device.DeviceName ?? "Xiaomi 2605EPN8EC");
+        request.Headers.TryAddWithoutValidation("x-rpc-device_model", _loginCtx?.Device.Model ?? "2605EPN8EC");
         request.Headers.TryAddWithoutValidation("x-rpc-client_type", "3");
         request.Headers.TryAddWithoutValidation("User-Agent", "okhttp/4.9.3");
     }
@@ -1059,7 +1059,7 @@ public sealed partial class LoginQrWindow : Window
 
     private async Task StartWebPassportLoginAsync()
     {
-        await EnsureFingerprintAsync();
+        if (!await EnsureFingerprintAsync()) return;
         _currentSession?.Cancel();
 
         UpdateStatus("正在加载通行证登录页面...", true);
@@ -1417,31 +1417,13 @@ public sealed partial class LoginQrWindow : Window
         return "";
     }
 
-    private string GenerateDeviceFingerprint()
+    private async Task<bool> EnsureFingerprintAsync()
     {
-        long timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-        string seedId = GenerateRandomString(16, "0123456789abcdef");
-
-        var deviceInfo = new
-        {
-            device_id = _deviceId,
-            seed_id = seedId,
-            seed_time = timestamp,
-            platform = "2",
-            device_fp = "",
-            app_name = "bbs_cn"
-        };
-
-        string fpStr = JsonSerializer.Serialize(deviceInfo, _jsonOptions);
-        return CreateMD5(fpStr);
-    }
-    private async Task EnsureFingerprintAsync()
-    {
-        if (!string.IsNullOrEmpty(_deviceFp) && !string.IsNullOrEmpty(_deviceId)) return;
+        if (!string.IsNullOrEmpty(_deviceFp) && !string.IsNullOrEmpty(_deviceId)) return true;
         await _fpLock.WaitAsync();
         try
         {
-            if (!string.IsNullOrEmpty(_deviceFp) && !string.IsNullOrEmpty(_deviceId)) return;
+            if (!string.IsNullOrEmpty(_deviceFp) && !string.IsNullOrEmpty(_deviceId)) return true;
             try
             {
                 var fp = await _fingerprintService.RegisterStandaloneAsync();
@@ -1451,14 +1433,14 @@ public sealed partial class LoginQrWindow : Window
                 _deviceFp = fp.DeviceFp;
                 _lifecycleId = Guid.NewGuid().ToString();
                 _loginCtx = BuildLoginContext();
+                return true;
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[LoginQrWindow] 指纹注册失败，使用本地假指纹: {ex.Message}");
-                _deviceId = Guid.NewGuid().ToString("N")[..16].ToUpper();
-                _deviceFp = GenerateDeviceFingerprint();
-                _lifecycleId = Guid.NewGuid().ToString();
-                _loginCtx = BuildLoginContext();
+                // 不伪造指纹继续登录（项目策略：未注册指纹不得继续），提示用户重试
+                Debug.WriteLine($"[LoginQrWindow] 指纹注册失败: {ex.Message}");
+                UpdateStatus($"设备指纹注册失败，请检查网络后重试: {ex.Message}", false);
+                return false;
             }
         }
         finally
@@ -1485,16 +1467,6 @@ public sealed partial class LoginQrWindow : Window
             Web: BbsUserAgents.Web,
             OkHttp: BbsUserAgents.OkHttp));
 
-    private string GenerateRandomString(int length, string chars)
-    {
-        var random = new Random();
-        var result = new char[length];
-        for (int i = 0; i < length; i++)
-        {
-            result[i] = chars[random.Next(chars.Length)];
-        }
-        return new string(result);
-    }
     private string CreateMD5(string input)
     {
         using (MD5 md5 = MD5.Create())

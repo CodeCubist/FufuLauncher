@@ -799,6 +799,10 @@ namespace FufuLauncher.Views
                     cookieDic[kv.Key] = kv.Value;
                 }
             }
+
+            // 指纹独立存于 FingerprintWeb 段，不在 cookies 字典里，重建后补回以免 DEVICEFP 丢失
+            if (!string.IsNullOrEmpty(_activeDeviceFp))
+                cookieDic["DEVICEFP"] = _activeDeviceFp;
         }
 
         private void ParseCookie(string cookieStr)
@@ -810,6 +814,9 @@ namespace FufuLauncher.Views
                 var kv = item.Split('=', 2);
                 if (kv.Length == 2) cookieDic[kv[0].Trim()] = kv[1].Trim();
             }
+            // 指纹独立存于 FingerprintWeb 段，不在 cookies 字典里，重建后补回以免 DEVICEFP 丢失
+            if (!string.IsNullOrEmpty(_activeDeviceFp))
+                cookieDic["DEVICEFP"] = _activeDeviceFp;
         }
 
         private class JsParam

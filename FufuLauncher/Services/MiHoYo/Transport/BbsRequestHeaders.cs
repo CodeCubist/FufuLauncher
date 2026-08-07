@@ -145,7 +145,8 @@ public static class BbsRequestHeaders
         string stuidStokenMidCookie,
         string lk2Salt,
         string gachaAppVersion,
-        string? body = null)
+        string? body = null,
+        string? deviceId = null)
     {
         string ds = DynamicSignature.ComputeMinimal(lk2Salt, DynamicSignature.RFormat.Base36_6);
 
@@ -156,7 +157,9 @@ public static class BbsRequestHeaders
         req.Headers.TryAddWithoutValidation(BbsHeaders.DS, ds);
         req.Headers.TryAddWithoutValidation(BbsHeaders.AppVersion, gachaAppVersion);
         req.Headers.TryAddWithoutValidation(BbsHeaders.ClientType, "5");
-        req.Headers.TryAddWithoutValidation(BbsHeaders.DeviceId, Guid.NewGuid().ToString("N"));
+        // 优先用指纹体系 device_id（16 hex），无指纹时回退随机
+        req.Headers.TryAddWithoutValidation(BbsHeaders.DeviceId,
+            string.IsNullOrEmpty(deviceId) ? Guid.NewGuid().ToString("N") : deviceId);
         req.Headers.TryAddWithoutValidation(BbsHeaders.Referer, "https://app.mihoyo.com");
         req.Headers.TryAddWithoutValidation(BbsHeaders.UserAgent, $"Mozilla/5.0 (Windows NT 10.0; Win64; x64) miHoYoBBS/{gachaAppVersion}");
         return req;
