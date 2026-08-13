@@ -27,6 +27,7 @@ namespace FufuLauncher.Views
         public DownloadWindow(string installPath)
         {
             InitializeComponent();
+        FufuLauncher.Services.FontScaleService.HookWindow(this);
             _installPath = installPath;
             PathBox.Text = _installPath;
 

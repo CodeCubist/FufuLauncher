@@ -14,6 +14,8 @@ public sealed partial class AgreementWindow : WindowEx
     public AgreementWindow()
     {
         InitializeComponent();
+        FufuLauncher.Services.FontScaleService.HookWindow(this);
+        FufuLauncher.Services.FontScaleService.HookFrame(ContentFrame);
 
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);

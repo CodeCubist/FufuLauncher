@@ -137,6 +137,7 @@ namespace FufuLauncher.Views
         private BBSWindow(bool autoInitialize)
         {
             InitializeComponent();
+        FufuLauncher.Services.FontScaleService.HookWindow(this);
 
             _fingerprintService = App.GetService<IDeviceFingerprintService>();
 

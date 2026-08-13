@@ -13,6 +13,7 @@ public sealed partial class FeedbackWindow : Window
     public FeedbackWindow()
     {
         InitializeComponent();
+        FufuLauncher.Services.FontScaleService.HookWindow(this);
         
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);

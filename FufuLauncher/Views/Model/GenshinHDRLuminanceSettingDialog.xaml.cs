@@ -22,6 +22,7 @@ public sealed partial class GenshinHDRLuminanceSettingDialog : ContentDialog
     public GenshinHDRLuminanceSettingDialog()
     {
         InitializeComponent();
+        FufuLauncher.Services.FontScaleService.HookRoot(this.Content as Microsoft.UI.Xaml.FrameworkElement);
         Loaded += GenshinHDRLuminanceSettingDialog_Loaded;
         Unloaded += GenshinHDRLuminanceSettingDialog_Unloaded;
     }

@@ -18,6 +18,7 @@ public sealed partial class GenshinDataWindow : WindowEx
     public GenshinDataWindow()
     {
         InitializeComponent();
+        FufuLauncher.Services.FontScaleService.HookWindow(this);
         ViewModel = App.GetService<GenshinViewModel>();
 
         RootGrid.DataContext = ViewModel;

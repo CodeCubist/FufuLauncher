@@ -15,6 +15,7 @@ public sealed partial class AnnouncementWindowL : Window
     public AnnouncementWindowL(string url)
     {
         InitializeComponent();
+        FufuLauncher.Services.FontScaleService.HookWindow(this);
 
         Title = "公告";
 

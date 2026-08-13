@@ -18,6 +18,8 @@ namespace FufuLauncher.Views
         public AnnouncementWindow()
         {
             InitializeComponent();
+        FufuLauncher.Services.FontScaleService.HookWindow(this);
+        FufuLauncher.Services.FontScaleService.HookFrame(ContentFrame);
 
             InitializeAppWindow();
 

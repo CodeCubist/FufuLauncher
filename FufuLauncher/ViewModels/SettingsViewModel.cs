@@ -119,6 +119,7 @@ namespace FufuLauncher.ViewModels
         [ObservableProperty] private bool _isAcrylicOverlayEnabled;
         [ObservableProperty] private bool _isPageOverlaySemiTransparentEnabled;
         [ObservableProperty] private double _pageOverlayTargetOpacity = 0.7;
+        [ObservableProperty] private double _fontScale = FontScaleService.DefaultScale;
         [ObservableProperty] private bool _isHamburgerButtonEnabled;
         
         [ObservableProperty] private bool _isHideGameNewsCardEnabled;
@@ -1021,6 +1022,19 @@ namespace FufuLauncher.ViewModels
             WeakReferenceMessenger.Default.Send(new PageOverlayTargetOpacityChangedMessage(clamped));
         }
 
+        partial void OnFontScaleChanged(double value)
+        {
+            if (_isInitializing) return;
+            var clamped = Math.Clamp(value, FontScaleService.MinScale, FontScaleService.MaxScale);
+            if (Math.Abs(clamped - value) > 0.0001)
+            {
+                FontScale = clamped;
+                return;
+            }
+            _ = _localSettingsService.SaveSettingAsync("FontScale", clamped);
+            FontScaleService.Apply(clamped);
+        }
+
         partial void OnIsHamburgerButtonEnabledChanged(bool value)
         {
             if (_isInitializing) return;
@@ -1270,6 +1284,12 @@ namespace FufuLauncher.ViewModels
                 PageOverlayTargetOpacity = Math.Clamp(pageOverlayOpacity, 0.1, 1.0);
             else
                 PageOverlayTargetOpacity = 0.7;
+
+            var fontScaleJson = await _localSettingsService.ReadSettingAsync("FontScale");
+            if (fontScaleJson != null && double.TryParse(fontScaleJson.ToString(), out var fontScale))
+                FontScale = Math.Clamp(fontScale, FontScaleService.MinScale, FontScaleService.MaxScale);
+            else
+                FontScale = FontScaleService.DefaultScale;
 
             var hamburgerButtonJson = await _localSettingsService.ReadSettingAsync("IsHamburgerButtonEnabled");
             IsHamburgerButtonEnabled = hamburgerButtonJson != null && Convert.ToBoolean(hamburgerButtonJson);

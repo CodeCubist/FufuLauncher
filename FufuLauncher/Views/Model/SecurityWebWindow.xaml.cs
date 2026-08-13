@@ -18,6 +18,7 @@ public sealed partial class SecurityWebWindow : Window
         _cookieString = cookieString;
         _targetUrl = targetUrl;
         InitializeComponent();
+        FufuLauncher.Services.FontScaleService.HookWindow(this);
     
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);

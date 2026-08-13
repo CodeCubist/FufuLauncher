@@ -93,6 +93,7 @@ public sealed partial class LoginQrWindow : Window
         _httpClient = new HttpClient(handler);
 
         InitializeComponent();
+        FufuLauncher.Services.FontScaleService.HookWindow(this);
         _dispatcherQueue = DispatcherQueue.GetForCurrentThread();
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);

@@ -160,6 +160,10 @@ public sealed partial class MainWindow : WindowEx
             throw; 
         }
         
+        FontScaleService.HookWindow(this);
+        FontScaleService.HookFrame(ContentFrame);
+        FontScaleService.HookFrame(AgreementFrame);
+
         PluginFolderHelper.CheckAndCreatePluginsFolder();
 
         ShowWindowCommand = new RelayCommand(ShowWindow);

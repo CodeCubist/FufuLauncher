@@ -35,6 +35,7 @@ public sealed partial class ScreenshotGalleryWindow : Window
     public ScreenshotGalleryWindow(string gameScreenshotDirectory, string customScreenshotDirectory)
     {
         this.InitializeComponent();
+        FufuLauncher.Services.FontScaleService.HookWindow(this);
         _gameScreenshotDirectory = gameScreenshotDirectory;
         _customScreenshotDirectory = customScreenshotDirectory;
 

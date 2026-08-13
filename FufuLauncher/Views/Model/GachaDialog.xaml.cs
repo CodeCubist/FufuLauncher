@@ -19,6 +19,7 @@ public sealed partial class GachaDialog : ContentDialog
     {
         ViewModel = App.GetService<GachaViewModel>();
         this.InitializeComponent();
+        FufuLauncher.Services.FontScaleService.HookRoot(this.Content as Microsoft.UI.Xaml.FrameworkElement);
     }
 
     private async void GachaDialog_Loaded(object sender, RoutedEventArgs e)

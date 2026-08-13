@@ -22,6 +22,7 @@ namespace FufuLauncher.Views
         public BrowserWindow()
         {
             InitializeComponent();
+        FufuLauncher.Services.FontScaleService.HookWindow(this);
             _config = BrowserConfig.Load();
             InitializeWindow();
             InitializeWebView();

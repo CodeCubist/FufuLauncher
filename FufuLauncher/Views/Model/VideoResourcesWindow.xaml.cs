@@ -59,6 +59,7 @@ public sealed partial class VideoResourcesWindow : Window, INotifyPropertyChange
     public VideoResourcesWindow()
     {
         InitializeComponent();
+        FufuLauncher.Services.FontScaleService.HookWindow(this);
 
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);

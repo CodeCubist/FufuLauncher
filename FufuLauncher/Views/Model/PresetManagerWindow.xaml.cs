@@ -52,6 +52,7 @@ public sealed partial class PresetManagerWindow : Window
     public PresetManagerWindow()
     {
         InitializeComponent();
+        FufuLauncher.Services.FontScaleService.HookWindow(this);
         _localSettingsService = App.GetService<ILocalSettingsService>();
         Title = "预设管理";
         

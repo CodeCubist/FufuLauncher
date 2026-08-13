@@ -15,6 +15,7 @@ public sealed partial class SponsorWindow : Window
     public SponsorWindow()
     {
         InitializeComponent();
+        FufuLauncher.Services.FontScaleService.HookWindow(this);
         ExtendsContentIntoTitleBar = true;
     }
 

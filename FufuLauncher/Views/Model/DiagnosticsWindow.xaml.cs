@@ -18,6 +18,7 @@ public sealed partial class DiagnosticsWindow : Window
     public DiagnosticsWindow()
     {
         this.InitializeComponent();
+        FufuLauncher.Services.FontScaleService.HookWindow(this);
 
         ViewModel = new DiagnosticsViewModel();
 

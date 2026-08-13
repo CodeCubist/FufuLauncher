@@ -40,6 +40,7 @@ namespace FufuLauncher.Views
         public DatabaseEditorWindow()
         {
             InitializeComponent();
+        FufuLauncher.Services.FontScaleService.HookWindow(this);
 
             _repository = App.GetService<LocalSettingsRepository>();
 

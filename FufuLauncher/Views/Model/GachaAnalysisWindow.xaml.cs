@@ -328,6 +328,7 @@ namespace FufuLauncher.Views
             ViewModel = App.GetService<GachaAnalysisModel>();
             
             InitializeComponent();
+        FufuLauncher.Services.FontScaleService.HookWindow(this);
             
             RootGrid.DataContext = this;
             ExtendsContentIntoTitleBar = true;

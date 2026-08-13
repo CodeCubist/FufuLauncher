@@ -16,6 +16,7 @@ public sealed partial class BackgroundInitWindow : Window
     public BackgroundInitWindow()
     {
         InitializeComponent();
+        FufuLauncher.Services.FontScaleService.HookWindow(this);
         
         SystemBackdrop = new MicaBackdrop();
         

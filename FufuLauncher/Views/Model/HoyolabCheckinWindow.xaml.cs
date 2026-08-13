@@ -17,6 +17,7 @@ namespace FufuLauncher.Views
         public HoyolabCheckinWindow(string cookie)
         {
             InitializeComponent();
+        FufuLauncher.Services.FontScaleService.HookWindow(this);
             _rawCookie = cookie;
             
             IntPtr hWnd = WinRT.Interop.WindowNative.GetWindowHandle(this);

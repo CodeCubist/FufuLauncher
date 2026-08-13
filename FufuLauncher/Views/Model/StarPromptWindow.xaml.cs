@@ -16,6 +16,7 @@ public sealed partial class StarPromptWindow : WindowEx
     public StarPromptWindow(ILocalSettingsService settingsService)
     {
         InitializeComponent();
+        FufuLauncher.Services.FontScaleService.HookWindow(this);
         _settingsService = settingsService;
         
         ExtendsContentIntoTitleBar = true;

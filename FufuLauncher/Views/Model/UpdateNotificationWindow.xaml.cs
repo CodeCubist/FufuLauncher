@@ -21,6 +21,7 @@ public sealed partial class UpdateNotificationWindow : WindowEx
     public UpdateNotificationWindow(string updateInfoUrl, bool isPreview = false)
     {
         InitializeComponent();
+        FufuLauncher.Services.FontScaleService.HookWindow(this);
 
         _isPreview = isPreview;
 

@@ -26,6 +26,7 @@ namespace FufuLauncher.Views
         public InventoryWindow()
         {
             InitializeComponent();
+        FufuLauncher.Services.FontScaleService.HookWindow(this);
 
             ExtendsContentIntoTitleBar = true;
             SetTitleBar(AppTitleBar);

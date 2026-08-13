@@ -47,6 +47,7 @@ public sealed partial class PluginMirrorDownloadWindow : Window
         CancellationToken cancellationToken)
     {
         InitializeComponent();
+        FufuLauncher.Services.FontScaleService.HookWindow(this);
 
         _storeService = storeService;
         _mirrorProvider = mirrorProvider;

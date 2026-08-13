@@ -15,6 +15,7 @@ public sealed partial class HighCpuUsageWarningWindow : Window
     public HighCpuUsageWarningWindow(double cpuUsage)
     {
         InitializeComponent();
+        FufuLauncher.Services.FontScaleService.HookWindow(this);
 
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);

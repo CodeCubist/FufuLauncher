@@ -182,6 +182,7 @@ namespace FufuLauncher.Views
         public DailyNoteWindow()
         {
             InitializeComponent();
+        FufuLauncher.Services.FontScaleService.HookWindow(this);
             Activated += DailyNoteWindow_Activated;
             ExtendsContentIntoTitleBar = true;
             SetTitleBar(AppTitleBar);

@@ -24,6 +24,7 @@ public sealed partial class CloudCredentialWindow : Window
     {
         _uid = uid;
         InitializeComponent();
+        FufuLauncher.Services.FontScaleService.HookWindow(this);
 
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);

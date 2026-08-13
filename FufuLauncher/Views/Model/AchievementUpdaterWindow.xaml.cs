@@ -25,6 +25,7 @@ namespace FufuLauncher.Views
         public AchievementUpdaterWindow()
         {
             InitializeComponent();
+        FufuLauncher.Services.FontScaleService.HookWindow(this);
         }
 
         private async void OnStartClick(object sender, RoutedEventArgs e)

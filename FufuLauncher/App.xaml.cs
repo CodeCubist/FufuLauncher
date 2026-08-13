@@ -399,6 +399,11 @@ public partial class App : Application
             var accountManager = GetService<AccountManager>();
             await accountManager.InitializeAsync();
             MainWindow = new MainWindow();
+            var fontScaleJson = await GetService<ILocalSettingsService>().ReadSettingAsync("FontScale");
+            if (fontScaleJson != null && double.TryParse(fontScaleJson.ToString(), out var savedFontScale))
+            {
+                FontScaleService.Apply(savedFontScale);
+            }
             _cpuUsageMonitor = new ProcessCpuUsageMonitor(_mainDispatcherQueue, GetService<ILocalSettingsService>());
             _cpuUsageMonitor.Start();
             if (MainWindow is MainWindow mainWindow)

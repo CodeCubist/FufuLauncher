@@ -52,6 +52,7 @@ public sealed partial class AchievementWindow : Window
     public AchievementWindow()
     {
         InitializeComponent();
+        FufuLauncher.Services.FontScaleService.HookWindow(this);
         
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);

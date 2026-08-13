@@ -70,6 +70,7 @@ namespace FufuLauncher.Views
         public PlayerInfoWindow()
         {
             InitializeComponent();
+        FufuLauncher.Services.FontScaleService.HookWindow(this);
             
             ExtendsContentIntoTitleBar = true;
             SetTitleBar(AppTitleBar);

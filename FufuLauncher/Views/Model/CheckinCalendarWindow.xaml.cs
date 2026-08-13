@@ -19,6 +19,7 @@ namespace FufuLauncher.Views
         public CheckinCalendarWindow()
         {
             InitializeComponent();
+        FufuLauncher.Services.FontScaleService.HookWindow(this);
 
             ExtendsContentIntoTitleBar = true;
             SetTitleBar(AppTitleBar);
