@@ -11,7 +11,7 @@
 
     <Grid Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
         <Grid.Resources>
-            <FontFamily x:Key="AppGlobalFont">/Assets/zh-cn-l.ttf#SDK_SC_Web</FontFamily>
+            <FontFamily x:Key="AppGlobalFont">/Assets/zh-cn.ttf#SDK_SC_Web</FontFamily>
         </Grid.Resources>
 
         <Grid.RowDefinitions>

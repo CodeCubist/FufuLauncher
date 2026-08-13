@@ -13,7 +13,7 @@
                 <ResourceDictionary Source="/Styles/Backpack.xaml" />
             </ResourceDictionary.MergedDictionaries>
 
-            <FontFamily x:Key="AppGlobalFont">/Assets/zh-cn-l.ttf#SDK_SC_Web</FontFamily>
+            <FontFamily x:Key="AppGlobalFont">/Assets/zh-cn.ttf#SDK_SC_Web</FontFamily>
             <FontFamily x:Key="SegoeFluentIconsFont">/Assets/Fonts/SegoeFluentIcons.ttf#Segoe Fluent Icons</FontFamily>
             
             <StaticResource x:Key="ContentControlThemeFontFamily" ResourceKey="AppGlobalFont" />
