@@ -105,20 +105,43 @@ private static void RunElevatedInjection(string[] args)
         }
 
         var gameExePath = args[1];
-        
-        int presetIndex = Array.IndexOf(args, "--preset");
-        if (presetIndex != -1 && args.Length > presetIndex + 1)
+        var launcher = new LauncherService();
+
+        string dllPath;
+        string commandLineArgs;
+        var separatorIndex = Array.IndexOf(args, "--", 2);
+        if (separatorIndex == -1 &&
+            TryParseLegacyElevatedInjection(args, out var legacyDllPath, out var legacyCommandLineArgs))
         {
-            string presetId = args[presetIndex + 1];
-            ApplyPreset(presetId);
+            dllPath = string.IsNullOrEmpty(legacyDllPath) ? launcher.GetDefaultDllPath() : legacyDllPath;
+            commandLineArgs = legacyCommandLineArgs;
+        }
+        else
+        {
+            if (separatorIndex == -1)
+            {
+                return;
+            }
+
+            dllPath = launcher.GetDefaultDllPath();
+
+            // Without an explicit preset, keep the config.ini prepared by the current in-app preset.
+            for (var i = 2; i < separatorIndex; i++)
+            {
+                if (string.Equals(args[i], "--preset", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (i + 1 < separatorIndex)
+                    {
+                        ApplyPreset(args[++i]);
+                    }
+                }
+            }
+
+            commandLineArgs = string.Join(" ", args
+                .Skip(separatorIndex + 1)
+                .Select(argument => GameLauncherService.QuoteArgument(argument)));
         }
 
-        var tempLauncher = new LauncherService(); 
-        var dllPath = tempLauncher.GetDefaultDllPath();
-        
-        var commandLineArgs = args.Length > 4 ? args[4] : string.Empty; 
-
-        var launcher = new LauncherService();
         var result = launcher.LaunchGameAndInject(gameExePath, dllPath, commandLineArgs, out var errorMessage, out var pid);
 
         if (result != 0)
@@ -136,6 +159,24 @@ private static void RunElevatedInjection(string[] args)
     {
         Environment.Exit(exitCode);
     }
+}
+
+private static bool TryParseLegacyElevatedInjection(string[] args, out string dllPath, out string commandLineArgs)
+{
+    dllPath = string.Empty;
+    commandLineArgs = string.Empty;
+
+    if (args.Length != 5 ||
+        !int.TryParse(args[3], out _) ||
+        (!string.IsNullOrEmpty(args[2]) &&
+         !string.Equals(Path.GetExtension(args[2]), ".dll", StringComparison.OrdinalIgnoreCase)))
+    {
+        return false;
+    }
+
+    dllPath = args[2];
+    commandLineArgs = args[4];
+    return true;
 }
 
 private static void ApplyPreset(string presetId)

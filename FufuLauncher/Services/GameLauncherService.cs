@@ -802,7 +802,7 @@ namespace FufuLauncher.Services
                 var psi = new ProcessStartInfo
                 {
                     FileName = currentExe,
-                    Arguments = BuildElevatedArgumentString(gameExePath, dllPath, configMask, arguments),
+                    Arguments = BuildElevatedArgumentString(gameExePath, arguments),
                     UseShellExecute = true,
                     Verb = "runas",
                     WorkingDirectory = Path.GetDirectoryName(currentExe)
@@ -854,15 +854,17 @@ namespace FufuLauncher.Services
             }
         }
 
-        private static string BuildElevatedArgumentString(string gameExePath, string dllPath, int configMask, string commandLineArgs)
+        private static string BuildElevatedArgumentString(string gameExePath, string commandLineArgs)
         {
-            return $"--elevated-inject {QuoteArgument(gameExePath)} {QuoteArgument(dllPath)} {configMask} {QuoteArgument(commandLineArgs ?? string.Empty)}";
+            var arguments = $"--elevated-inject {QuoteArgument(gameExePath)} --";
+            return string.IsNullOrWhiteSpace(commandLineArgs) ? arguments : $"{arguments} {commandLineArgs}";
         }
 
-        private static string QuoteArgument(string argument)
+        internal static string QuoteArgument(string argument, bool forceQuotes = false)
         {
             if (string.IsNullOrEmpty(argument)) return "\"\"";
-            if (!argument.Contains(' ') && !argument.Contains('\t') && !argument.Contains('\n') && !argument.Contains('\v') && !argument.Contains('\"'))
+            if (!forceQuotes &&
+                !argument.Contains(' ') && !argument.Contains('\t') && !argument.Contains('\n') && !argument.Contains('\v') && !argument.Contains('\"'))
             {
                 return argument;
             }
